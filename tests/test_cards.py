@@ -44,6 +44,8 @@ try:
     ok('id="pdots"' in html and "pagesw" in html, "C5 paged carousel markup (dots + pages)")
     ok("META={" not in html, "C6 no hardcoded dossier META baked into the page")
     ok('data-r="delcard"' in html or "delcard" in html, "C7 orphan card offers delete")
+    ok('data-r="uploadart"' in html and 'data-r="rmart"' in html,
+       "C7b card art hover tools (upload / remove) present")
     ok('data-r="editdossier"' in html or "editdossier" in html,
        "C8 backend without a dossier offers the edit drawer")
 

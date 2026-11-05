@@ -60,9 +60,11 @@ function artHtml(name){
   var ph='<div class="art-ph"><span class="nick">'+esc(nick)+'</span><i></i>'+
     '<span class="who">'+esc(pick(m&&m.who))+'</span><span class="pend">立绘待入</span></div>';
   var art=m?String(m.art||""):"";
-  if(!art)return '<div class="art">'+ph+'</div>';
+  var tools='<div class="art-tools"><button data-r="uploadart">'+tt("上传立绘","upload art")+'</button>'+
+    '<button data-r="rmart" style="display:none">'+tt("移除","remove")+'</button></div>';
+  if(!art)return '<div class="art">'+ph+tools+'</div>';
   return '<div class="art"><img alt="'+esc(nick)+'立绘" src="'+esc(art)+'" '+
-    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+'</div>';
+    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+tools+'</div>';
 }
 function cardHTML(name){
   var m=cardMeta(name);
@@ -101,6 +103,16 @@ function build(names){
       act(card.dataset.st==="loaded"?"unload":"load",n);
     };
     card.querySelector('[data-r=editdossier]').onclick=function(){openEdit(n)};
+    var ua=card.querySelector('[data-r=uploadart]');
+    if(ua)ua.onclick=function(){artTarget=n;artInput.click()};
+    var rm=card.querySelector('[data-r=rmart]');
+    if(rm)rm.onclick=function(){
+      postj("router/cards",{model:n,card:{art:""}},function(q){
+        if(q[0]>=400){say(tt("移除立绘失败 HTTP ","art remove failed HTTP ")+q[0],"err");return}
+        say(tt("立绘已移除。","art removed."),"");
+        fetchCards(function(){sig="";refresh()});
+      });
+    };
     var del=card.querySelector('[data-r=delcard]');
     del.onclick=function(){
       if(del.dataset.armed==="1"){delCard(n);return}
@@ -125,6 +137,28 @@ function paintDots(){
   var nav=document.getElementById("cardnav");
   if(nav)nav.style.display=cardNames.length>1?"":"none";
 }
+var artTarget=null;
+var artInput=document.createElement("input");
+artInput.type="file";artInput.accept=".png,.jpg,.jpeg,.webp";artInput.style.display="none";
+document.body.appendChild(artInput);
+artInput.onchange=function(){
+  var f=artInput.files&&artInput.files[0];artInput.value="";
+  if(!f||!artTarget)return;
+  if(f.size>5*1024*1024){say(tt("图片超过 5 MB 上限","image over the 5 MB cap"),"err");return}
+  var fd=new FormData();fd.append("file",f);
+  say(tt("立绘上传中…","uploading art…"),"busy");
+  fetch("router/upload",{method:"POST",body:fd}).then(function(r){
+    return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
+  .then(function(rj){
+    if(rj[0]>=400){say(tt("上传失败 HTTP ","upload failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+    postj("router/cards",{model:artTarget,card:{art:rj[1].art}},function(q){
+      if(q[0]>=400){say(tt("立绘路径保存失败 HTTP ","art path save failed HTTP ")+q[0],"err");return}
+      say(tt("立绘已保存并持久化。","art saved and persisted."),"");
+      fetchCards(function(){sig="";refresh()});
+    });
+  })
+  .catch(function(e){say(tt("上传失败: ","upload failed: ")+e,"err")});
+};
 (function wireNav(){
   var pb=document.getElementById("cprev"),nb=document.getElementById("cnext");
   if(pb)pb.onclick=function(){setPage(pageIdx-1)};
@@ -148,6 +182,8 @@ function paintSpecials(){
         tg=card.querySelector('[data-r=toggle]'),live=card.querySelector('[data-r=live]');
     if(ed)ed.style.display=(b&&!m)?"":"none";
     if(del)del.style.display=(!b&&m)?"":"none";
+    var rm2=card.querySelector('[data-r=rmart]');
+    if(rm2)rm2.style.display=(m&&String(m.art||""))?"":"none";
     if(!b){card.dataset.st="orphan";card.classList.add("orphan");
       if(tg){tg.disabled=true}
       if(live)live.textContent=tt("未安装","not installed")}
