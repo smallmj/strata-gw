@@ -7,28 +7,26 @@ function applyTheme(t){root.dataset.theme=t;try{localStorage.setItem("stratagw.t
 applyTheme(theme);
 document.getElementById("theme").onclick=function(){applyTheme(root.dataset.theme==="dark"?"light":"dark")};
 
-var META={
-  "qwen3.8-flash-next-iq3_s":{ac:"q",nick:"qwen 酱",who:"银灰长直 · 清冷图书管理员",
-    sub:"ISTA 官方原版权重 · Qwen-Sharp 模板",tags:["官方原版","完整思考链","工具调用忠实","agent 主力"],
-    specs:[["量化档","IQ3_S · GSQ-RCO"],["权重","54.8 GB GGUF"],["专家","46.85G 内存 + 14.4G 显存"],["上下文","512 K · YaRN×2 · K8V4"],["投机解码","MTP + n-gram 共享分片"],["图像输入","strata-vision"]],
-    style:"官方复刻档：思考链完整、工具调用忠实——agent、编码与长文主力。",
-    notes:["与 sc117 互斥，内存只驻得下其一","冷加载 1.5-3 分钟 · 热重载秒级","思考默认 medium，全关会掉质量"],
-    art:"router/assets/qwen-chan.png"},
-  "sc117-qwen3.8-flash-next-abliterated-iq3_s":{ac:"s",nick:"sc117 酱",who:"粉挑染 · 元气小恶魔",
-    sub:"SC117 · abliterated 去拒绝版",tags:["去拒绝","角色扮演","小说写作","酒馆 RP"],
-    specs:[["量化档","IQ3_S · SC117 消融"],["权重","55.1 GB GGUF"],["专家","46.85G 内存 + 14.4G 显存"],["上下文","512 K · YaRN×2 · K8V4"],["投机解码","MTP + n-gram（同分片）"],["图像输入","mmproj-Swift"]],
-    style:"去拒绝变体：敏感剧情、角色扮演不说教不拒答——酒馆 RP 与创作首选。",
-    notes:["与官方档互斥，换档 = 卸载 + 冷加载","独立学一份路由画像，越用越热","两档质量同级，只差安全微调"],
-    art:"router/assets/sc117-chan.png"}
-};
-function metaFor(n){
-  var m=META[n];
-  if(m)return m;
-  return {ac:"q",nick:n,who:"网关新发现的模型",sub:"自动挂载",tags:["自动挂载"],
-    specs:[["配置文件","strata-…json"]],
-    style:"网关扫描到了一份新的 strata-*.json。在网关文件 GATEWAY_HTML 的 META 里为它补一份介绍和立绘路径，这张卡片就会变成和另外两张一样的详细档案。",
-    notes:["与其它模型互斥加载"],art:""};
-}
+/* dossier data lives in cards/cards.json (via router/cards) - never hardcoded here.
+   The 技术档案 rows are assembled live from router/backends + router/info + engine
+   metrics, so a card always mirrors the user's real setup and settings. */
+var CARDS={},INFO={};
+var LANG=(navigator.language||"zh").toLowerCase().indexOf("zh")===0?"zh":"en";
+try{var _lg=localStorage.getItem("stratagw.lang");if(_lg==="zh"||_lg==="en")LANG=_lg}catch(e){}
+function tt(zh,en){return LANG==="zh"?zh:en}
+function pick(v){if(v==null)return "";if(typeof v==="string")return v;
+  if(Array.isArray(v))return v;
+  var o=(v[LANG]!=null?v[LANG]:(v.zh!=null?v.zh:""));return o==null?"":o;}
+function pickarr(v){var o=pick(v);return Array.isArray(o)?o:[];}
+function cardMeta(n){var m=CARDS[n];return (m&&typeof m==="object")?m:null;}
+function cardNick(n){var m=cardMeta(n);var p=pick(m&&m.nick);
+  return (typeof p==="string"&&p)?p:n;}
+function accentFor(n){var m=cardMeta(n);return (m&&m.accent==="s")?"s":"q";}
+function backendOf(n){for(var i=0;i<modelsList.length;i++){if(modelsList[i].model===n)return modelsList[i]}return null;}
+function cardNameList(){var names=modelsList.map(function(b){return b.model});
+  Object.keys(CARDS).forEach(function(k){if(k.charAt(0)!=="_"&&names.indexOf(k)<0)names.push(k)});
+  return names;}
+function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(cb)cb()})}
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
@@ -57,35 +55,166 @@ var modelsList=[];
 var selName=null;
 var mon={data:null};
 
-function cardHTML(name,meta){
-  var artHtml='<div class="art"><img alt="'+esc(meta.nick)+'立绘" src="'+meta.art+'" '+
-    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+
-    '<div class="art-ph"><span class="nick">'+esc(meta.nick)+'</span><i></i>'+
-    '<span class="who">'+esc(meta.who)+'</span><span class="pend">立绘待入</span></div></div>';
-  return artHtml+'<div class="cbody">'+
-    '<div class="mhead"><div><h3 title="'+esc(name)+'">'+esc(name)+'</h3><div class="sub">'+esc(meta.sub)+'</div></div></div>'+
-    (meta.specs.length?'<h4 class="mod">技术档案</h4><dl class="specs">'+meta.specs.map(function(p){
-      return '<div class="srow"><dt>'+esc(p[0])+'</dt><dd>'+esc(p[1])+'</dd></div>'}).join("")+'</dl>':"")+
-    '<h4 class="mod">风格与适用场景</h4><div class="tags">'+meta.tags.map(function(t){return '<span>'+esc(t)+'</span>'}).join("")+'</div>'+
-    '<p class="prose">'+esc(meta.style)+'</p>'+
-    '<h4 class="mod">使用提醒</h4><ul class="notes">'+meta.notes.map(function(n){return '<li>'+esc(n)+'</li>'}).join("")+'</ul>'+
-    '<div class="acts"><button class="load" data-r="toggle">载入</button>'+
-    '<span class="statechip" data-r="live">待加载</span>'+
-    '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
-    '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>';
+function artHtml(name){
+  var m=cardMeta(name),nick=cardNick(name);
+  var ph='<div class="art-ph"><span class="nick">'+esc(nick)+'</span><i></i>'+
+    '<span class="who">'+esc(pick(m&&m.who))+'</span><span class="pend">立绘待入</span></div>';
+  var art=m?String(m.art||""):"";
+  if(!art)return '<div class="art">'+ph+'</div>';
+  return '<div class="art"><img alt="'+esc(nick)+'立绘" src="'+esc(art)+'" '+
+    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+'</div>';
 }
+function cardHTML(name){
+  var m=cardMeta(name);
+  var tags=m?pickarr(m.tags):[],notes=m?pickarr(m.notes):[];
+  var lore=m?pick(m.lore):"";
+  var h='<div class="page"><div class="card" data-accent="'+accentFor(name)+'" data-model="'+esc(name)+'">';
+  h+=artHtml(name);
+  h+='<div class="cbody">'+
+    '<div class="mhead"><div><h3 title="'+esc(name)+'">'+esc(name)+'</h3>'+
+    '<div class="sub">'+esc(m?pick(m.sub):tt("未建档 · 点「编辑档案」","no dossier yet - use edit dossier"))+'</div></div></div>'+
+    '<h4 class="mod">'+tt("技术档案","technical dossier")+'</h4><dl class="specs" data-r="liverows"></dl>';
+  if(tags.length)h+='<div class="tags">'+tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join("")+'</div>';
+  if(m&&pick(m.style))h+='<p class="prose">'+esc(pick(m.style))+'</p>';
+  if(notes.length)h+='<h4 class="mod">'+tt("使用提醒","field notes")+'</h4><ul class="notes">'+notes.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>';
+  if(lore)h+='<h4 class="mod">'+tt("档案","dossier")+'</h4><p class="prose">'+esc(lore)+'</p>';
+  h+='<div class="acts"><button class="load" data-r="toggle">'+tt("载入","Load")+'</button>'+
+    '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
+    '<button class="ghostbtn" data-r="editdossier" style="display:none">'+tt("编辑档案","edit dossier")+'</button>'+
+    '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
+    '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
+    '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
+    '</div></div>';
+  return h;
+}
+var pageIdx=0,cardNames=[];
 function build(names){
-  cardsEl.innerHTML="";
+  cardNames=names.slice();
+  var remember=null;try{remember=localStorage.getItem("stratagw.cardidx")}catch(e){}
+  if(remember){var k=names.indexOf(remember);if(k>=0)pageIdx=k}
+  if(pageIdx>=names.length)pageIdx=Math.max(0,names.length-1);
+  cardsEl.innerHTML=names.map(cardHTML).join("");
   names.forEach(function(n){
-    var meta=metaFor(n);
-    var card=document.createElement("div");
-    card.className="card";card.dataset.accent=meta.ac;card.dataset.model=n;
-    card.innerHTML=cardHTML(n,meta);
+    var card=cardsEl.querySelector('[data-model="'+n+'"]');if(!card)return;
     card.querySelector('[data-r=toggle]').onclick=function(){
+      if(!backendOf(n))return;
       act(card.dataset.st==="loaded"?"unload":"load",n);
     };
-    cardsEl.appendChild(card);
+    card.querySelector('[data-r=editdossier]').onclick=function(){openEdit(n)};
+    var del=card.querySelector('[data-r=delcard]');
+    del.onclick=function(){
+      if(del.dataset.armed==="1"){delCard(n);return}
+      del.dataset.armed="1";del.textContent=tt("再点一次确认","tap again to confirm");
+      setTimeout(function(){if(del.isConnected){del.dataset.armed="";del.textContent=tt("删除卡片","delete card")}},4000);
+    };
   });
+  setPage(pageIdx);
+}
+function setPage(i){
+  if(!cardNames.length){paintDots();return}
+  pageIdx=((i%cardNames.length)+cardNames.length)%cardNames.length;
+  var pages=cardsEl.querySelectorAll(".page");
+  for(var j=0;j<pages.length;j++)pages[j].className="page"+(j===pageIdx?" on":"");
+  try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
+  paintDots();
+}
+function paintDots(){
+  var pd=document.getElementById("pdots");if(!pd)return;
+  pd.innerHTML=cardNames.map(function(n,i){return '<button class="dot'+(i===pageIdx?" on":"")+'" data-i="'+i+'" title="'+esc(n)+'"></button>'}).join("");
+  Array.prototype.forEach.call(pd.children,function(b){b.onclick=function(){setPage(+b.getAttribute("data-i"))}});
+  var nav=document.getElementById("cardnav");
+  if(nav)nav.style.display=cardNames.length>1?"":"none";
+}
+(function wireNav(){
+  var pb=document.getElementById("cprev"),nb=document.getElementById("cnext");
+  if(pb)pb.onclick=function(){setPage(pageIdx-1)};
+  if(nb)nb.onclick=function(){setPage(pageIdx+1)};
+  document.addEventListener("keydown",function(e){
+    if(e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+    if(e.key==="ArrowLeft"){setPage(pageIdx-1)}else if(e.key==="ArrowRight"){setPage(pageIdx+1)}
+  });
+  var tX=null;
+  cardsEl.addEventListener("touchstart",function(e){tX=e.touches[0].clientX},{passive:true});
+  cardsEl.addEventListener("touchend",function(e){
+    if(tX==null)return;var dx=e.changedTouches[0].clientX-tX;tX=null;
+    if(dx<-40)setPage(pageIdx+1);else if(dx>40)setPage(pageIdx-1);
+  },{passive:true});
+})();
+function paintSpecials(){
+  cardNames.forEach(function(n){
+    var card=cardsEl.querySelector('[data-model="'+n+'"]');if(!card)return;
+    var b=backendOf(n),m=cardMeta(n);
+    var ed=card.querySelector('[data-r=editdossier]'),del=card.querySelector('[data-r=delcard]'),
+        tg=card.querySelector('[data-r=toggle]'),live=card.querySelector('[data-r=live]');
+    if(ed)ed.style.display=(b&&!m)?"":"none";
+    if(del)del.style.display=(!b&&m)?"":"none";
+    if(!b){card.dataset.st="orphan";card.classList.add("orphan");
+      if(tg){tg.disabled=true}
+      if(live)live.textContent=tt("未安装","not installed")}
+  });
+}
+function updateLiveAll(){cardNames.forEach(function(n){
+  var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c)updateLive(c,n)})}
+function updateLive(card,name){
+  var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
+  var b=backendOf(name),info=INFO[name]||{},rows=[];
+  function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(c)+'</dd></div>')}
+  if(!b){row(tt("状态","status"),tt("未安装 · 本机没有这个后端","not installed on this machine"))}
+  else{row(tt("端口","port"),":"+b.port);
+    row(tt("进程","process"),b.alive?tt("在线","up"):tt("待冷启动","cold-start pending"));
+    row(tt("驻留","resident"),b.loaded?tt("在位","on GPU"):tt("待载入","not loaded"))}
+  if(info.alive===false)row(tt("健康检查","health"),tt("后端离线","offline"));
+  if(info.max_context)row(tt("最大上下文","max context"),Math.round(info.max_context/1024)+"K");
+  if(info.images!=null)row(tt("图像输入","vision"),info.images?tt("有","yes"):tt("无","no"));
+  var eng=(name===selName&&mon.data&&mon.data.engine)?mon.data.engine:null;
+  if(eng){if(eng.version!=null)row(tt("引擎版本","engine"),String(eng.version));
+    if(eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+" 槽 · "+gbf(eng.expert_cache_mib*1048576,1)+" GB");
+    if(eng.kv!=null)row(tt("KV 量化","KV quant"),String(eng.kv))}
+  if(name===selName&&mon.data&&mon.data.hardware){var hw=mon.data.hardware;
+    if(hw.gpu_mem_total!=null)row(tt("显存驻留","VRAM"),gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB");
+    if(hw.ram_total!=null)row(tt("系统内存","RAM"),gbf(hw.ram_used,1)+" / "+gbf(hw.ram_total,0)+" GB")}
+  dl.innerHTML=rows.length?rows.join(""):'<div class="srow"><dt>'+esc(tt("实时档案","live dossier"))+'</dt><dd>'+esc(tt("等待该后端报告…","awaiting backend report…"))+'</dd></div>';
+}
+function openEdit(name){
+  var d=document.getElementById("dossier-edit");if(!d)return;
+  d.dataset.model=name;d.style.display="flex";
+  var whoEl=document.getElementById("ed-who");if(whoEl)whoEl.textContent=name;
+  var m=cardMeta(name)||{};
+  function setv(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?"":(Array.isArray(v)?v.join(", "):v))}
+  function fv(f,l){var v=m[f];if(v==null)return "";
+    if(typeof v==="string")return l==="zh"?v:"";
+    var o=v[l];return o==null?"":(Array.isArray(o)?o.join(", "):o)}
+  setv("ed_accent",m.accent||"q");setv("ed_art",m.art||"");
+  ["nick","who","sub","style","tags","notes"].forEach(function(f){
+    setv("ed_"+f+"_zh",fv(f,"zh"));setv("ed_"+f+"_en",fv(f,"en"));
+  });
+}
+function saveEdit(){
+  var d=document.getElementById("dossier-edit");var name=d&&d.dataset.model;if(!name)return;
+  function gv(id){var el=document.getElementById(id);return el?el.value.trim():""}
+  function gav(id){return gv(id).split(",").map(function(s){return s.trim()}).filter(function(s){return s})}
+  var card={};
+  function put(f,zid,eid){var z=gv(zid),e=gv(eid);if(z||e)card[f]={zh:z,en:e}}
+  ["nick","who","sub","style"].forEach(function(f){put(f,"ed_"+f+"_zh","ed_"+f+"_en")});
+  ["tags","notes"].forEach(function(f){var z=gav("ed_"+f+"_zh"),e=gav("ed_"+f+"_en");if(z.length||e.length)card[f]={zh:z,en:e}});
+  var art=gv("ed_art");if(art)card.art=art;
+  var ac=gv("ed_accent");if(ac)card.accent=ac;
+  postj("router/cards",{model:name,card:card},function(rj){
+    if(rj[0]>=400){say(tt("保存档案失败 HTTP ","dossier save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+    say(tt("档案已保存。","dossier saved."),"");
+    d.style.display="none";
+    fetchCards(function(){sig="";refresh()});
+  });
+}
+function delCard(name){
+  fetch("router/cards/"+encodeURIComponent(name),{method:"DELETE"}).then(function(r){
+    return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
+    .then(function(rj){
+      if(rj[0]>=400){say(tt("删除卡片失败 HTTP ","card delete failed HTTP ")+rj[0],"err");return}
+      say(tt("卡片已删除（写回 cards.json，重启不回潮）。","card deleted (persisted to cards.json)."),"");
+      fetchCards(function(){sig="";refresh()});
+    })
+    .catch(function(e){say(tt("删除失败: ","delete failed: ")+e,"err")});
 }
 function paint(list){
   var busyNow=false;
@@ -123,7 +252,7 @@ function paint(list){
 function refresh(){
   fetch("router/backends").then(function(r){return r.json()}).then(function(d){
     var list=d.backends||[];modelsList=list;
-    var names=list.map(function(b){return b.model});
+    var names=cardNameList();
     if(names.join("|")!==sig){sig=names.join("|");build(names);buildSeg()}
     list.forEach(function(b){
       var was=prev[b.model];
@@ -144,7 +273,7 @@ function refresh(){
     }else if(selName&&loadedNow.length&&loadedNow.every(function(b){return b.model!==selName})){
       selectModel(loadedNow[0].model,true);
     }
-    paint(list);
+    paint(list);paintSpecials();updateLiveAll();
   }).catch(function(e){say("读后端列表失败: "+e,"err")});
   fetchComfy();
 }
@@ -208,8 +337,8 @@ function renderMonitor(){
   var strip=document.getElementById("mon-strip");
   var tb=document.getElementById("mon-tb");
   var hint=document.getElementById("mon-hint");
-  var meta=metaFor(selName||"");
-  bar.style.setProperty("--ac","var(--"+(meta.ac==="s"?"s":"q")+")");
+  var ac=accentFor(selName||"");
+  bar.style.setProperty("--ac","var(--"+ac+")");
   chip.className="";det.textContent="";who.textContent=selName?"· "+selName:"";prog.style.width="0";
   var d=mon.data;
   if(!d){
@@ -349,7 +478,7 @@ function buildSeg(){
   var seg=document.getElementById("seg-models");seg.innerHTML="";
   modelsList.forEach(function(b){
     var btn=document.createElement("button");
-    btn.textContent=metaFor(b.model).nick;
+    btn.textContent=cardNick(b.model);
     btn.dataset.model=b.model;
     if(b.model===selName)btn.className="on";
     btn.onclick=function(){selectModel(b.model)};
@@ -458,6 +587,7 @@ document.getElementById("c-save").onclick=function(){
 /* ---------------- about / engine info ---------------- */
 function loadInfo(){
   qs("router/info",function(d){
+    INFO=d.models||{};
     var b=d.build||{},a=d.app||{},rows=[];
     rows.push(["Strata 本体","v"+String(a.version||"?").replace(/^v/,"")+(a.commit?(" @"+String(a.commit).slice(0,8)):"")]);
     rows.push(["引擎版本",b.version?"v"+b.version:"—"]);
@@ -467,11 +597,12 @@ function loadInfo(){
     var ms=d.models||{};
     Object.keys(ms).forEach(function(n){
       var m=ms[n];
-      rows.push([metaFor(n).nick,m.alive?("上下文 "+Math.round((m.max_context||0)/1024)+"K · vision "+(m.images?"有":"无")+(m.loaded?" · 在位":" · 待命")):"后端离线"]);
+      rows.push([cardNick(n),m.alive?("上下文 "+Math.round((m.max_context||0)/1024)+"K · vision "+(m.images?"有":"无")+(m.loaded?" · 在位":" · 待命")):"后端离线"]);
     });
     rows.push(["让卡水位",(d.comfy_free_target_mib||0)+" MiB"]);
     document.getElementById("eng-kv").innerHTML=rows.map(function(r){
       return '<span class="kvchip">'+esc(r[0])+'<b>'+esc(String(r[1]))+'</b></span>'}).join("");
+    updateLiveAll();
   });
 }
 /* ---------------- dyn ---------------- */
@@ -593,11 +724,18 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&bgmode==="s
   if(!gestured){gestured=true;if(bgsound&&bgmode!=="off")vid.muted=false}})});
 paintBg();
 
-refresh();setInterval(refresh,2000);
+fetchCards();refresh();setInterval(refresh,2000);
 setInterval(pollMetrics,2500);
 setInterval(loadEvents,5000);loadEvents();
 setInterval(loadInfo,10000);loadInfo();
 
+(function wireDrawer(){
+  var d=document.getElementById("dossier-edit");if(!d)return;
+  var c=document.getElementById("ed-close"),s=document.getElementById("ed-save");
+  if(c)c.onclick=function(){d.style.display="none"};
+  if(s)s.onclick=saveEdit;
+  d.addEventListener("click",function(e){if(e.target===d)d.style.display="none"});
+})();
 if(!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches)){
   var cv=document.getElementById("fx"),cx=cv.getContext("2d"),P=[],W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
   function size(){W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;P=[];

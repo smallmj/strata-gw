@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import unquote
 
 from . import backends
+from . import cards
 from . import config
 from . import console
 from . import events
@@ -224,6 +225,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"lines": [[t, line] for t, line in list(events.LOG)[-n:]]})
         if method == "GET" and path == "/router/info":
             return self._json(200, backends.router_info())
+        if method == "GET" and path == "/router/cards":
+            return self._json(200, cards.load_cards())
+        if method == "DELETE" and path.startswith("/router/cards/"):
+            st, obj = cards.delete_card(unquote(path[len("/router/cards/"):]))
+            return self._json(st, obj)
         if method == "GET" and path.startswith("/router/assets/"):
             # Static art + loop video for the console. Range + ETag so a <video>
             # streams properly and revalidation after the master swaps a file is
@@ -302,6 +308,15 @@ class Handler(BaseHTTPRequestHandler):
             if res is None:
                 return self._json(503, {"error": {"message": "external VRAM holder unreachable (not running?)"}})
             return self._json(200, res)
+        if method == "POST" and path == "/router/cards":
+            try:
+                jj = json.loads(body) if body else {}
+            except ValueError:
+                jj = {}
+            if not isinstance(jj, dict):
+                jj = {}
+            st, obj = cards.merge_card(str(jj.get("model") or ""), jj.get("card") or {})
+            return self._json(st, obj)
         model = None
         if body:
             try:
@@ -387,6 +402,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self._route("POST")
+
+    def do_DELETE(self):
+        self._route("DELETE")
 
     def do_OPTIONS(self):
         self._route("OPTIONS")

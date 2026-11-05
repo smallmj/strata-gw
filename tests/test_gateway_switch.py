@@ -255,14 +255,17 @@ try:
        "T1 router up, GET /router/backends lists both models")
 
     s, h = req("GET", "/gateway")
-    ok(s == 200 and "模型加载台" in h and "qwen3.8-flash-next-iq3_s" in h
-       and "sc117-qwen3.8-flash-next-abliterated-iq3_s" in h
+    ok(s == 200 and "模型加载台" in h
        and 'id="cforce"' in h and "强制清理" in h and "清理显存" in h
-       and 'id="sec-settings"' in h and 'id="sec-about"' in h and 'id="sec-dyn"' in h
-       and 'id="sec-monitor"' in h
-       and 'router/assets/qwen-chan.png' in h and 'router/assets/sc117-chan.png' in h
+       and 'id="sec-settings"' in h and 'id="sec-about"' in h
+       and 'id="sec-dyn"' in h and 'id="sec-monitor"' in h
        and "立绘待入" in h,
-       "T2 GET /gateway console: real names + monitor + comfy buttons + sections + mascot slots")
+       "T2 GET /gateway console: sections + comfy buttons + art placeholder")
+    s, hc = req("GET", "/router/cards")
+    ok(s == 200 and "qwen3.8-flash-next-iq3_s" in hc
+       and "sc117-qwen3.8-flash-next-abliterated-iq3_s" in hc
+       and 'router/assets/qwen-chan.png' in hc and 'router/assets/sc117-chan.png' in hc,
+       "T2c factory dossier cards come from /router/cards (data, not baked page)")
 
     s, h = req("GET", "/gateway")
     ok("__VERSION__" not in h and "__GW_PORT__" not in h and "__GITHUB_URL__" not in h,

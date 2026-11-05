@@ -1,0 +1,36 @@
+{
+  "qwen3.8-flash-next-iq3_s": {
+    "accent": "q",
+    "nick": {"zh": "qwen 酱", "en": "Qwen-chan"},
+    "who": {"zh": "银灰长直 · 清冷图书管理员", "en": "silver-haired librarian, cool and precise"},
+    "sub": {"zh": "官方原版权重", "en": "official original weights"},
+    "art": "router/assets/qwen-chan.png",
+    "tags": {"zh": ["官方原版", "完整思考链", "工具调用忠实", "agent 主力"],
+             "en": ["official", "full CoT", "faithful tool calls", "agent workhorse"]},
+    "specs": {"zh": [], "en": []},
+    "style": {"zh": "官方复刻人设：思考链完整、工具调用忠实——agent、编码与长文主力。",
+              "en": "The straight official take: complete chain-of-thought and faithful tool calling — the workhorse for agents, coding and long-form writing."},
+    "notes": {"zh": ["与其它模型互斥驻留", "示例卡来自作者机器，删掉换成你自己的"],
+              "en": ["mutually exclusive residency with other models", "demo card from the author's machine — delete it and write your own"]},
+    "lore": {"zh": "档案编号 Q-01。特写作风：文献检索一丝不苟，交付从不夹带猜测。",
+             "en": "Dossier Q-01. Field style: meticulous retrieval, deliverables never smuggle in guesses."}
+  },
+  "sc117-qwen3.8-flash-next-abliterated-iq3_s": {
+    "accent": "s",
+    "nick": {"zh": "sc117 酱", "en": "SC117-chan"},
+    "who": {"zh": "粉挑染 · 元气小恶魔", "en": "pink-streaked sprite, chaotic energy"},
+    "sub": {"zh": "SC117 去拒绝变体", "en": "SC117 refusal-free variant"},
+    "art": "router/assets/sc117-chan.png",
+    "tags": {"zh": ["去拒绝", "角色扮演", "小说写作"],
+             "en": ["refusal-free", "roleplay", "fiction writing"]},
+    "specs": {"zh": [], "en": []},
+    "style": {"zh": "去拒绝变体人设：敏感剧情、角色扮演不说教不拒答——创作首选。",
+              "en": "The refusal-free take: sensitive storylines and roleplay without lectures or rejections — first pick for creative writing."},
+    "notes": {"zh": ["与官方档互斥，换装 = 卸载 + 冷加载", "示例卡来自作者机器，删掉换成你自己的"],
+              "en": ["exclusive with the official card — swapping = unload + cold load", "demo card from the author's machine — delete it and write your own"]},
+    "lore": {"zh": "档案编号 S-02。特写作风：不设禁区，但交件质量与 Q-01 同级。",
+             "en": "Dossier S-02. Field style: no restricted zones, deliverable quality on par with Q-01."}
+  },
+  "_hero": {"chips": {"zh": [], "en": []}},
+  "_pet": {"art": "router/assets/pet.png"}
+}

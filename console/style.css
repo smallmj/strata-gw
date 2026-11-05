@@ -83,7 +83,22 @@ h2.sec{display:flex;align-items:baseline;gap:12px;margin:44px 0 18px;font-size:.
 h2.sec::before{content:"";width:26px;height:2px;border-radius:2px;flex:none;
   background:linear-gradient(90deg,var(--q),var(--s))}
 h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--dim)}
-#cards{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+#cards{display:block;min-height:340px}
+.pagesw .page{display:none}
+.pagesw .page.on{display:block;animation:rise .5s both}
+#cardnav{display:flex;align-items:center;gap:12px;margin:16px 2px 0}
+#cprev,#cnext{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--card);
+  color:var(--fg);font-size:1.25rem;line-height:1;cursor:pointer;transition:all .25s}
+#cprev:hover,#cnext:hover{border-color:var(--q);color:var(--q)}
+#pdots{display:flex;gap:8px;flex:1;justify-content:center}
+#pdots .dot{width:10px;height:10px;padding:0;border-radius:50%;border:1px solid var(--line);
+  background:transparent;cursor:pointer;transition:all .3s}
+#pdots .dot.on{background:linear-gradient(135deg,var(--q),var(--s));border-color:transparent;transform:scale(1.15)}
+.card.orphan{opacity:.78}
+.card.orphan .art img{filter:grayscale(.7) drop-shadow(0 16px 30px rgba(0,0,0,.45))}
+.acts .ghostbtn{border-style:dashed;font-size:.7rem;padding:.34rem .7rem}
+.acts .ghostbtn:hover{border-color:var(--q);color:var(--q)}
+.acts .warnbtn{font-size:.7rem;padding:.34rem .7rem}
 .card{position:relative;border:1px solid var(--line);border-radius:20px;background:var(--card);
   backdrop-filter:blur(12px);box-shadow:var(--shadow);padding:20px 22px 18px;overflow:hidden;
   transition:transform .35s cubic-bezier(.2,.7,.3,1),box-shadow .35s,border-color .35s;
@@ -167,6 +182,16 @@ html[data-theme=light] .acts .load{color:#fff}
 #msg{min-height:1.5em;margin:20px 2px 0;font-size:.8rem;color:var(--muted);white-space:pre-wrap}
 #msg.err{color:var(--err)}
 #msg.busy{color:var(--q)}
+/* ---------------- dossier edit drawer ---------------- */
+#dossier-edit{position:fixed;inset:0;z-index:85;display:flex;align-items:center;justify-content:center;
+  background:rgba(4,6,12,.74);backdrop-filter:blur(6px)}
+#dossier-edit .def-inner{width:min(880px,94vw);max-height:88vh;overflow:auto;border:1px solid var(--line);
+  border-radius:18px;background:var(--card);padding:18px 22px;animation:rise .4s both}
+#dossier-edit .def-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:.88rem}
+#dossier-edit #ed-who{color:var(--muted);font-size:.72rem;overflow-wrap:anywhere}
+#dossier-edit #ed-close{margin-left:auto;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);
+  background:transparent;color:var(--fg);font-size:1rem;cursor:pointer}
+#dossier-edit #ed-close:hover{border-color:var(--err);color:var(--err)}
 /* ---------------- monitor ---------------- */
 .monstate{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 #mon-chip{font-size:.8rem;font-weight:600;padding:.34rem .95rem;border-radius:999px;border:1px solid var(--line);color:var(--muted);transition:all .5s}

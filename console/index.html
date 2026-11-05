@@ -39,7 +39,29 @@
   <span class="vhint">素材 = gw-assets 里的 bg-loop.mp4，循环播放；换文件后刷新即见</span>
 </div>
 
-<div id="cards"></div>
+<div id="cardwrap"><div class="pagesw" id="cards"></div>
+<div id="cardnav" style="display:none"><button id="cprev" aria-label="prev page">‹</button><div id="pdots"></div><button id="cnext" aria-label="next page">›</button></div></div>
+<div id="dossier-edit" style="display:none"><div class="def-inner">
+<div class="def-head"><b>编辑档案</b><span id="ed-who"></span><button id="ed-close" title="关闭">×</button></div>
+<p class="pnote">人设档案存入 cards/cards.json；技术档案行由网关实时数据渲染，不在此填写。</p>
+<div class="fgrid">
+<div class="field"><label>代号 nick (zh)</label><input type="text" id="ed_nick_zh"></div>
+<div class="field"><label>nick (en)</label><input type="text" id="ed_nick_en"></div>
+<div class="field"><label>形象 who (zh)</label><input type="text" id="ed_who_zh"></div>
+<div class="field"><label>who (en)</label><input type="text" id="ed_who_en"></div>
+<div class="field"><label>副标 sub (zh)</label><input type="text" id="ed_sub_zh"></div>
+<div class="field"><label>sub (en)</label><input type="text" id="ed_sub_en"></div>
+<div class="field"><label>风格场景 style (zh)</label><input type="text" id="ed_style_zh"></div>
+<div class="field"><label>style (en)</label><input type="text" id="ed_style_en"></div>
+<div class="field"><label>标签 tags (zh，逗号分隔)</label><input type="text" id="ed_tags_zh"></div>
+<div class="field"><label>tags (en)</label><input type="text" id="ed_tags_en"></div>
+<div class="field"><label>提醒 notes (zh，逗号分隔)</label><input type="text" id="ed_notes_zh"></div>
+<div class="field"><label>notes (en)</label><input type="text" id="ed_notes_en"></div>
+<div class="field"><label>立绘路径 art</label><input type="text" id="ed_art" placeholder="router/assets/xxx.png"></div>
+<div class="field"><label>强调色 accent</label><select id="ed_accent"><option value="q">q</option><option value="s">s</option></select></div>
+</div>
+<div class="prow"><button class="primary" id="ed-save">保存档案</button><span class="hint">POST /router/cards · 立即持久</span></div>
+</div></div>
 <p id="msg"></p>
 
 <h2 class="sec" id="sec-monitor">Monitor<em>引擎实况 · 与原版同字段</em></h2>
