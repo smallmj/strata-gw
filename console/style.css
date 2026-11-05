@@ -333,14 +333,22 @@ details.drawer .dbody .ptitle{display:none}
 .qrow b{font-size:.78rem}
 .qrow span{font-size:.74rem;color:var(--muted);line-height:1.65}
 .diagram{width:100%;height:auto;margin:2px 0 4px}
-.diagram .box{fill:rgba(148,163,184,.07);stroke:var(--line)}
-.diagram .gw{fill:color-mix(in srgb,var(--q) 10%,transparent);stroke:var(--q)}
-.diagram .cf{fill:color-mix(in srgb,var(--ok) 8%,transparent);stroke:var(--ok)}
-.diagram text{fill:var(--fg);font-size:12px;font-family:inherit}
-.diagram .sm{fill:var(--muted);font-size:11px}
-.diagram .ln{stroke:var(--muted);stroke-width:1.2;fill:none}
-.diagram .dsh{stroke:var(--s);stroke-dasharray:5 4;fill:none;stroke-width:1.2}
-.diagram .dsh2{stroke:var(--ok);stroke-dasharray:5 4;fill:none;stroke-width:1.2}
+.diagram .dgbox{fill:rgba(148,163,184,.05);stroke:url(#dgStroke);stroke-width:1.3;filter:url(#dgShadow)}
+.diagram .dgmain{fill:color-mix(in srgb,var(--q) 7%,transparent)}
+.diagram .dggive{fill:color-mix(in srgb,var(--s) 6%,transparent)}
+.diagram .dgbe{fill:rgba(148,163,184,.06);stroke:url(#dgStroke);stroke-width:1.1}
+.diagram .pill{fill:color-mix(in srgb,var(--q) 9%,transparent);stroke:var(--q);stroke-width:.8}
+.diagram .chip-ic{fill:none;stroke:var(--muted);stroke-width:1.1}
+.diagram text{fill:var(--fg);font-size:12px;font-weight:600;font-family:inherit}
+.diagram .pt{fill:var(--muted);font-size:9.5px;font-weight:500}
+.diagram .sm{fill:var(--muted);font-size:10px;font-weight:400}
+.diagram .xs{fill:var(--s);font-size:9px;font-weight:500}
+.diagram .dg-req{stroke:var(--q);stroke-width:1.6;fill:none}
+.diagram .dg-status{stroke:var(--muted);stroke-width:1.1;fill:none;stroke-dasharray:4 4}
+.diagram .dg-mutex{stroke:url(#dgFlow);stroke-width:1.5;fill:none}
+.diagram .dg-flow{stroke:url(#dgFlow);stroke-width:1.6;fill:none;stroke-dasharray:6 5;animation:flow 2.2s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-44}}
+@media (prefers-reduced-motion:reduce){.diagram .dg-flow{animation:none}}
 /* ---------------- dyn ---------------- */
 #events{display:grid;gap:9px;margin-bottom:18px}
 .ev{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;

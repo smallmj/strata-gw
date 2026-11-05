@@ -450,7 +450,7 @@ try:
        "prefill_tok_s_mean", "gpu_pcie_rx_mb", "disk_read_mb", "hit_rate",
        "解码速度", "显存专家缓存", "上下文填充", 'id="eng-kv"', "inf-card",
        "尚无请求记录", "requests_kept", "evbtn",
-       'data-r="toggle"', "statechip", "Strata 本体", 'id="dg-ram"', "DDR4")),
+       'data-r="toggle"', "statechip", "Strata 本体", 'id="dg-backends"')),
        "T42 monitor parity + 2 drawers (no MCP) + merged load toggle + live values chips")
     ok(all(p not in h for p in ("logbox", 'id="drawer-settings"', "moncard", "量化解剖",
        'id="drawer-mcp"', "loadMcp", "mcp-box", "DDR5", 'data-r="unload"',
@@ -460,7 +460,7 @@ try:
     for _m in sorted(os.listdir(os.path.join(ROOT, "gw"))):
         if _m.endswith(".py"):
             src_txt += open(os.path.join(ROOT, "gw", _m), encoding="utf-8").read()
-    ok(all(p in h for p in ('marker-end="url(#arM)"', "M266 54L158 88", 'data-sig', "m.n++",
+    ok(all(p in h for p in ('marker-end="url(#arM)"', "M166 118L196 118", 'data-sig', "m.n++",
                             "m.t=e.t",
                             "selectModel(loadedNow[0].model"))
        and "pre_res = backend.resident() is True" in src_txt

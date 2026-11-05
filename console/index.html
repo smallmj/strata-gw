@@ -25,10 +25,10 @@
 </header>
 
 <div class="hero">
-  <p>一块 <b>RTX 3090</b> · 两档 <b>Qwen3.8-Flash-Next IQ3_S</b> · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
+  <p>一块本地 GPU · 两档 <b>IQ3_S</b> 量化 · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
   <div class="chips"><span>GSQ-RCO IQ3_S 量化</span><span>512K 上下文 · YaRN</span><span>MoE 专家动态路由</span><span>n-gram 投机解码</span><span>Vision 图像输入</span><span>外部显存可让卡</span></div>
 </div>
-<p class="lead">两档模型<b>互斥驻留</b>（64GB 内存只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
+<p class="lead">两档模型<b>互斥驻留</b>（内存级只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
 
 <div class="vidbar">
   <span class="vlab">本页视频</span>
@@ -109,40 +109,72 @@
   <div class="inf-card wide">
     <h3>Strata 引擎与本机架构</h3>
     <div class="mechwrap">
-    <svg class="diagram" viewBox="0 0 640 246" role="img" aria-label="Strata 本机架构示意图">
-      <rect class="box gw" x="210" y="8" width="220" height="46" rx="11"/>
-      <text x="320" y="28" text-anchor="middle">strata-gw 网关 :18080</text>
-      <text class="sm" x="320" y="44" text-anchor="middle">本页 · 统一入口</text>
-      <rect class="box" x="58" y="92" width="200" height="46" rx="11"/>
-      <text x="158" y="112" text-anchor="middle">qwen 后端 :18081</text>
-      <text class="sm" x="158" y="128" text-anchor="middle">lazy · 官方 IQ3_S 档</text>
-      <rect class="box" x="382" y="92" width="200" height="46" rx="11"/>
-      <text x="482" y="112" text-anchor="middle">sc117 后端 :18082</text>
-      <text class="sm" x="482" y="128" text-anchor="middle">lazy · abliterated 档</text>
-      <rect class="box" x="30" y="178" width="200" height="46" rx="11"/>
-      <text x="130" y="198" text-anchor="middle">strata 引擎进程</text>
-      <text class="sm" x="130" y="214" text-anchor="middle">按需拉起 · 请求驱动</text>
-      <rect class="box" x="245" y="178" width="150" height="46" rx="11"/>
-      <text id="dg-ram" x="320" y="198" text-anchor="middle">DDR4 · 64 GB</text>
-      <text class="sm" x="320" y="214" text-anchor="middle">专家权重常驻</text>
-      <rect class="box" x="412" y="178" width="198" height="46" rx="11"/>
-      <text id="dg-gpu" x="511" y="198" text-anchor="middle">RTX 3090 · 24 GB</text>
-      <text class="sm" x="511" y="214" text-anchor="middle">热缓存换入 · 只坐一位</text>
+    <svg class="diagram" viewBox="0 0 760 300" role="img" aria-label="Strata GW architecture" preserveAspectRatio="xMidYMid meet">
       <defs>
+        <linearGradient id="dgStroke" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="var(--q)"/><stop offset="1" stop-color="var(--s)"/>
+        </linearGradient>
+        <linearGradient id="dgFlow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="var(--q)"/><stop offset="1" stop-color="var(--s)"/>
+        </linearGradient>
+        <filter id="dgShadow" x="-30%" y="-30%" width="160%" height="180%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity=".45"/>
+        </filter>
         <marker id="arM" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 .5l7 3.5-7 3.5z" fill="var(--muted)"/></marker>
-        <marker id="arS" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 .5l7 3.5-7 3.5z" fill="var(--s)"/></marker>
+        <marker id="arMs" viewBox="0 0 8 8" refX="1.5" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M7 .5L0 4l7 3.5z" fill="url(#dgFlow)"/></marker>
+        <marker id="arS" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 .5l7 3.5-7 3.5z" fill="url(#dgFlow)"/></marker>
       </defs>
-      <path class="ln" d="M266 54L158 88" marker-end="url(#arM)"/>
-      <path class="ln" d="M374 54L482 88" marker-end="url(#arM)"/>
-      <path class="ln" d="M158 138L144 174" marker-end="url(#arM)"/>
-      <path class="ln" d="M474 138L352 174" marker-end="url(#arM)"/>
-      <path class="ln" d="M232 201H241" marker-end="url(#arM)"/>
-      <path class="dsh" d="M395 201H406" marker-end="url(#arS)"/>
-      <text class="sm" x="403" y="238" text-anchor="middle">按热度换入</text>
+      <g>
+        <rect class="dgbox" x="16" y="88" width="150" height="100" rx="14"/>
+        <text class="t" x="91" y="110" text-anchor="middle" data-i18n="dg.clients">OpenAI 兼容客户端</text>
+        <text class="sm" x="91" y="134" text-anchor="middle" data-i18n="dg.chat">聊天 UI</text>
+        <text class="sm" x="91" y="152" text-anchor="middle" data-i18n="dg.sdk">Agent / SDK</text>
+        <text class="sm" x="91" y="170" text-anchor="middle" data-i18n="dg.curl">curl</text>
+      </g>
+      <path class="dg-req" d="M166 118L196 118" marker-end="url(#arS)"/>
+      <path class="dg-status" d="M196 152L168 152" marker-end="url(#arM)"/>
+      <g>
+        <rect class="dgbox dgmain" x="200" y="58" width="250" height="162" rx="14"/>
+        <text class="t" x="325" y="82" text-anchor="middle" data-i18n="dg.gw">STRATA GW</text>
+        <text class="sm" id="dg-port" x="325" y="99" text-anchor="middle">:__GW_PORT__</text>
+        <rect class="pill" x="212" y="112" width="70" height="24" rx="12"/>
+        <text class="pt" x="247" y="127" text-anchor="middle" data-i18n="dg.cap1">加载台</text>
+        <rect class="pill" x="290" y="112" width="70" height="24" rx="12"/>
+        <text class="pt" x="325" y="127" text-anchor="middle" data-i18n="dg.cap2">Monitor</text>
+        <rect class="pill" x="368" y="112" width="70" height="24" rx="12"/>
+        <text class="pt" x="403" y="127" text-anchor="middle" data-i18n="dg.cap3">调教台</text>
+        <rect class="pill" x="250" y="146" width="70" height="24" rx="12"/>
+        <text class="pt" x="285" y="161" text-anchor="middle" data-i18n="dg.cap4">事件流</text>
+        <rect class="pill" x="330" y="146" width="70" height="24" rx="12"/>
+        <text class="pt" x="365" y="161" text-anchor="middle" data-i18n="dg.cap5">桌宠</text>
+        <text class="sm" x="325" y="196" text-anchor="middle" data-i18n="dg.gwsub">请求路由 · 状态确证 · 唯一入口</text>
+      </g>
+      <path class="dg-req" d="M450 140H472" marker-end="url(#arS)"/>
+      <g id="dg-backends" transform="translate(492,58)"></g>
+      <g>
+        <rect class="dgbox" x="30" y="240" width="180" height="50" rx="14"/>
+        <rect class="chip-ic" x="44" y="256" width="14" height="14" rx="3"/>
+        <text class="t" x="130" y="262" text-anchor="middle" data-i18n="dg.gpu">GPU · 只坐一位</text>
+        <text class="sm" x="130" y="279" text-anchor="middle" data-i18n="dg.gpusm">显存热缓存 · 加载即换入</text>
+      </g>
+      <g>
+        <rect class="dgbox" x="300" y="240" width="200" height="50" rx="14"/>
+        <text class="t" x="400" y="262" text-anchor="middle" data-i18n="dg.ram">RAM · 权重/专家驻留</text>
+        <text class="sm" x="400" y="279" text-anchor="middle" data-i18n="dg.ramsm">MoE 专家常驻 · 热缓存换入</text>
+      </g>
+      <path class="dg-mutex" d="M214 265H296" marker-start="url(#arMs)" marker-end="url(#arS)"/>
+      <text class="xs" x="255" y="255" text-anchor="middle" data-i18n="dg.mutex">互斥驻留</text>
+      <text class="xs" x="255" y="284" text-anchor="middle" data-i18n="dg.switch">换机即让位</text>
+      <path class="dg-flow" d="M450 186 C 560 196, 640 208, 657 236" marker-end="url(#arS)"/>
+      <g>
+        <rect class="dgbox dggive" x="592" y="240" width="152" height="50" rx="14"/>
+        <text class="t" x="668" y="262" text-anchor="middle" data-i18n="dg.give">外部显存让卡</text>
+        <text class="sm" x="668" y="279" text-anchor="middle" data-i18n="dg.givesm">对接任意 /free 出图服务</text>
+      </g>
     </svg>
     <ol class="mech">
       <li><b>懒加载</b>：点 Load 才拉起对应后端与引擎进程；模型不在位时零占用，任何请求到来也会按需自动装载。</li>
-      <li><b>互斥驻留</b>：两档 55 GB 模型在 64 GB 内存里只装得下其一——换档时网关先让在位模型退场、确证显存已释放，再冷加载新档（约 1.5-3 分钟，卡片转圈报用时）。</li>
+      <li><b>互斥驻留</b>：数十 GB 级的大模型在内存里装不下两档——换档时网关先让在位模型退场、确证显存已释放，再冷加载新档（分钟级，卡片转圈报用时）。</li>
       <li><b>闲置回收</b>：30 分钟没有请求自动卸载腾卡，之后热重载秒级；「不是网关出手」的卸载（闲置计时等）也会被看门狗记进下方动态时间线。</li>
       <li><b>引擎结构</b>：MoE 专家常驻内存、显存只留按热度换入换出的热缓存；KV 量化（K8V4）+ YaRN 扩到 512K；n-gram 草稿 + MTP 投机解码；vision 塔另占小槽。</li>
     </ol>

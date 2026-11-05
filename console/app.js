@@ -309,13 +309,14 @@ function refresh(){
     }else if(selName&&loadedNow.length&&loadedNow.every(function(b){return b.model!==selName})){
       selectModel(loadedNow[0].model,true);
     }
-    paint(list);paintSpecials();updateLiveAll();
+    paint(list);paintSpecials();updateLiveAll();renderArch(list);
   }).catch(function(e){say("读后端列表失败: "+e,"err")});
   fetchGpu();
 }
 function act(op,name){
   if(ops[name])return;
   ops[name]={op:op,t0:Date.now()};
+  applyLang();
   refresh();
   fetch(op,{method:"POST",headers:hdrs(true),body:JSON.stringify({model:name})})
     .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
@@ -462,10 +463,6 @@ function renderMonitor(){
     (hw.ram_total?("共 "+gbf(hw.ram_total,0)+" GB · 水位 "+Math.round(rp)+"%"):"–")+'</div>'+
     '<div class="pbar ram'+(rp>92?" hot":"")+'"><i style="width:'+rp.toFixed(1)+'%"></i></div></div>');
   document.getElementById("mon").innerHTML=tiles.join("");
-  var dg=document.getElementById("dg-ram"),gg=document.getElementById("dg-gpu");
-  if(dg&&hw.ram_total)dg.textContent="DDR4 · "+gbf(hw.ram_total,0)+" GB";
-  if(gg){var g0=String(st.gpu_name||"");g0=g0.replace("NVIDIA GeForce ","").replace("NVIDIA ","").replace("GeForce ","");var gn=g0||"GPU";
-    gg.textContent=gn+(hw.gpu_mem_total?(" · "+gbf(hw.gpu_mem_total,0)+" GB"):"");}
   
   if(t.requests){
     var pS=t.prompt_ms>0&&readTok>0?(" @ "+fnum(readTok/(t.prompt_ms/1000),0)+" tok/s"):"";
@@ -642,6 +639,53 @@ function loadInfo(){
   });
 }
 /* ---------------- dyn ---------------- */
+/*ARCH-PURE-START*/
+function dgEsc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function dgBackends(models){
+  // #dg-backends local coords: cards fill y 14..164, width 150; max 4 + overflow badge
+  var MAX=4,H=40,TOP=14,SPAN=150,out=[];
+  var shown=models.slice(0,MAX),n=shown.length;
+  for(var i=0;i<n;i++){
+    var y=n===1?TOP+(SPAN-H)/2:TOP+i*(SPAN-H)/(n-1);
+    out.push({card:'<path class="dg-req" d="M-20 82L-3 '+(y+H/2).toFixed(0)+'"/>'
+      +'<rect class="dgbe" x="0" y="'+y.toFixed(0)+'" width="150" height="'+H+'" rx="12"/>'
+      +'<text class="t" x="12" y="'+(y+17).toFixed(0)+'">'+dgEsc(shown[i].nick||shown[i].model)+'</text>'
+      +'<text class="sm" x="12" y="'+(y+32).toFixed(0)+'">lazy :'+shown[i].port+'</text>'});
+  }
+  if(models.length>MAX)out.push({more:'<text class="xs" x="150" y="'+(TOP-4)+'" text-anchor="end">+'+(models.length-MAX)+'</text>'});
+  return out;
+}
+/*ARCH-PURE-END*/
+
+var I18N={
+ zh:{"dg.clients":"OpenAI 兼容客户端","dg.chat":"聊天 UI","dg.sdk":"Agent / SDK","dg.curl":"curl",
+     "dg.gw":"STRATA GW","dg.cap1":"加载台","dg.cap2":"Monitor","dg.cap3":"调教台","dg.cap4":"事件流","dg.cap5":"桌宠",
+     "dg.gwsub":"请求路由 · 状态确证 · 唯一入口","dg.gpu":"GPU · 只坐一位","dg.gpusm":"显存热缓存 · 加载即换入",
+     "dg.ram":"RAM · 权重/专家驻留","dg.ramsm":"MoE 专家常驻 · 热缓存换入","dg.mutex":"互斥驻留","dg.switch":"换机即让位",
+     "dg.give":"外部显存让卡","dg.givesm":"对接任意 /free 出图服务"},
+ en:{"dg.clients":"OpenAI-compatible clients","dg.chat":"chat UI","dg.sdk":"agent / SDK","dg.curl":"curl",
+     "dg.gw":"STRATA GW","dg.cap1":"loader","dg.cap2":"monitor","dg.cap3":"train desk","dg.cap4":"events","dg.cap5":"pet",
+     "dg.gwsub":"routing · verified state · single entry","dg.gpu":"GPU · one seat only","dg.gpusm":"hot VRAM cache · swapped in on load",
+     "dg.ram":"RAM · weights/experts","dg.ramsm":"experts resident · hot cache swaps","dg.mutex":"exclusive residency","dg.switch":"handover on switch",
+     "dg.give":"external VRAM give-card","dg.givesm":"any generator exposing /free"}
+};
+function applyLang(){
+  var dict=I18N[LANG]||I18N.zh;
+  document.querySelectorAll("[data-i18n]").forEach(function(el){
+    var v=dict[el.getAttribute("data-i18n")];
+    if(v!=null)el.textContent=v;
+  });
+}
+function renderArch(backends){
+  var g=document.getElementById("dg-backends");
+  if(!g)return;
+  var list=(backends||[]).map(function(b){
+    var c=CARDS[b.model]||{};
+    return {nick:c.nick||b.model,port:b.port};
+  });
+  g.innerHTML=dgBackends(list).map(function(o){return o.card||o.more}).join("");
+}
+
 var KIND={load:"载入",unload:"让位",gpu:"显存",switch:"切换",backend:"后端",error:"异常"};
 var evOpen=false;
 function loadEvents(){
