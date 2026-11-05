@@ -39,12 +39,12 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;animation:rise .6
 h1{margin:0;font-size:1.12rem;letter-spacing:.14em}
 h1 small{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.3em;font-weight:400;margin-top:3px}
 .spacer{flex:1}
-#comfy{display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--muted);
+#gpuhold{display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--muted);
   border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:var(--card);
   backdrop-filter:blur(10px);animation:rise .6s .12s both}
-#comfy b{color:var(--fg);font-weight:600}
-#comfy .bar{width:110px;height:7px;border-radius:4px;background:rgba(148,163,184,.22);overflow:hidden}
-#comfy .bar i{display:block;height:100%;width:100%;border-radius:4px;
+#gpuhold b{color:var(--fg);font-weight:600}
+#gpuhold .bar{width:110px;height:7px;border-radius:4px;background:rgba(148,163,184,.22);overflow:hidden}
+#gpuhold .bar i{display:block;height:100%;width:100%;border-radius:4px;
   background:linear-gradient(90deg,var(--ok),var(--q));transition:width .8s ease}
 .cbtn{font:inherit;font-size:.7rem;padding:.3rem .62rem;border-radius:8px;
   border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;transition:all .25s}
@@ -348,7 +348,7 @@ details.drawer .dbody .ptitle{display:none}
 .ev .kind{flex:none;font-weight:700;font-size:.66rem;letter-spacing:.08em;padding:.14rem .55rem;border-radius:7px}
 .ev.load .kind{color:var(--ok);border:1px solid var(--ok)}
 .ev.unload .kind{color:var(--s);border:1px solid var(--s)}
-.ev.comfy .kind{color:var(--q);border:1px solid var(--q)}
+.ev.gpu .kind{color:var(--q);border:1px solid var(--q)}
 .ev.switch .kind,.ev.backend .kind{color:var(--read);border:1px solid var(--read)}
 .ev.error .kind{color:var(--err);border:1px solid var(--err)}
 .ev time{color:var(--dim);font-size:.68rem;font-variant-numeric:tabular-nums;flex:none}

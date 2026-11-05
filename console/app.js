@@ -311,7 +311,7 @@ function refresh(){
     }
     paint(list);paintSpecials();updateLiveAll();
   }).catch(function(e){say("读后端列表失败: "+e,"err")});
-  fetchComfy();
+  fetchGpu();
 }
 function act(op,name){
   if(ops[name])return;
@@ -635,14 +635,14 @@ function loadInfo(){
       var m=ms[n];
       rows.push([cardNick(n),m.alive?("上下文 "+Math.round((m.max_context||0)/1024)+"K · vision "+(m.images?"有":"无")+(m.loaded?" · 在位":" · 待命")):"后端离线"]);
     });
-    rows.push(["让卡水位",(d.comfy_free_target_mib||0)+" MiB"]);
+    rows.push(["让卡水位",(d.gpu_free_target_mib==null?"自动":d.gpu_free_target_mib+" MiB")]);
     document.getElementById("eng-kv").innerHTML=rows.map(function(r){
       return '<span class="kvchip">'+esc(r[0])+'<b>'+esc(String(r[1]))+'</b></span>'}).join("");
     updateLiveAll();
   });
 }
 /* ---------------- dyn ---------------- */
-var KIND={load:"载入",unload:"让位",comfy:"显存",switch:"切换",backend:"后端",error:"异常"};
+var KIND={load:"载入",unload:"让位",gpu:"显存",switch:"切换",backend:"后端",error:"异常"};
 var evOpen=false;
 function loadEvents(){
   qs("router/events",function(d){
@@ -673,39 +673,39 @@ function loadEvents(){
   });
 }
 
-/* ---------------- comfyui 状态条 + 清理 ---------------- */
-var cfree=document.getElementById("cfree"),cforce=document.getElementById("cforce");
+/* ---------------- 外部显存让卡状态条 ---------------- */
+var cfree=document.getElementById("gfree"),cforce=document.getElementById("gforce");
 var cfreeBusy=null,cfSeen=null;
 function sayFree(res){
   var line="显存释放 "+(res.freed_vram_mib/1024).toFixed(1)+" GB · 内存释放 "+(res.freed_ram_mib/1024).toFixed(1)+" GB · 用时 "+res.waited_s+" 秒";
   if(res.force){
-    if(res.gave_card)say("强制清理完成，显卡已让出（清掉任务 "+res.tasks_cleared+" 个）。"+line,"");
-    else say("强制清理：等了 "+res.waited_s+" 秒显卡还没让出来（任务被打断后可能还在收尾）。"+line,"busy");
+    if(res.gave_card)say("强制让卡完成，显卡已让出（清掉任务 "+res.tasks_cleared+" 个）。"+line,"");
+    else say("强制让卡：等了 "+res.waited_s+" 秒显卡还没让出来（任务被打断后可能还在收尾）。"+line,"busy");
   }else{
     if(res.freed_vram_mib>=256)say("温和清理："+line,"");
-    else say("温和清理：显存没降——出图任务正在跑不让卡。等它跑完再点，或用强制清理。","busy");
+    else say("温和让卡：显存没降——出图任务正在跑不让卡。等它跑完再点，或用强制让卡。","busy");
   }
 }
-function doComfyFree(force){
+function doGiveFree(force){
   if(cfreeBusy)return;
   cfreeBusy={op:force?"force":"gentle"};
-  fetch("router/comfy/free",{method:"POST",headers:hdrs(true),body:JSON.stringify({force:force})})
+  fetch("router/gpu/free",{method:"POST",headers:hdrs(true),body:JSON.stringify({force:force})})
     .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
     .then(function(rj){
       cfreeBusy=null;
-      if(rj[0]>=400||!rj[1].ok){say("清理失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");fetchComfy();return}
+      if(rj[0]>=400||!rj[1].ok){say("让卡失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");fetchGpu();return}
       sayFree(rj[1]);
       refresh();
     })
-    .catch(function(e){cfreeBusy=null;say("清理请求失败: "+e,"err");fetchComfy()});
+    .catch(function(e){cfreeBusy=null;say("让卡请求失败: "+e,"err");fetchGpu()});
 }
-cfree.onclick=function(){doComfyFree(false)};
+cfree.onclick=function(){doGiveFree(false)};
 cforce.onclick=function(){
-  if(confirm("强制清理：会打断正在执行的出图任务并清空排队，然后释放显存。继续吗？"))doComfyFree(true);
+  if(confirm("强制让卡：会打断正在执行的出图任务并清空排队，然后释放显存。继续吗？"))doGiveFree(true);
 };
-function fetchComfy(){
-  fetch("router/comfy").then(function(r){return r.json()}).then(function(c){
-    var el=document.getElementById("comfy"),bar=el.querySelector(".bar i"),lab=el.querySelector("b");
+function fetchGpu(){
+  fetch("router/gpu").then(function(r){return r.json()}).then(function(c){
+    var el=document.getElementById("gpuhold"),bar=el.querySelector(".bar i"),lab=el.querySelector("b");
     var fr=null;
     if(cfreeBusy||c.freeing){
       if(!cfSeen)cfSeen=Date.now();
@@ -716,8 +716,8 @@ function fetchComfy(){
     var busy=!!fr;
     cfree.disabled=!c.running||busy;
     cforce.disabled=!c.running||busy;
-    cfree.textContent=(busy&&fr.op==="gentle")?("清理中… "+fr.elapsed_s+"s"):"清理显存";
-    cforce.textContent=(busy&&fr.op==="force")?("强清中… "+fr.elapsed_s+"s"):"强制清理";
+    cfree.textContent=(busy&&fr.op==="gentle")?("让卡中… "+fr.elapsed_s+"s"):"让卡";
+    cforce.textContent=(busy&&fr.op==="force")?("强制让卡中… "+fr.elapsed_s+"s"):"强制让卡";
     cfree.classList.toggle("busy",busy&&fr.op==="gentle");
     cforce.classList.toggle("busy",busy&&fr.op==="force");
     if(!c.running){lab.textContent="未运行";bar.style.width="100%";return}

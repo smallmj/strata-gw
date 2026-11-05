@@ -195,6 +195,13 @@ def invalidate_resident() -> None:
     _resident_cache.clear()
 
 
+def cache_resident(b: Backend, value: bool | None) -> None:
+    """Store a freshly-read residency answer, so the next any_resident() within
+    the TTL window does not pay for another round trip - and never answers
+    from a stale entry written mid-load."""
+    _resident_cache[b.cfg_path] = (time.monotonic(), value)
+
+
 def set_preferred(name: str | None) -> None:
     if _preferred["name"] != name:
         _preferred["name"] = name
@@ -309,5 +316,8 @@ def router_info() -> dict:
                               "image_generation": d.get("image_generation")}
         except (HTTPError, URLError, OSError, ValueError):
             models[b.name] = {"alive": False}
+    from . import gpu_free
+    st = gpu_free.settings()
     return {"build": build, "app": app_version(), "models": models, "port": config.ROUTER_PORT,
-            "comfy_free_target_mib": config.COMFY_FREE_TARGET_MIB}
+            "gpu_free_target_mib": gpu_free.effective_target(st),
+            "gpu_free_urls": st["urls"]}

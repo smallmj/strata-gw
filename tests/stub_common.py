@@ -199,9 +199,9 @@ class Gateway:
         open(os.path.join(self.root, "gw-assets", "qwen-chan.png"), "wb").write(b"\x89PNG fake mascot")
         open(os.path.join(self.root, "gw-assets", "sc117-chan.png"), "wb").write(b"\x89PNG fake mascot")
         env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
-                   STRATA_COMFY_FREE_WAIT="4", STRATA_WATCH_S="2")
+                   GW_GPU_FREE_WAIT="4", STRATA_WATCH_S="2")
         if holder_port:
-            env["STRATA_COMFY_URL"] = f"http://127.0.0.1:{holder_port}"
+            env["GW_GPU_URLS"] = f"http://127.0.0.1:{holder_port}"
         if extra_env:
             env.update(extra_env)
         self.proc = subprocess.Popen([sys.executable, os.path.join(self.root, "strata-router.py")], env=env)

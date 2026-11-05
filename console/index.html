@@ -17,7 +17,7 @@
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M4 17.5 12 3l8 14.5-8 4.5-8-4.5Zm8-11-5.4 9.8L12 18.7l5.4-4.4L12 6.5Z"/></svg></div>
   <h1>STRATA<small>模型加载台 · LOAD CONSOLE</small></h1>
   <div class="spacer"></div>
-  <div id="comfy"><span>ComfyUI</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="cfree" title="发 /free 并确证显存读数下降；不打断正在跑的任务">清理显存</button><button class="cbtn danger" id="cforce" title="先打断任务、清空队列，再释放显存并等到让卡">强制清理</button></div>
+  <div id="gpuhold"><span class="gh-name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" title="发 /free 并确证显存读数下降；不打断正在跑的任务">让卡</button><button class="cbtn danger" id="gforce" title="先打断任务、清空队列，再释放显存并等到让卡">强制让卡</button></div>
   <button id="theme" title="切换深色/亮色主题" aria-label="切换主题">
     <svg class="sun" viewBox="0 0 24 24"><path d="M12 6.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V2.5a1 1 0 0 1 1-1Zm0 17a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V20.5a1 1 0 0 1 1-1ZM2.5 11h1.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Zm17 0h1.5a1 1 0 0 1 0 2H19.5a1 1 0 0 1 0-2ZM5.1 5.1l1.1 1.1a1 1 0 0 1-1.4 1.4L3.7 6.5a1 1 0 0 1 1.4-1.4Zm12.7 12.7 1.1 1.1a1 1 0 0 1-1.4 1.4l-1.1-1.1a1 1 0 0 1 1.4-1.4Zm1.4-12.7a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0ZM6.2 16.8a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0Z"/></svg>
     <svg class="moon" viewBox="0 0 24 24"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
@@ -26,9 +26,9 @@
 
 <div class="hero">
   <p>一块 <b>RTX 3090</b> · 两档 <b>Qwen3.8-Flash-Next IQ3_S</b> · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
-  <div class="chips"><span>GSQ-RCO IQ3_S 量化</span><span>512K 上下文 · YaRN</span><span>MoE 专家动态路由</span><span>n-gram 投机解码</span><span>Vision 图像输入</span><span>与 ComfyUI 互相让卡</span></div>
+  <div class="chips"><span>GSQ-RCO IQ3_S 量化</span><span>512K 上下文 · YaRN</span><span>MoE 专家动态路由</span><span>n-gram 投机解码</span><span>Vision 图像输入</span><span>外部显存可让卡</span></div>
 </div>
-<p class="lead">两档模型<b>互斥驻留</b>（64GB 内存只装得下其一）——点 Load，网关先让在位模型退场、让 ComfyUI 放卡，再加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
+<p class="lead">两档模型<b>互斥驻留</b>（64GB 内存只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
 
 <div class="vidbar">
   <span class="vlab">本页视频</span>

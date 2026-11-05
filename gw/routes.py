@@ -242,10 +242,9 @@ class Handler(BaseHTTPRequestHandler):
             for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
                 if b is not target and b.alive():
                     b.unload()
-            if not gpu_free.comfy_unload():
-                raise gpu_free.ComfyNotFree(f"the external VRAM holder still holds the GPU "
-                                            f"({config.COMFY_FREE_WAIT_S:g} s after POST /free): "
-                                            "a generation task may still be running")
+            if not gpu_free.ensure_card():
+                raise gpu_free.CardNotFree("the external holder still holds the GPU "
+                                           "(a generation task may still be running)")
 
     def _route(self, method: str) -> None:
         if method == "OPTIONS":                # CORS preflight: answer here, no backend roundtrip
@@ -265,8 +264,8 @@ class Handler(BaseHTTPRequestHandler):
                              headers={"Cache-Control": "no-cache"})
         if method == "GET" and path == "/router/backends":
             return self._health_all()
-        if method == "GET" and path == "/router/comfy":
-            return self._json(200, gpu_free.comfy_stats())
+        if method == "GET" and path == "/router/gpu":
+            return self._json(200, gpu_free.gpu_stats())
         if method == "GET" and path == "/router/events":
             return self._json(200, {"events": [{"t": t, "kind": k, "text": x}
                                                for t, k, x in reversed(list(events.EVENTS))]})
@@ -326,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
             st, obj = cards.handle_upload(*parsed)
             return self._json(st, obj)
         body = self._read_body() if method == "POST" else b""
-        if method == "POST" and path == "/router/comfy/free":
+        if method == "POST" and path == "/router/gpu/free":
             force = False
             if body:
                 try:
@@ -334,7 +333,7 @@ class Handler(BaseHTTPRequestHandler):
                     force = bool(isinstance(jj, dict) and jj.get("force"))
                 except ValueError:
                     pass
-            res = gpu_free.comfy_free_console(force)
+            res = gpu_free.free_console(force)
             if res is None:
                 return self._json(503, {"error": {"message": "external VRAM holder unreachable (not running?)"}})
             return self._json(200, res)
@@ -372,9 +371,9 @@ class Handler(BaseHTTPRequestHandler):
             try:                                     # on the console too, ring and all
                 try:
                     self._prepare_load(backend)
-                except gpu_free.ComfyNotFree as e:
-                    return self._json(503, {"error": {"message": str(e) + "; let the task finish, press the "
-                                                      "\u6e05\u7406\u663e\u5b58\u5185\u5b58 button, or retry"}},
+                except gpu_free.CardNotFree as e:
+                    return self._json(503, {"error": {"message": str(e) + "; let the task finish, press the console "
+                                                      "\u8ba9\u5361 (give-card) button, or retry"}},
                                       headers={"Retry-After": "15"})
                 except RuntimeError as e:
                     return self._json(502, {"error": {"message": str(e)}})
@@ -389,7 +388,7 @@ class Handler(BaseHTTPRequestHandler):
                         for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
                             if b is not backend and b.alive():
                                 b.unload()
-                        gpu_free.comfy_unload(wait=False)  # already waited once; just re-poke
+                        gpu_free.poke(gpu_free.settings())  # already waited once; just re-poke
                         time.sleep(5.0)
                     else:
                         return
@@ -405,7 +404,7 @@ class Handler(BaseHTTPRequestHandler):
                 if op == "load":
                     try:
                         self._prepare_load(backend)   # spawn 目标 + 卸其它模型 + 等外部服务放卡
-                    except gpu_free.ComfyNotFree as e:
+                    except gpu_free.CardNotFree as e:
                         events.revent("error", f"{backend.name} load blocked: the external holder kept the card")
                         return self._json(503, {"error": {"message": str(e)}},
                                           headers={"Retry-After": "15"})
@@ -417,7 +416,8 @@ class Handler(BaseHTTPRequestHandler):
                 status = self._forward_raw(backend, method, self.path, body)
                 events.note_intentional(backend.name)
                 if status < 400:
-                    now_res = backend.resident() is True
+                    now_res = backend.resident()
+                    backends.cache_resident(backend, now_res)
                     if op == "load" and not pre_res and now_res:
                         events.revent("load", f"{backend.name} loaded via the console in {int(time.time() - t0)} s")
                     elif op == "unload" and pre_res and not now_res:

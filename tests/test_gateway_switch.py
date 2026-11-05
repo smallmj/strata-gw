@@ -110,8 +110,8 @@ class Stub:
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
 
-class StubComfy:
-    """假 ComfyUI: /system_stats + /free + /queue + /interrupt（画布网关 free-memory 的对面）。
+class HolderStub:
+    """假出图服务（外部显存占用者）: /system_stats + /free + /queue + /interrupt。
     mode: none=不动作 | drops=/free 或 /interrupt 后让卡(vram_free 拉到 21000) | hold=数字死活不动"""
     def __init__(self, port):
         self.vram_total, self.vram_free = 24576, 22000      # MiB（够 Load 用，先闲置）
@@ -162,7 +162,7 @@ class StubComfy:
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
 
-CF = StubComfy(18097)
+CF = HolderStub(18097)
 MA = "qwen3.8-flash-next-iq3_s" if VIS else "aaa-qwen"
 MB = "sc117-qwen3.8-flash-next-abliterated-iq3_s" if VIS else "bbb-sc117"
 A = Stub(MA, 18095)      # 名字排序第一 = 无驻留且无偏好时的默认
@@ -206,8 +206,8 @@ else:
     open(os.path.join(ROOT, "gw-assets", "qwen-chan.png"), "wb").write(b"\x89PNG fake mascot")
 
 env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
-           STRATA_COMFY_URL="http://127.0.0.1:18097",  # live stub ComfyUI, 闲置状态
-           STRATA_COMFY_FREE_WAIT="4",                 # force 等待窗缩短，测试不真等 120s
+           GW_GPU_URLS="http://127.0.0.1:18097",      # live stub holder, idle
+           GW_GPU_FREE_WAIT="4",                 # force 等待窗缩短，测试不真等 120s
            STRATA_WATCH_S="2")                         # 看门狗提速，事件转场测试等得起
 router = subprocess.Popen([sys.executable, os.path.join(ROOT, "strata-router.py")], env=env)
 
@@ -256,11 +256,11 @@ try:
 
     s, h = req("GET", "/gateway")
     ok(s == 200 and "模型加载台" in h
-       and 'id="cforce"' in h and "强制清理" in h and "清理显存" in h
+       and 'id="gforce"' in h and "强制让卡" in h and "让卡" in h
        and 'id="sec-settings"' in h and 'id="sec-about"' in h
        and 'id="sec-dyn"' in h and 'id="sec-monitor"' in h
        and "立绘待入" in h,
-       "T2 GET /gateway console: sections + comfy buttons + art placeholder")
+       "T2 GET /gateway console: sections + give-card buttons + art placeholder")
     s, hc = req("GET", "/router/cards")
     ok(s == 200 and "qwen3.8-flash-next-iq3_s" in hc
        and "sc117-qwen3.8-flash-next-abliterated-iq3_s" in hc
@@ -277,11 +277,11 @@ try:
     st, h, loc = raw("GET", "/")
     ok(st == 302 and loc == "/gateway", "T4 no resident: opening the webUI bounces to the gateway page")
 
-    s, h = req("GET", "/router/comfy")
+    s, h = req("GET", "/router/gpu")
     c = json.loads(h)
     ok(s == 200 and c.get("running") is True and c.get("vram_free_mib") == 22000
        and c.get("freeing") is None,
-       "T5 GET /router/comfy reads the live ComfyUI stub (idle, no free in flight)")
+       "T5 GET /router/gpu reads the live holder stub (idle, no free in flight)")
 
     s, h = req("POST", "/load", {"model": "bbb-sc117"})
     ok(s == 200, "T6 POST /load {model} accepted")
@@ -336,9 +336,9 @@ try:
     st, h, loc = raw("GET", "/monitor")
     ok(st == 302 and loc == "/gateway", "T19 /monitor bounces to gateway after unload")
 
-    # ---- ComfyUI 清理显存按钮（画布 free-memory 语义）----
+    # ---- 外部显存让卡按钮（free-memory 语义）----
     CF.vram_free, CF.ram_used, CF.mode = 2000, 40000, "drops"
-    s, h = req("POST", "/router/comfy/free", {"force": False})
+    s, h = req("POST", "/router/gpu/free", {"force": False})
     j = json.loads(h)
     ok(s == 200 and j.get("ok") and j.get("force") is False
        and j.get("freed_vram_mib", 0) >= 1000 and j.get("freed_ram_mib", 0) >= 1000,
@@ -346,7 +346,7 @@ try:
 
     ib = CF.interrupt_calls
     CF.vram_free, CF.mode = 2000, "hold"
-    s, h = req("POST", "/router/comfy/free", {"force": False})
+    s, h = req("POST", "/router/gpu/free", {"force": False})
     j = json.loads(h)
     ok(s == 200 and j.get("freed_vram_mib") == 0 and j.get("gave_card") is False,
        "T21 gentle with nothing to free: freed 0, gave_card false")
@@ -354,7 +354,7 @@ try:
 
     CF.vram_free, CF.ram_used, CF.mode = 2000, 40000, "drops"
     CF.pending, CF.running = [["pda", "x"], ["pdb", "x"]], [{"prompt_id": "rc"}]
-    s, h = req("POST", "/router/comfy/free", {"force": True})
+    s, h = req("POST", "/router/gpu/free", {"force": True})
     j = json.loads(h)
     ok(s == 200 and j.get("gave_card") is True and j.get("freed_vram_mib", 0) >= 1000
        and j.get("tasks_cleared") == 3 and CF.interrupt_calls >= ib + 1
@@ -363,24 +363,24 @@ try:
 
     CF.mode, CF.vram_free = "hold", 500
     res2 = []
-    t2 = threading.Thread(target=lambda: res2.append(req("POST", "/router/comfy/free", {"force": True})))
+    t2 = threading.Thread(target=lambda: res2.append(req("POST", "/router/gpu/free", {"force": True})))
     t2.start()
     time.sleep(1.0)
-    s, h = req("GET", "/router/comfy")
+    s, h = req("GET", "/router/gpu")
     fr = json.loads(h).get("freeing")
     ok(s == 200 and fr and fr.get("op") == "force" and fr.get("elapsed_s", -1) >= 0,
-       "T24 freeing visible mid-force on /router/comfy (spinner survives a page refresh)")
+       "T24 freeing visible mid-force on /router/gpu (spinner survives a page refresh)")
     t2.join(20)
     j = json.loads(res2[0][1])
     ok(j.get("gave_card") is False and j.get("waited_s", 0) >= 3
-       and json.loads(req("GET", "/router/comfy")[1]).get("freeing") is None,
+       and json.loads(req("GET", "/router/gpu")[1]).get("freeing") is None,
        "T25 force gives up after the wait window (4s env), freeing cleared afterwards")
 
     CF.srv.shutdown()
-    s, h = req("POST", "/router/comfy/free", {"force": False})
-    ok(s == 503, "T26 comfy unreachable -> 503 with error")
-    s, h = req("GET", "/router/comfy")
-    ok(json.loads(h).get("running") is False, "T27 /router/comfy shows not running after comfy goes down")
+    s, h = req("POST", "/router/gpu/free", {"force": False})
+    ok(s == 503, "T26 holder unreachable -> 503 with error")
+    s, h = req("GET", "/router/gpu")
+    ok(json.loads(h).get("running") is False, "T27 /router/gpu shows not running after the holder goes down")
 
     # ---- 设置/配置/MCP/状态代理 ----
     s, h = req("GET", "/router/settings?model=bbb-sc117")
