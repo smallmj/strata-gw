@@ -206,6 +206,16 @@ class Gateway:
             env.update(extra_env)
         self.proc = subprocess.Popen([sys.executable, os.path.join(self.root, "strata-router.py")], env=env)
 
+    def req_bin(self, method, path):
+        r = urllib.request.Request(f"http://127.0.0.1:{ROUTER_PORT}{path}", method=method)
+        try:
+            with urllib.request.urlopen(r, timeout=15) as resp:
+                return resp.status, resp.read(), resp.headers
+        except urllib.error.HTTPError as e:
+            return e.code, e.read(), e.headers
+        except (urllib.error.URLError, OSError) as e:
+            return 0, str(e).encode(), {}
+
     # ---- HTTP helpers (against the running gateway) -------------------
     def req(self, method, path, body=None):
         data = json.dumps(body).encode() if body is not None else None

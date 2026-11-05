@@ -38,7 +38,7 @@ function backendOf(n){for(var i=0;i<modelsList.length;i++){if(modelsList[i].mode
 function cardNameList(){var names=modelsList.map(function(b){return b.model});
   Object.keys(CARDS).forEach(function(k){if(k.charAt(0)!=="_"&&names.indexOf(k)<0)names.push(k)});
   return names;}
-function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(cb)cb()})}
+function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(window.PETUI)window.PETUI.art();if(cb)cb()})}
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
@@ -185,6 +185,54 @@ artInput.onchange=function(){
     if(tX==null)return;var dx=e.changedTouches[0].clientX-tX;tX=null;
     if(dx<-40)setPage(pageIdx+1);else if(dx>40)setPage(pageIdx-1);
   },{passive:true});
+/* ---------- Phase 7: desktop pet + chat window ---------- */
+var petStage=document.getElementById("petstage"),petImg=document.getElementById("petimg"),
+    petChat=document.getElementById("petchat"),ptf=document.getElementById("ptf"),
+    pcNote=document.getElementById("pc-note"),petMenu=document.getElementById("petmenu"),
+    petBreath=document.getElementById("petbreath"),pcLoad=document.getElementById("pc-load"),
+    petPos=null;
+try{petPos=JSON.parse(localStorage.getItem("stratagw.petpos"))||null}catch(e){petPos=null}
+function closeChat(){petChat.style.display="none";ptf.src="about:blank"}
+window.STRATA_PET={apply:function(on,size){petStage.style.display=on?"block":"none";petImg.style.height=size+"px";if(!on)closeChat();if(on)placePet()}};
+window.PETUI={art:function(){if(CARDS&&CARDS._pet&&CARDS._pet.art)petImg.src=CARDS._pet.art},
+  state:function(resident){petStage.classList[resident?"add":"remove"]("resident")}};
+function placePet(){var w=innerWidth,h=innerHeight;
+  if(!petPos)petPos={x:w-40-petSize*0.8,y:h-40-petSize};
+  petPos.x=Math.max(8,Math.min(w-56,petPos.x));petPos.y=Math.max(76,Math.min(h-56,petPos.y));
+  petStage.style.left=Math.round(petPos.x)+"px";petStage.style.top=Math.round(petPos.y)+"px";
+  petStage.style.right="auto";petStage.style.bottom="auto"}
+window.addEventListener("resize",placePet);
+var pd=null;
+petImg.addEventListener("pointerdown",function(e){if(e.button===2)return;pd={x0:e.clientX,y0:e.clientY,ox:petPos?petPos.x:0,oy:petPos?petPos.y:0,moved:false};try{petImg.setPointerCapture(e.pointerId)}catch(err){}});
+petImg.addEventListener("pointermove",function(e){if(!pd)return;var dx=e.clientX-pd.x0,dy=e.clientY-pd.y0;
+  if(!pd.moved&&Math.abs(dx)+Math.abs(dy)>8)pd.moved=true;
+  if(pd.moved){petPos.x=pd.ox+dx;petPos.y=pd.oy+dy;placePet()}});
+petImg.addEventListener("pointerup",function(){if(!pd)return;var moved=pd.moved;pd=null;
+  if(moved){try{localStorage.setItem("stratagw.petpos",JSON.stringify(petPos))}catch(e){}}
+  else toggleChat()});
+petImg.addEventListener("contextmenu",function(e){e.preventDefault();petMenu.style.display=petMenu.style.display==="none"?"flex":"none"});
+document.addEventListener("click",function(e){if(petMenu.style.display!=="none"&&!petStage.contains(e.target))petMenu.style.display="none"});
+document.getElementById("pm-hide").onclick=function(){petOn=false;petT.checked=false;
+  try{localStorage.setItem("stratagw.pet","0")}catch(e){}window.STRATA_PET.apply(false,petSize)};
+document.getElementById("pm-art").onclick=function(){artTarget="_pet";artInput.click()};
+function petAnchor(){var w=Math.min(420,Math.round(innerWidth*0.92)),h=Math.min(600,Math.round(innerHeight*0.72));
+  var cx=petPos?petPos.x:innerWidth-w,cy=petPos?petPos.y:innerHeight-160;
+  var L=Math.max(8,Math.min(innerWidth-w-8,cx-w*0.25)),T=Math.max(70,Math.min(innerHeight-h-8,cy-h-12));
+  petChat.style.left=Math.round(L)+"px";petChat.style.top=Math.round(T)+"px";
+  petChat.style.width=w+"px";petChat.style.height=h+"px"}
+function toggleChat(){if(petChat.style.display==="flex"){closeChat();return}openChat()}
+function openChat(){petAnchor();petChat.style.display="flex";
+  var loadedNow=null;
+  for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded){loadedNow=modelsList[i].model;break}}
+  if(loadedNow){pcNote.style.display="none";ptf.src="/"}
+  else{pcNote.style.display="flex";ptf.src="about:blank"}}
+pcLoad.onclick=function(){if(modelsList.length)act("load",modelsList[0].model);closeChat()};
+document.getElementById("pc-close").onclick=closeChat;
+ptf.addEventListener("load",function(){if(ptf.src.indexOf("about:blank")>=0)return;
+  try{var pth=ptf.contentWindow.location.pathname;
+    if(pth==="/gateway"){ptf.src="about:blank";pcNote.style.display="flex"}}catch(e){}});
+window.STRATA_PET.apply(petOn,petSize);
+
 })();
 function paintSpecials(){
   cardNames.forEach(function(n){
@@ -315,6 +363,7 @@ function refresh(){
       prev[b.model]=b.loaded;
     });
     var anyLoaded=list.some(function(b){return b.loaded});
+    if(window.PETUI)window.PETUI.state(anyLoaded,loadedNow.length?loadedNow[0].model:null);
     var loadedNow=list.filter(function(b){return b.loaded});
     if(!selName||!list.some(function(b){return b.model===selName})){
       if(loadedNow[0]||list[0])selectModel((loadedNow[0]||list[0]).model,true);
