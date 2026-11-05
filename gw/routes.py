@@ -147,6 +147,59 @@ class Handler(BaseHTTPRequestHandler):
             except (ConnectionResetError, BrokenPipeError):
                 pass
 
+    def _serve_file(self, name: str, sub: str) -> None:
+        """Shared static serving: Range + ETag so a <video> streams properly and
+        revalidation after a file swap is a 304 instead of a re-download."""
+        p = os.path.join(config.ROOT, sub, name)
+        try:
+            size = os.path.getsize(p)
+            etag = '"%s-%x-%x"' % (name, size, int(os.path.getmtime(p)))
+        except OSError:
+            return self._json(404, {"error": {"message": "no such file"}})
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            return
+        ext = name.rsplit(".", 1)[-1].lower()
+        ctype = {"png": "image/png", "webp": "image/webp", "jpg": "image/jpeg",
+                 "jpeg": "image/jpeg", "mp4": "video/mp4", "webm": "video/webm"}[ext]
+        lo, hi, status = 0, size - 1, 200
+        rng = (self.headers.get("Range") or "").strip()
+        m = re.match(r"bytes=(\d*)-(\d*)$", rng) if rng else None
+        if m and size:
+            a, b = m.group(1), m.group(2)
+            if a:
+                lo, hi = int(a), (int(b) if b else size - 1)
+                hi = min(hi, size - 1)
+                if lo >= size or lo > hi:
+                    self.send_response(416)
+                    self.send_header("Content-Range", "bytes */%d" % size)
+                    self.end_headers()
+                    return
+            else:
+                lo = max(0, size - (int(b) if b else size))
+            status = 206
+        try:
+            with open(p, "rb") as f:
+                f.seek(lo)
+                data = f.read(hi - lo + 1)
+        except OSError:
+            return self._json(404, {"error": {"message": "no such file"}})
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "no-cache")   # refreshed files show up right away
+        self.send_header("ETag", etag)
+        if status == 206:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (lo, hi, size))
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except (ConnectionResetError, BrokenPipeError):
+            pass
+
     # ---- routing -------------------------------------------------------
     def _models_all(self) -> None:
         out = []
@@ -231,62 +284,26 @@ class Handler(BaseHTTPRequestHandler):
             st, obj = cards.delete_card(unquote(path[len("/router/cards/"):]))
             return self._json(st, obj)
         if method == "GET" and path.startswith("/router/assets/"):
-            # Static art + loop video for the console. Range + ETag so a <video>
-            # streams properly and revalidation after the master swaps a file is
-            # a 304 instead of a re-download.
+            # Static art + loop video for the console (gw-assets/).
             name = unquote(path[len("/router/assets/"):])
             if not config.ASSET_NAME.match(name):
                 return self._json(404, {"error": {"message": "no such asset"}})
-            p = os.path.join(config.ROOT, "gw-assets", name)
+            return self._serve_file(name, "gw-assets")
+        if method == "GET" and path.startswith("/router/uploads/"):
+            # User-uploaded art: same serving pipeline, its own name whitelist.
+            name = unquote(path[len("/router/uploads/"):])
+            if not cards.UPLOAD_NAME.match(name):
+                return self._json(404, {"error": {"message": "no such upload"}})
+            return self._serve_file(name, os.path.join("gw-assets", "uploads"))
+        if method == "DELETE" and path.startswith("/router/uploads/"):
+            name = unquote(path[len("/router/uploads/"):])
+            if not cards.UPLOAD_NAME.match(name):
+                return self._json(404, {"error": {"message": "no such upload"}})
             try:
-                size = os.path.getsize(p)
-                etag = '"%s-%x-%x"' % (name, size, int(os.path.getmtime(p)))
+                os.remove(os.path.join(config.ROOT, "gw-assets", "uploads", name))
+                return self._json(200, {"ok": True, "deleted": name})
             except OSError:
-                return self._json(404, {"error": {"message": "no such asset"}})
-            if self.headers.get("If-None-Match") == etag:
-                self.send_response(304)
-                self.send_header("ETag", etag)
-                self.end_headers()
-                return
-            ext = name.rsplit(".", 1)[-1].lower()
-            ctype = {"png": "image/png", "webp": "image/webp", "jpg": "image/jpeg",
-                     "jpeg": "image/jpeg", "mp4": "video/mp4", "webm": "video/webm"}[ext]
-            lo, hi, status = 0, size - 1, 200
-            rng = (self.headers.get("Range") or "").strip()
-            m = re.match(r"bytes=(\d*)-(\d*)$", rng) if rng else None
-            if m and size:
-                a, b = m.group(1), m.group(2)
-                if a:
-                    lo, hi = int(a), (int(b) if b else size - 1)
-                    hi = min(hi, size - 1)
-                    if lo >= size or lo > hi:
-                        self.send_response(416)
-                        self.send_header("Content-Range", "bytes */%d" % size)
-                        self.end_headers()
-                        return
-                else:
-                    lo = max(0, size - (int(b) if b else size))
-                status = 206
-            try:
-                with open(p, "rb") as f:
-                    f.seek(lo)
-                    data = f.read(hi - lo + 1)
-            except OSError:
-                return self._json(404, {"error": {"message": "no such asset"}})
-            self.send_response(status)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Accept-Ranges", "bytes")
-            self.send_header("Cache-Control", "no-cache")   # 换素材后刷新即见
-            self.send_header("ETag", etag)
-            if status == 206:
-                self.send_header("Content-Range", "bytes %d-%d/%d" % (lo, hi, size))
-            self.end_headers()
-            try:
-                self.wfile.write(data)
-            except (ConnectionResetError, BrokenPipeError):
-                pass
-            return
+                return self._json(404, {"error": {"message": "no such upload"}})
         if method == "GET" and path in ("/", "/monitor"):
             if not backends.any_resident():
                 self.send_response(302)
@@ -295,6 +312,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             return self._forward_html(backends.pick_backend(None), self.path)
+        if method == "POST" and path == "/router/upload":
+            ctype_hdr = self.headers.get("Content-Type", "")
+            if "multipart/form-data" not in ctype_hdr:
+                return self._json(415, {"error": {"message": "multipart/form-data required"}})
+            cl = int(self.headers.get("Content-Length", "0") or 0)
+            if cl > cards.MAX_UPLOAD + 8192:
+                return self._json(413, {"error": {"message": "too large (max 5 MB)"}})
+            raw = self._read_body()
+            parsed = cards.parse_multipart(raw, ctype_hdr)
+            if parsed is None:
+                return self._json(415, {"error": {"message": "no file part in the form"}})
+            st, obj = cards.handle_upload(*parsed)
+            return self._json(st, obj)
         body = self._read_body() if method == "POST" else b""
         if method == "POST" and path == "/router/comfy/free":
             force = False
