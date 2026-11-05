@@ -13,15 +13,31 @@
 <div class="blobs" aria-hidden="true"><i></i><i></i></div>
 <div id="bgstage" aria-hidden="true"><video id="bgvid" loop playsinline preload="auto" muted src="router/assets/bg-loop.mp4"></video><div id="bgmask"></div></div>
 <div class="wrap">
-<header>
+<header id="ctlbar">
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M4 17.5 12 3l8 14.5-8 4.5-8-4.5Zm8-11-5.4 9.8L12 18.7l5.4-4.4L12 6.5Z"/></svg></div>
   <h1>STRATA<small>模型加载台 · LOAD CONSOLE</small></h1>
   <div class="spacer"></div>
-  <div id="gpuhold"><span class="gh-name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" title="发 /free 并确证显存读数下降；不打断正在跑的任务">让卡</button><button class="cbtn danger" id="gforce" title="先打断任务、清空队列，再释放显存并等到让卡">强制让卡</button></div>
+  <button class="tbtn" id="langbtn" title="切换语言 / Switch language">中 / EN</button>
   <button id="theme" title="切换深色/亮色主题" aria-label="切换主题">
     <svg class="sun" viewBox="0 0 24 24"><path d="M12 6.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V2.5a1 1 0 0 1 1-1Zm0 17a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V20.5a1 1 0 0 1 1-1ZM2.5 11h1.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Zm17 0h1.5a1 1 0 0 1 0 2H19.5a1 1 0 0 1 0-2ZM5.1 5.1l1.1 1.1a1 1 0 0 1-1.4 1.4L3.7 6.5a1 1 0 0 1 1.4-1.4Zm12.7 12.7 1.1 1.1a1 1 0 0 1-1.4 1.4l-1.1-1.1a1 1 0 0 1 1.4-1.4Zm1.4-12.7a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0ZM6.2 16.8a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0Z"/></svg>
     <svg class="moon" viewBox="0 0 24 24"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
   </button>
+  <div class="seg" id="seg-bg" title="本页背景视频">
+    <button data-bg="off">关闭</button><button data-bg="bg">背景</button><button data-bg="solo">单独</button>
+  </div>
+  <button class="cbtn" id="vid-sound" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button>
+  <div id="gpuhold"><span class="gh-name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" title="发 /free 并确证显存读数下降；不打断正在跑的任务">让卡</button><button class="cbtn danger" id="gforce" title="先打断任务、清空队列，再释放显存并等到让卡">强制让卡</button></div>
+  <button class="verchip" id="gwver" title="点开看引擎构建信息">v__VERSION__</button>
+  <a class="ghico" href="__GITHUB_URL__" target="_blank" rel="noopener" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg></a>
+  <button class="gearbtn" id="setgear" title="设置：API key · 桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5c0 .5-.05 1-.13 1.47l1.66 1.2-1.7 2.94-1.9-.66a8 8 0 0 1-2 1.16l-.29 2.03h-3.4l-.29-2.03a8 8 0 0 1-2-1.16l-1.9.66-1.7-2.94 1.66-1.2A8 8 0 0 1 3.87 12c0-.5.05-1 .13-1.47l-1.66-1.2 1.7-2.94 1.9.66a8 8 0 0 1 2-1.16l.29-2.03h3.4l.29 2.03a8 8 0 0 1 2 1.16l1.9-.66 1.7 2.94-1.66 1.2c.08.47.13.97.13 1.47Z"/></svg></button>
+  <div id="setpop" style="display:none">
+    <div class="popsec"><b>API key</b><span class="pnote">与 web UI About&gt;Settings 同一把，只存本浏览器。</span></div>
+    <div class="poprow"><input id="key" type="password" size="22" autocomplete="off" placeholder="sk-..."><button id="save">保存</button></div>
+    <div class="popsec"><b>桌宠<em>DESKTOP PET</em></b></div>
+    <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab">显示桌宠</span></div>
+    <div class="poprow"><span class="plab">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
+    <div class="pfoot">状态每 2 秒自动刷新（页内各节）· web UI 入口在 hero 链接与本页各处</div>
+  </div>
 </header>
 
 <div class="hero">
@@ -29,15 +45,6 @@
   <div class="chips"><span>GSQ-RCO IQ3_S 量化</span><span>512K 上下文 · YaRN</span><span>MoE 专家动态路由</span><span>n-gram 投机解码</span><span>Vision 图像输入</span><span>外部显存可让卡</span></div>
 </div>
 <p class="lead">两档模型<b>互斥驻留</b>（内存级只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
-
-<div class="vidbar">
-  <span class="vlab">本页视频</span>
-  <div class="seg" id="seg-bg">
-    <button data-bg="off">关闭</button><button data-bg="bg">背景播放</button><button data-bg="solo">单独播放</button>
-  </div>
-  <button class="cbtn" id="vid-sound" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button>
-  <span class="vhint">素材 = gw-assets 里的 bg-loop.mp4，循环播放；换文件后刷新即见</span>
-</div>
 
 <div id="cardwrap"><div class="pagesw" id="cards"></div>
 <div id="cardnav" style="display:none"><button id="cprev" aria-label="prev page">‹</button><div id="pdots"></div><button id="cnext" aria-label="next page">›</button></div></div>
@@ -186,13 +193,7 @@
 <h2 class="sec" id="sec-dyn">动态<em>Events</em></h2>
 <div id="events"></div>
 
-<footer>
-  <span>API key（与 web UI About&gt;Settings 同一把）:</span>
-  <input id="key" type="password" size="22" autocomplete="off">
-  <button id="save">保存</button>
-  <span class="spacer"></span>
-  <a href="/">web UI</a> · <span>状态每 2 秒自动刷新</span>
-</footer>
+
 </div>
 <script src="app.js"></script>
 </body>

@@ -490,7 +490,7 @@ try:
     ok(all(p in h2 for p in ('id="bgstage"', 'id="bgvid"', 'id="bgmask"',
        "router/assets/bg-loop.mp4", 'data-bg="off"', 'data-bg="bg"', 'data-bg="solo"',
        'id="seg-bg"', 'id="vid-sound"', "stratagw.bgmode", "stratagw.bgsound",
-       "#bgstage.solo", "#bgstage{position:fixed;inset:0", 'class="vidbar"')),
+       "#bgstage.solo", "#bgstage{position:fixed;inset:0", 'id="ctlbar"')),
        "T48 video bg controls (off/bg/solo + sound) + fixed full-viewport stage in page")
     ok(all(p in h2 for p in ("var TROWS=10", "class=\"phr\"", "min-height:3.4em",
        "min-height:1.5em", "CFGNOTE", "表内显示最近 "))

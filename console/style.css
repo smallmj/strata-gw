@@ -32,7 +32,8 @@ body{margin:0;min-height:100vh;color:var(--fg);overflow-x:hidden;
 .blobs i:nth-child(2){background:radial-gradient(circle,var(--s),transparent 60%);right:-18vmax;bottom:-20vmax;animation-delay:-13s}
 @keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(6vmax,4vmax,0) scale(1.15)}}
 .wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:34px 22px 80px}
-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;animation:rise .6s .05s both}
+header{position:relative;display:flex;align-items:center;gap:12px;flex-wrap:wrap;animation:rise .6s .05s both}
+#ctlbar{position:sticky;top:0;z-index:60;flex-wrap:nowrap;overflow:visible;margin:0 -22px;padding:9px 22px;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .logo{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;flex:none;
   background:linear-gradient(135deg,var(--q),var(--s));box-shadow:0 0 26px -4px var(--q)}
 .logo svg{width:22px;height:22px;fill:#05121f}
@@ -71,14 +72,10 @@ html[data-theme=light] #theme .moon{display:inline}
 .lead{color:var(--muted);font-size:.84rem;line-height:1.65;max-width:74ch;margin:14px 0 26px;animation:rise .6s .28s both}
 .lead b{color:var(--fg)}
 .lead a{color:var(--q)}
-.vidbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 8px;padding:10px 14px;
-  border:1px solid var(--line);border-radius:14px;background:var(--card);backdrop-filter:blur(10px);
-  animation:rise .6s both}
-.vidbar .vlab{font-size:.72rem;letter-spacing:.14em;color:var(--muted);font-weight:600}
-.vidbar .seg{margin-bottom:0}
-.vidbar .seg button{padding:.34rem .9rem;font-size:.72rem}
-.vidbar .vhint{font-size:.68rem;color:var(--dim)}
-h2.sec{display:flex;align-items:baseline;gap:12px;margin:44px 0 18px;font-size:.82rem;
+#ctlbar .seg{margin-bottom:0}
+#ctlbar .seg button{padding:.34rem .75rem;font-size:.7rem}
+#ctlbar .cbtn{font-size:.7rem;padding:.34rem .8rem}
+h2.sec{display:flex;align-items:baseline;gap:12px;margin:44px 0 18px;font-size:.82rem;scroll-margin-top:76px;
   letter-spacing:.22em;color:var(--muted);font-weight:600;animation:rise .6s both}
 h2.sec::before{content:"";width:26px;height:2px;border-radius:2px;flex:none;
   background:linear-gradient(90deg,var(--q),var(--s))}
@@ -365,11 +362,47 @@ details.drawer .dbody .ptitle{display:none}
 .evbtn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:10px;
   padding:.42rem .95rem;font:inherit;font-size:.74rem;cursor:pointer;transition:all .25s;justify-self:start}
 .evbtn:hover{color:var(--q);border-color:var(--q)}
-footer{margin-top:40px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;color:var(--muted);
-  font-size:.78rem;animation:rise .6s .66s both}
-footer input{padding:.42rem .6rem;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:.78rem}
-footer button{padding:.42rem .9rem;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
-footer a{color:var(--q)}
+
+/* ---- Phase 6 unified control bar ---- */
+.tbtn,.verchip{font-size:.7rem;letter-spacing:.06em;border:1px solid var(--line);border-radius:99px;
+  padding:.34rem .72rem;background:transparent;color:var(--muted);cursor:pointer}
+.tbtn:hover,.verchip:hover{color:var(--fg);border-color:var(--q)}
+.verchip{font-variant-numeric:tabular-nums}
+.ghico{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:10px;color:var(--muted)}
+.ghico svg{width:19px;height:19px;fill:currentColor}
+.ghico:hover{color:var(--fg);background:var(--line)}
+.gearbtn{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:11px;
+  border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.gearbtn svg{width:17px;height:17px;fill:currentColor}
+.gearbtn:hover{color:var(--fg);border-color:var(--q)}
+#setpop{position:absolute;right:14px;top:calc(100% + 10px);width:min(340px,92vw);z-index:80;
+  display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:16px 18px;box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
+  backdrop-filter:blur(14px);animation:rise .25s both}
+#setpop .popsec{display:flex;flex-direction:column;gap:2px}
+#setpop .popsec b{font-size:.8rem;letter-spacing:.06em}
+#setpop .popsec em{font-style:normal;font-size:.6rem;letter-spacing:.24em;color:var(--dim);margin-left:8px}
+#setpop .pnote{font-size:.66rem;color:var(--dim)}
+#setpop .poprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#setpop input[type=password]{flex:1;min-width:0;padding:.42rem .6rem;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:.78rem}
+#setpop .poprow button{padding:.42rem .9rem;border-radius:9px;border:1px solid var(--line);
+  background:var(--card);color:var(--fg);cursor:pointer;font-size:.76rem}
+#setpop .poprow button:hover{border-color:var(--q)}
+#setpop .plab{font-size:.74rem;color:var(--muted)}
+#setpop input[type=range]{flex:1;accent-color:var(--q)}
+#setpop output{font-size:.72rem;color:var(--muted);min-width:46px;text-align:right}
+#setpop .pfoot{font-size:.64rem;color:var(--dim);border-top:1px solid var(--line);padding-top:9px}
+.sw{position:relative;display:inline-block;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.sw i{display:block;width:38px;height:22px;border-radius:99px;background:var(--line);
+  position:relative;transition:.2s}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;
+  background:var(--fg);transition:.2s}
+.sw input:checked+i{background:linear-gradient(135deg,var(--q),var(--s))}
+.sw input:checked+i::after{left:19px;background:#fff}
+@media (max-width:860px){#ctlbar{flex-wrap:wrap;row-gap:8px}#ctlbar .spacer{flex-basis:100%;height:0}}
+
 .flash{animation:flash 1.8s ease}
 @keyframes flash{0%,55%{box-shadow:0 0 40px -6px var(--q)}100%{box-shadow:none}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}

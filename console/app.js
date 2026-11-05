@@ -13,6 +13,18 @@ document.getElementById("theme").onclick=function(){applyTheme(root.dataset.them
 var CARDS={},INFO={};
 var LANG=(navigator.language||"zh").toLowerCase().indexOf("zh")===0?"zh":"en";
 try{var _lg=localStorage.getItem("stratagw.lang");if(_lg==="zh"||_lg==="en")LANG=_lg}catch(e){}
+document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();syncLangBtn()};
+function syncLangBtn(){var b=document.getElementById("langbtn");if(b)b.textContent=LANG==="zh"?"中 / EN":"EN / 中"}
+document.getElementById("gwver").onclick=function(){fetch("router/info").then(function(r){return r.json()}).then(function(j){var b=j.build||j.engine||{};var mv=document.querySelector('meta[name="strata-gw-version"]');var lines=[tt("网关版本","gateway version")+" "+(j.version||(mv&&mv.content)||"?")];if(b.commit){var sh=String(b.commit);if(sh.length>12)sh=sh.substring(0,12);lines.push(tt("引擎构建","engine build")+" "+sh)}if(b.version)lines.push(tt("引擎版本","engine version")+" "+b.version);if(b.built_at||b.built)lines.push(tt("构建时间","built")+" "+(b.built_at||b.built));alert(lines.join("\n"))}).catch(function(){alert(tt("拿不到引擎构建信息（引擎可能没在跑）","cannot read engine build (engine may be offline)"))})};
+var setpop=document.getElementById("setpop");
+document.getElementById("setgear").onclick=function(e){e.stopPropagation();setpop.style.display=setpop.style.display==="none"?"block":"none"};
+document.addEventListener("click",function(e){if(setpop.style.display!=="none"&&!setpop.contains(e.target))setpop.style.display="none"});
+var petOn=false,petSize=120;
+try{petOn=localStorage.getItem("stratagw.pet")==="1";petSize=parseInt(localStorage.getItem("stratagw.petsize"),10)||120}catch(e){}
+var petT=document.getElementById("pet-toggle"),petS=document.getElementById("pet-size"),petO=document.getElementById("pet-size-out");
+petT.checked=petOn;petS.value=petSize;petO.textContent=petSize+"px";
+function petChanged(){petOn=petT.checked;petSize=Math.min(220,Math.max(80,parseInt(petS.value,10)||120));try{localStorage.setItem("stratagw.pet",petOn?"1":"0");localStorage.setItem("stratagw.petsize",String(petSize))}catch(e){}petO.textContent=petSize+"px";if(window.STRATA_PET&&window.STRATA_PET.apply)window.STRATA_PET.apply(petOn,petSize)}
+petT.onchange=petChanged;petS.oninput=petChanged;
 function tt(zh,en){return LANG==="zh"?zh:en}
 function pick(v){if(v==null)return "";if(typeof v==="string")return v;
   if(Array.isArray(v))return v;
@@ -316,7 +328,7 @@ function refresh(){
 function act(op,name){
   if(ops[name])return;
   ops[name]={op:op,t0:Date.now()};
-  applyLang();
+  applyLang();syncLangBtn();
   refresh();
   fetch(op,{method:"POST",headers:hdrs(true),body:JSON.stringify({model:name})})
     .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
