@@ -66,4 +66,41 @@ r = subprocess.run(["node", "--check", os.path.join(ROOT, "console", "app.js")],
 ok(r.returncode == 0, "K10 app.js parses (node --check)" + ("" if r.returncode == 0 else " :: " + r.stderr[:200]))
 
 print("ALL PASS" if not F else "FAILED: " + ", ".join(F))
+
+i18njs = open(os.path.join(ROOT, "console", "i18n.js"), encoding="utf-8").read()
+
+# ---- K11 (master review): page title is "Strata 网关 / Strata gateway" ----
+ok("模型加载台" not in html and "model load console" not in html.lower(),
+   "K11a no old tagline in index.html")
+ok("<title>Strata 网关</title>" in html, "K11b html title is Strata 网关")
+ok('"pg.title": "Strata 网关"' in i18njs and '"pg.title": "Strata gateway"' in i18njs,
+   "K11c i18n pg.title zh/en")
+
+# ---- K12: ctlbar buttons all flat at the gwver height (24px) ----
+ok("#ctlbar .cbtn,#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar .seg button" in css
+   and "height:24px" in css,
+   "K12a flat 24px rule for every ctlbar control")
+
+# ---- K13: diagram flow line arcs above the backend cards, never through them ----
+ok("M450 186 C 560 196, 640 208, 657 236" not in html,
+   "K13a old through-cards curve gone")
+ok("C 520 30, 620 24, 668 24" in html, "K13b arc-over-top route in place")
+
+# ---- K14: edit drawer slimmed to nick + palette + art upload ----
+for bad in ("ed_nick_zh", "ed_nick_en", "ed_who_zh", "ed_sub_zh", "ed_style_zh",
+            "ed_tags_zh", "ed_notes_zh", 'id="ed_art"', 'id="ed_accent"'):
+    ok(bad not in html, "K14a form field removed: " + bad)
+ok('id="ed_nick"' in html and 'type="color" id="ed_accentc"' in html
+   and 'id="ed-swatches"' in html and 'id="ed-artup"' in html,
+   "K14b single nick + color input + swatches + upload button")
+ok("fe.nick_zh" not in i18njs and "fe.notes_en" not in i18njs,
+   "K14c old bilingual form keys purged from word table")
+
+# ---- K15: model cards stack like book pages (p1/p2 behind) ----
+ok(".page.p1" in css and ".page.p2" in css, "K15a stacked-behind css exists")
+ok('"page p1"' in js and '"page p2"' in js, "K15b setPage assigns depth classes")
+
+# ---- K16: accent is a free color (hex passthrough), not just q/s ----
+ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
+
 sys.exit(0 if not F else 1)

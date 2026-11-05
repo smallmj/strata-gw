@@ -88,7 +88,7 @@ missing = sorted({k for k in anno if k not in TBL.get("zh", {})})
 ok(anno and not missing, "T8e all %d HTML annotation keys in table%s"
    % (len(anno), ("" if not missing else " missing: " + ",".join(missing))))
 ok(len(set(anno)) >= 45, "T8f HTML carries page-wide annotations (>=45 unique keys)")
-for probe in ("pg.hero", "pg.lead", "sec.dyn", "mon.th1", "fe.nick_zh",
+for probe in ("pg.hero", "pg.lead", "sec.dyn", "mon.th1", "fe.nick",
               "pet.needload", "dg.gw", "set.samptag", "ui.save"):
     ok(probe in TBL.get("zh", {}), "T8g probe key %s present" % probe)
 

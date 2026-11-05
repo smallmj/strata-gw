@@ -257,7 +257,7 @@ try:
        "T1 router up, GET /router/backends lists both models")
 
     s, h = req("GET", "/gateway")
-    ok(s == 200 and "模型加载台" in h
+    ok(s == 200 and "Strata 网关" in h
        and 'id="gforce"' in h and "强制让卡" in h and "让卡" in h
        and 'id="sec-settings"' in h and 'id="sec-about"' in h
        and 'id="sec-dyn"' in h and 'id="sec-monitor"' in h

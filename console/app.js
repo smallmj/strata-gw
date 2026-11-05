@@ -33,7 +33,10 @@ function pickarr(v){var o=pick(v);return Array.isArray(o)?o:[];}
 function cardMeta(n){var m=CARDS[n];return (m&&typeof m==="object")?m:null;}
 function cardNick(n){var m=cardMeta(n);var p=pick(m&&m.nick);
   return (typeof p==="string"&&p)?p:n;}
-function accentFor(n){var m=cardMeta(n);return (m&&m.accent==="s")?"s":"q";}
+function accentFor(n){var m=cardMeta(n),a=(m&&m.accent)||"";
+  if(a==="s")return "var(--s)";
+  if(/^#[0-9a-fA-F]{3,8}$/.test(a))return a;
+  return "var(--q)";}
 function backendOf(n){for(var i=0;i<modelsList.length;i++){if(modelsList[i].model===n)return modelsList[i]}return null;}
 function cardNameList(){var names=modelsList.map(function(b){return b.model});
   Object.keys(CARDS).forEach(function(k){if(k.charAt(0)!=="_"&&names.indexOf(k)<0)names.push(k)});
@@ -91,11 +94,11 @@ function cardHTML(name){
   var m=cardMeta(name);
   var tags=m?pickarr(m.tags):[],notes=m?pickarr(m.notes):[];
   var lore=m?pick(m.lore):"";
-  var h='<div class="page"><div class="card" data-accent="'+accentFor(name)+'" data-model="'+esc(name)+'">';
+  var h='<div class="page"><div class="card" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
   h+=artHtml(name);
   h+='<div class="cbody">'+
     '<div class="mhead"><div><h3 title="'+esc(name)+'">'+esc(name)+'</h3>'+
-    '<div class="sub">'+esc(m?pick(m.sub):tt("未建档 · 点「编辑档案」","no dossier yet - use edit dossier"))+'</div></div></div>'+
+    '<div class="sub">'+esc(m?pick(m.sub):tt("点「自定义」设昵称 / 配色 / 立绘","customize to set nickname · palette · portrait"))+'</div></div></div>'+
     '<h4 class="mod">'+tt("技术档案","technical dossier")+'</h4><dl class="specs" data-r="liverows"></dl>';
   if(tags.length)h+='<div class="tags">'+tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join("")+'</div>';
   if(m&&pick(m.style))h+='<p class="prose">'+esc(pick(m.style))+'</p>';
@@ -103,7 +106,7 @@ function cardHTML(name){
   if(lore)h+='<h4 class="mod">'+tt("档案","dossier")+'</h4><p class="prose">'+esc(lore)+'</p>';
   h+='<div class="acts"><button class="load" data-r="toggle">'+tt("载入","Load")+'</button>'+
     '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
-    '<button class="ghostbtn" data-r="editdossier" style="display:none">'+tt("编辑档案","edit dossier")+'</button>'+
+    '<button class="ghostbtn" data-r="editdossier" style="display:none">'+tt("自定义","customize")+'</button>'+
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
@@ -146,8 +149,10 @@ function build(names){
 function setPage(i){
   if(!cardNames.length){paintDots();return}
   pageIdx=((i%cardNames.length)+cardNames.length)%cardNames.length;
-  var pages=cardsEl.querySelectorAll(".page");
-  for(var j=0;j<pages.length;j++)pages[j].className="page"+(j===pageIdx?" on":"");
+  var pages=cardsEl.querySelectorAll(".page");var np=pages.length;
+  for(var j=0;j<np;j++){var rel=(j-pageIdx+np)%np;
+    pages[j].className=rel===0?"page on":rel===1?"page p1":rel===2?"page p2":"page";
+    if(rel>0&&rel<3)pages[j].onclick=(function(k){return function(){setPage(k)}})(j);}
   try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
   paintDots();
 }
@@ -280,37 +285,42 @@ function updateLive(card,name){
     if(hw.ram_total!=null)row(tt("系统内存","RAM"),gbf(hw.ram_used,1)+" / "+gbf(hw.ram_total,0)+" GB")}
   dl.innerHTML=rows.length?rows.join(""):'<div class="srow"><dt>'+esc(tt("实时档案","live dossier"))+'</dt><dd>'+esc(tt("等待该后端报告…","awaiting backend report…"))+'</dd></div>';
 }
+var ED_PALETTE=["#48c6d8","#f0679a","#8f7bff","#3ba55d","#f5a623","#e05252","#2f80ed","#a0a6b3"];
+var edAccent="";
+function renderSwatches(){var w=document.getElementById("ed-swatches");if(!w)return;
+  w.innerHTML=ED_PALETTE.map(function(c){return '<span class="sw'+(c.toLowerCase()===edAccent?" sel":"")+'" data-c="'+c+'" style="background:'+c+'"></span>'}).join("");
+  var i2;for(i2=0;i2<w.children.length;i2++)w.children[i2].onclick=function(){edSetAccent(this.dataset.c)};}
+function edSetAccent(c){edAccent=String(c||"").toLowerCase();
+  var ci=document.getElementById("ed_accentc");
+  if(ci&&/^#[0-9a-f]{6}$/.test(edAccent))ci.value=edAccent;
+  renderSwatches();}
 function openEdit(name){
   var d=document.getElementById("dossier-edit");if(!d)return;
   d.dataset.model=name;d.style.display="flex";
   var whoEl=document.getElementById("ed-who");if(whoEl)whoEl.textContent=name;
   var m=cardMeta(name)||{};
-  function setv(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?"":(Array.isArray(v)?v.join(", "):v))}
-  function fv(f,l){var v=m[f];if(v==null)return "";
-    if(typeof v==="string")return l==="zh"?v:"";
-    var o=v[l];return o==null?"":(Array.isArray(o)?o.join(", "):o)}
-  setv("ed_accent",m.accent||"q");setv("ed_art",m.art||"");
-  ["nick","who","sub","style","tags","notes"].forEach(function(f){
-    setv("ed_"+f+"_zh",fv(f,"zh"));setv("ed_"+f+"_en",fv(f,"en"));
-  });
+  var nk=document.getElementById("ed_nick");
+  if(nk)nk.value=(m.nick&&(m.nick[LANG]||m.nick.zh||m.nick.en))||"";
+  edSetAccent(m.accent&&/^#[0-9a-fA-F]{6}$/.test(m.accent)?m.accent:"");
+  var an=document.getElementById("ed-artname");
+  if(an)an.textContent=m.art?String(m.art).split("/").pop():"";
 }
 function saveEdit(){
   var d=document.getElementById("dossier-edit");var name=d&&d.dataset.model;if(!name)return;
-  function gv(id){var el=document.getElementById(id);return el?el.value.trim():""}
-  function gav(id){return gv(id).split(",").map(function(s){return s.trim()}).filter(function(s){return s})}
-  var card={};
-  function put(f,zid,eid){var z=gv(zid),e=gv(eid);if(z||e)card[f]={zh:z,en:e}}
-  ["nick","who","sub","style"].forEach(function(f){put(f,"ed_"+f+"_zh","ed_"+f+"_en")});
-  ["tags","notes"].forEach(function(f){var z=gav("ed_"+f+"_zh"),e=gav("ed_"+f+"_en");if(z.length||e.length)card[f]={zh:z,en:e}});
-  var art=gv("ed_art");if(art)card.art=art;
-  var ac=gv("ed_accent");if(ac)card.accent=ac;
+  var nk=document.getElementById("ed_nick");var v=nk?nk.value.trim():"";
+  var card={nick:{zh:v||name,en:v||name}};
+  if(edAccent)card.accent=edAccent;
   postj("router/cards",{model:name,card:card},function(rj){
-    if(rj[0]>=400){say(tt("保存档案失败 HTTP ","dossier save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    say(tt("档案已保存。","dossier saved."),"");
+    if(rj[0]>=400){say(tt("保存卡片失败 HTTP ","card save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+    say(tt("卡片已保存。","card saved."),"");
     d.style.display="none";
     fetchCards(function(){sig="";refresh()});
   });
 }
+(function(){var ci=document.getElementById("ed_accentc");
+  if(ci)ci.oninput=function(){edSetAccent(ci.value)};
+  var up=document.getElementById("ed-artup");
+  if(up)up.onclick=function(){var d=document.getElementById("dossier-edit");artTarget=d&&d.dataset.model;artInput.click()};})();
 function delCard(name){
   fetch("router/cards/"+encodeURIComponent(name),{method:"DELETE"}).then(function(r){
     return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
@@ -444,8 +454,7 @@ function renderMonitor(){
   var strip=document.getElementById("mon-strip");
   var tb=document.getElementById("mon-tb");
   var hint=document.getElementById("mon-hint");
-  var ac=accentFor(selName||"");
-  bar.style.setProperty("--ac","var(--"+ac+")");
+  bar.style.setProperty("--ac",accentFor(selName||""));
   chip.className="";det.textContent="";who.textContent=selName?"· "+selName:"";prog.style.width="0";
   var d=mon.data;
   if(!d){

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="strata-gw-port" content="__GW_PORT__">
 <meta name="strata-gw-version" content="__VERSION__">
-<title>STRATA · 模型加载台</title>
+<title>Strata 网关</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
 <div class="wrap">
 <header id="ctlbar">
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M4 17.5 12 3l8 14.5-8 4.5-8-4.5Zm8-11-5.4 9.8L12 18.7l5.4-4.4L12 6.5Z"/></svg></div>
-  <h1>STRATA<small data-i18n="pg.tagline">模型加载台 · LOAD CONSOLE</small></h1>
+  <h1>STRATA<small data-i18n="pg.tagline">Strata 网关</small></h1>
   <div class="spacer"></div>
   <button class="tbtn" id="langbtn" title="切换语言 / Switch language">中 / EN</button>
   <button id="theme" title="切换深色/亮色主题" aria-label="切换主题">
@@ -52,20 +52,9 @@
 <div class="def-head"><b data-i18n="fe.head">编辑档案</b><span id="ed-who"></span><button id="ed-close" data-i18n-title="ui.close" title="关闭">×</button></div>
 <p class="pnote" data-i18n="fe.note">人设档案存入 cards/cards.json；技术档案行由网关实时数据渲染，不在此填写。</p>
 <div class="fgrid">
-<div class="field"><label data-i18n="fe.nick_zh">代号 nick (zh)</label><input type="text" id="ed_nick_zh"></div>
-<div class="field"><label data-i18n="fe.nick_en">nick (en)</label><input type="text" id="ed_nick_en"></div>
-<div class="field"><label data-i18n="fe.who_zh">形象 who (zh)</label><input type="text" id="ed_who_zh"></div>
-<div class="field"><label data-i18n="fe.who_en">who (en)</label><input type="text" id="ed_who_en"></div>
-<div class="field"><label data-i18n="fe.sub_zh">副标 sub (zh)</label><input type="text" id="ed_sub_zh"></div>
-<div class="field"><label data-i18n="fe.sub_en">sub (en)</label><input type="text" id="ed_sub_en"></div>
-<div class="field"><label data-i18n="fe.style_zh">风格场景 style (zh)</label><input type="text" id="ed_style_zh"></div>
-<div class="field"><label data-i18n="fe.style_en">style (en)</label><input type="text" id="ed_style_en"></div>
-<div class="field"><label data-i18n="fe.tags_zh">标签 tags (zh，逗号分隔)</label><input type="text" id="ed_tags_zh"></div>
-<div class="field"><label data-i18n="fe.tags_en">tags (en)</label><input type="text" id="ed_tags_en"></div>
-<div class="field"><label data-i18n="fe.notes_zh">提醒 notes (zh，逗号分隔)</label><input type="text" id="ed_notes_zh"></div>
-<div class="field"><label data-i18n="fe.notes_en">notes (en)</label><input type="text" id="ed_notes_en"></div>
-<div class="field"><label data-i18n="fe.art">立绘路径 art</label><input type="text" id="ed_art" placeholder="router/assets/xxx.png"></div>
-<div class="field"><label data-i18n="fe.accent">强调色 accent</label><select id="ed_accent"><option value="q">q</option><option value="s">s</option></select></div>
+<div class="field"><label data-i18n="fe.nick">昵称</label><input type="text" id="ed_nick"></div>
+<div class="field"><label data-i18n="fe.accent">配色</label><div class="swrow"><span id="ed-swatches"></span><input type="color" id="ed_accentc" value="#48c6d8" title="自由取色"></div></div>
+<div class="field"><label data-i18n="fe.artup">立绘</label><div class="swrow"><button class="cbtn" id="ed-artup" data-i18n="fe.artbtn">上传立绘</button><span id="ed-artname" class="hint"></span></div></div>
 </div>
 <div class="prow"><button class="primary" id="ed-save" data-i18n="fe.save">保存档案</button><span class="hint" data-i18n="fe.savehint">POST /router/cards · 立即持久</span></div>
 </div></div>
@@ -172,7 +161,7 @@
       <path class="dg-mutex" d="M214 265H296" marker-start="url(#arMs)" marker-end="url(#arS)"/>
       <text class="xs" x="255" y="255" text-anchor="middle" data-i18n="dg.mutex">互斥驻留</text>
       <text class="xs" x="255" y="284" text-anchor="middle" data-i18n="dg.switch">换机即让位</text>
-      <path class="dg-flow" d="M450 186 C 560 196, 640 208, 657 236" marker-end="url(#arS)"/>
+      <path class="dg-flow" d="M450 96 C 520 30, 620 24, 668 24 L 668 236" marker-end="url(#arS)"/>
       <g>
         <rect class="dgbox dggive" x="592" y="240" width="152" height="50" rx="14"/>
         <text class="t" x="668" y="262" text-anchor="middle" data-i18n="dg.give">外部显存让卡</text>

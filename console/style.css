@@ -442,3 +442,24 @@ details.drawer .dbody .ptitle{display:none}
 #pc-note{position:absolute;inset:44px 0 0 0;display:none;flex-direction:column;gap:12px;
   align-items:center;justify-content:center;background:var(--card);text-align:center;padding:24px}
 #pc-note p{margin:0;font-size:.82rem;color:var(--muted)}
+
+/* ---- K12 (master review): every ctlbar control flat at 24px (gwver parity) ---- */
+#ctlbar .cbtn,#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar .seg button,#ctlbar .tbtn,#ctlbar #theme{
+  height:24px;box-sizing:border-box;padding:.1rem .8rem;font-size:.7rem;line-height:1.1}
+#ctlbar .ghico,#ctlbar .gearbtn{width:26px;padding:0}
+#ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:15px;height:15px}
+#ctlbar .seg{height:24px}
+
+/* ---- K15 (master review): model cards stack like pages of a book ---- */
+#cards.pagesw{position:relative}
+.pagesw .page{display:none}
+.pagesw .page.on{display:block;position:relative;z-index:3;animation:rise .5s both}
+.pagesw .page.p1,.pagesw .page.p2{display:block;position:absolute;top:0;left:0;width:100%;cursor:pointer}
+.pagesw .page.p1{z-index:2;transform:translate(14px,14px) scale(.985);opacity:.8}
+.pagesw .page.p2{z-index:1;transform:translate(28px,28px) scale(.97);opacity:.55}
+.pagesw .page.p1:hover,.pagesw .page.p2:hover{opacity:1}
+.pagesw .page.p1 .card,.pagesw .page.p2 .card{box-shadow:0 14px 34px -18px rgba(0,0,0,.4)}
+.swrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#ed-swatches{display:flex;gap:6px;flex-wrap:wrap}
+#ed-swatches .sw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+#ed-swatches .sw.sel{outline:2px solid var(--fg);outline-offset:1px}
