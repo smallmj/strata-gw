@@ -103,11 +103,46 @@ ok("window.__I18N__" in page and '<script src="i18n.js">' not in page,
 ok("var I18N={" not in js and "window.__I18N__" in js,
    "T8i app.js reads the injected table (no second source of truth)")
 
+# boot language path: the refresh callback (runs at boot) must apply the stored
+# language over the zh-prefilled HTML, not wait for a manual toggle
+ok("modelsList=list;\n    applyLang();syncLangBtn();" in js,
+   "T8k stored language applied on boot refresh")
+
 # no raw-Chinese user-facing say()/alert() left: every string goes through tt()/t()
+# T8l: every CJK double-quoted literal must be tt()-wrapped, a language-button
+# label, or confined to a LANG==="zh" branch line (structural EN guarantee)
+import io as _io
+_bad = []
+for _ln in js.splitlines():
+    _t = _ln.strip()
+    if _t.startswith("//"):
+        continue
+    _masked = re.sub(r'(?:\btt|\bt)\("[^"]*","[^"]*"\)', "TT()", _t)
+    for _m in re.finditer(r'"([^"\n]*)"', _masked):
+        if not re.search(r"[\u4e00-\u9fff]", _m.group(1)):
+            continue
+        if _m.group(1) in ("\u4e2d / EN", "EN / \u4e2d"):
+            continue
+        if 'LANG==="zh"' in _t:
+            continue
+        _bad.append(_m.group(1))
+ok(not _bad, "T8l no unwrapped Chinese literals on EN code paths: " + str(_bad[:4]))
+
+# T8m: decorative <em> secondary labels hidden under EN (no "Events Events",
+# no Chinese em leaking into an English page)
+ok('_ems[_ei].style.display=LANG==="en"?"none":""' in js,
+   "T8m sec em labels hidden in EN mode")
+
 raw_say = re.findall(r'say\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
 raw_alert = re.findall(r'alert\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
 ok(not raw_say and not raw_alert,
    "T8j say()/alert() bilingual via tt() (raw zh: %d/%d)" % (len(raw_say), len(raw_alert)))
+
+# every web call survives failures: fetch chains all end in .catch (no white page
+# when an old engine build lacks endpoints - the proxy mirrors 404s, JS swallows)
+ncatch, nfetch = js.count(".catch("), js.count("fetch(")
+ok(nfetch >= 6 and ncatch >= nfetch,
+   "S7 all web calls carry .catch (%d catch / %d fetch)" % (ncatch, nfetch))
 
 # ---- T9 (Phase 9): personalization audit lint ------------------------------
 # Token table built by concatenation so the scanner never hits its own source.

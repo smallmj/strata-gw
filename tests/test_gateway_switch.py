@@ -82,6 +82,8 @@ class Stub:
                          "status": {"value": "loaded" if outer.loaded else "unloaded"}}]}))
                 if p in ("/", "/monitor"):
                     return self._send(200, f"<html><body>stub:{outer.name}</body></html>", "text/html; charset=utf-8")
+                if p in ("/props", "/slots"):
+                    return self._send(404, {"error": "endpoint not in this engine build"})
                 return self._send(200, f"stub:{outer.name}", "text/plain")
             def do_POST(self):
                 n = int(self.headers.get("Content-Length", 0) or 0)
@@ -497,6 +499,12 @@ try:
        and "slice(0,12)" not in h2 and "最近 12 条" not in h2
        and 'colspan="9" style="text-align:center' not in h2,
        "T49 monitor table pinned to 10 rows (placeholders keep height stable; no jump on chip click)")
+
+    # ---- T51 (Phase 11): engine endpoint degradation ----
+    s, h = req("GET", "/router/props")
+    ok(s == 404, "T51a engine missing endpoint mirrors as 404 through the proxy")
+    s2, _h = req("GET", "/router/version")
+    ok(s2 == 200, "T51b gateway stays healthy after a proxied 404")
 
     # ---- T50 (Phase 11): /router/version + engine-root resolution ----
     s, h = req("GET", "/router/version")

@@ -79,12 +79,12 @@ var mon={data:null};
 function artHtml(name){
   var m=cardMeta(name),nick=cardNick(name);
   var ph='<div class="art-ph"><span class="nick">'+esc(nick)+'</span><i></i>'+
-    '<span class="who">'+esc(pick(m&&m.who))+'</span><span class="pend">立绘待入</span></div>';
+    '<span class="who">'+esc(pick(m&&m.who))+'</span><span class="pend">'+tt("立绘待入","portrait pending")+'</span></div>';
   var art=m?String(m.art||""):"";
   var tools='<div class="art-tools"><button data-r="uploadart">'+tt("上传立绘","upload art")+'</button>'+
     '<button data-r="rmart" style="display:none">'+tt("移除","remove")+'</button></div>';
   if(!art)return '<div class="art">'+ph+tools+'</div>';
-  return '<div class="art"><img alt="'+esc(nick)+'立绘" src="'+esc(art)+'" '+
+  return '<div class="art"><img alt="'+esc(nick)+tt("立绘","portrait")+'" src="'+esc(art)+'" '+
     'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+tools+'</div>';
 }
 function cardHTML(name){
@@ -273,7 +273,7 @@ function updateLive(card,name){
   if(info.images!=null)row(tt("图像输入","vision"),info.images?tt("有","yes"):tt("无","no"));
   var eng=(name===selName&&mon.data&&mon.data.engine)?mon.data.engine:null;
   if(eng){if(eng.version!=null)row(tt("引擎版本","engine"),String(eng.version));
-    if(eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+" 槽 · "+gbf(eng.expert_cache_mib*1048576,1)+" GB");
+    if(eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+tt(" 槽 · "," slots · ")+gbf(eng.expert_cache_mib*1048576,1)+" GB");
     if(eng.kv!=null)row(tt("KV 量化","KV quant"),String(eng.kv))}
   if(name===selName&&mon.data&&mon.data.hardware){var hw=mon.data.hardware;
     if(hw.gpu_mem_total!=null)row(tt("显存驻留","VRAM"),gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB");
@@ -339,7 +339,7 @@ function paint(list){
         ring=card.querySelector('[data-r=ring]'),el=card.querySelector('[data-r=elapsed]'),
         live=card.querySelector('[data-r=live]');
     var willUnload=(st==="loaded");
-    tg.textContent=act2?(act2.op==="load"?"载入中…":"卸载中…"):(willUnload?"卸载":"载入");
+    tg.textContent=act2?(act2.op==="load"?tt("载入中…","loading…"):tt("卸载中…","unloading…")):(willUnload?tt("卸载","Unload"):tt("载入","Load"));
     tg.className=act2?(act2.op==="load"?"load":"warnbtn"):(willUnload?"warnbtn":"load");
     tg.disabled=(st==="down"||busyNow);
     if(act2){ring.classList.add("on");
@@ -347,33 +347,34 @@ function paint(list){
       el.textContent=e0<100?(e0+"s"):(Math.floor(e0/60)+"m"+("0"+(e0%60)).slice(-2)+"s");}
     else ring.classList.remove("on");
     var lv=mon.data&&mon.data.live?mon.data.live:null;
-    if(st==="down")live.textContent="离线";
-    else if(act2)live.textContent=(act2.op==="load"?"请上卡":"让卡中");
+    if(st==="down")live.textContent=tt("离线","offline");
+    else if(act2)live.textContent=(act2.op==="load"?tt("请上卡","yield ask"):tt("让卡中","yielding"));
     else if(st==="loaded")live.textContent=(lv&&lv.state==="generating")?(fnum(lv.tok_s,1)+" tok/s"):
-      ((lv&&lv.state==="reading")?"读提示词":"静驻");
-    else live.textContent="待加载";
+      ((lv&&lv.state==="reading")?tt("读提示词","prompt decode"):tt("静驻","idle resident"));
+    else live.textContent=tt("待加载","not loaded");
   });
 }
 function refresh(){
   fetch("router/backends").then(function(r){return r.json()}).then(function(d){
     var list=d.backends||[];modelsList=list;
+    applyLang();syncLangBtn();
     var names=cardNameList();
     if(names.join("|")!==sig){sig=names.join("|");build(names);buildSeg()}
     list.forEach(function(b){
       var was=prev[b.model];
       if(was===false&&b.loaded===true){
-        say(b.model+" 已载入 —— monitor 已就绪，页面见下方。","busy");
+        say(b.model+tt(" 已载入 —— monitor 已就绪，页面见下方。"," loaded — monitor ready below."),"busy");
         var sec=document.getElementById("sec-monitor");
         sec.classList.remove("flash");void sec.offsetWidth;sec.classList.add("flash");
         sec.scrollIntoView({behavior:"smooth",block:"start"});
       }else if(was===true&&b.loaded===false&&!b.busy){
-        say(b.model+" 已卸载，显存已让出。","");
+        say(b.model+tt(" 已卸载，显存已让出。"," unloaded, VRAM released."),"");
       }
       prev[b.model]=b.loaded;
     });
     var anyLoaded=list.some(function(b){return b.loaded});
-    if(window.PETUI)window.PETUI.state(anyLoaded,loadedNow.length?loadedNow[0].model:null);
     var loadedNow=list.filter(function(b){return b.loaded});
+    if(window.PETUI)window.PETUI.state(anyLoaded);
     if(!selName||!list.some(function(b){return b.model===selName})){
       if(loadedNow[0]||list[0])selectModel((loadedNow[0]||list[0]).model,true);
     }else if(selName&&loadedNow.length&&loadedNow.every(function(b){return b.model!==selName})){
@@ -386,29 +387,28 @@ function refresh(){
 function act(op,name){
   if(ops[name])return;
   ops[name]={op:op,t0:Date.now()};
-  applyLang();syncLangBtn();
   refresh();
   fetch(op,{method:"POST",headers:hdrs(true),body:JSON.stringify({model:name})})
     .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
     .then(function(rj){
       if(rj[0]>=400){delete ops[name];
-        say(op+" "+name+" 失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");
+        say(op+" "+name+tt(" 失败 HTTP "," failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");
         refresh()}
     })
-    .catch(function(e){delete ops[name];say(op+" "+name+" 失败: "+e,"err");refresh()});
+    .catch(function(e){delete ops[name];say(op+" "+name+tt(" 失败: "," failed: ")+e,"err");refresh()});
 }
 
 /* ---------------- monitor ---------------- */
 var TILES=[
-  {key:"decode",label:"解码速度",unit:"tok/s",series:"tok_s",dec:1},
-  {key:"prefill",label:"预填速度",unit:"tok/s",series:"prefill_tok_s_mean"},
-  {key:"gpu",label:"GPU 负载",unit:"%",series:"gpu_util"},
-  {key:"vram",label:"显存占用",unit:"GB",series:"gpu_mem_used"},
-  {key:"temp",label:"GPU 温度",unit:"°C",series:"gpu_temp"},
-  {key:"power",label:"GPU 功耗",unit:"W",series:"gpu_power"},
-  {key:"pcie",label:"PCIe→显存",unit:"MB/s",series:"gpu_pcie_rx_mb"},
+  {key:"decode",label:tt("解码速度","decode speed"),unit:"tok/s",series:"tok_s",dec:1},
+  {key:"prefill",label:tt("预填速度","prefill speed"),unit:"tok/s",series:"prefill_tok_s_mean"},
+  {key:"gpu",label:tt("GPU 负载","GPU load"),unit:"%",series:"gpu_util"},
+  {key:"vram",label:tt("显存占用","VRAM use"),unit:"GB",series:"gpu_mem_used"},
+  {key:"temp",label:tt("GPU 温度","GPU temp"),unit:"°C",series:"gpu_temp"},
+  {key:"power",label:tt("GPU 功耗","GPU power"),unit:"W",series:"gpu_power"},
+  {key:"pcie",label:tt("PCIe→显存","PCIe→VRAM"),unit:"MB/s",series:"gpu_pcie_rx_mb"},
   {key:"cpu",label:"CPU",unit:"%",series:"cpu",alt:true},
-  {key:"disk",label:"磁盘读取",unit:"MB/s",series:"disk_read_mb"}
+  {key:"disk",label:tt("磁盘读取","disk read"),unit:"MB/s",series:"disk_read_mb"}
 ];
 function gbf(v,d){if(v==null||isNaN(v))return "–";var x=v/1073741824;return d?x.toFixed(d):""+(Math.round(x*10)/10)}
 function kfmt(v){if(v==null)return "–";if(v>=1000000)return (v/1000000).toFixed(2)+"M";if(v>=1000)return (v/1000).toFixed(1)+"K";return ""+v}
@@ -426,13 +426,13 @@ function phTiles(){
   document.getElementById("mon").innerHTML=
     TILES.map(function(m){
       return '<div class="tile ph'+(m.alt?" alt":"")+'"><div class="lab">'+m.label+'</div>'+
-        '<div class="val">–<small>'+m.unit+'</small></div><div class="sub">载入后点亮</div>'+flatSpark()+'</div>';
+        '<div class="val">–<small>'+m.unit+'</small></div><div class="sub">'+tt("载入后点亮","lights up once loaded")+'</div>'+flatSpark()+'</div>';
     }).join("")+
-    '<div class="tile ph"><div class="lab">上下文填充</div><div class="val">–<small>%</small></div><div class="sub">最近请求占窗口比</div><div class="pbar"><i style="width:0"></i></div></div>'+
-    '<div class="tile ph"><div class="lab">显存专家缓存</div><div class="val">–<small>槽</small></div><div class="sub">热专家占显存比</div><div class="pbar"><i style="width:0"></i></div></div>'+
-    '<div class="tile ph"><div class="lab">系统内存</div><div class="val">–<small>GB</small></div><div class="sub">引擎常驻水位</div><div class="pbar ram"><i style="width:0"></i></div></div>';
+    '<div class="tile ph"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">–<small>%</small></div><div class="sub">'+tt("最近请求占窗口比","recent req / window")+'</div><div class="pbar"><i style="width:0"></i></div></div>'+
+    '<div class="tile ph"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">–<small>'+tt("槽","slots")+'</small></div><div class="sub">'+tt("热专家占显存比","hot experts / VRAM")+'</div><div class="pbar"><i style="width:0"></i></div></div>'+
+    '<div class="tile ph"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">–<small>GB</small></div><div class="sub">'+tt("引擎常驻水位","engine floor")+'</div><div class="pbar ram"><i style="width:0"></i></div></div>';
 }
-var FIN={stop:["ok","已完成"],length:["len","触上限"],cancel:["stop","已停止"],disconnect:["stop","已断开"],error:["err","错误"],timeout:["stop","超时"]};
+var FIN={stop:["ok",tt("已完成","done")],length:["len",tt("触上限","limit")],cancel:["stop",tt("已停止","stopped")],disconnect:["stop",tt("已断开","gone")],error:["err",tt("错误","error")],timeout:["stop",tt("超时","timeout")]};
 var TROWS=10;
 function phRow(){return '<tr class="phr"><td>–</td><td><span class="fin">–</span></td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'}
 function renderMonitor(){
@@ -449,11 +449,11 @@ function renderMonitor(){
   chip.className="";det.textContent="";who.textContent=selName?"· "+selName:"";prog.style.width="0";
   var d=mon.data;
   if(!d){
-    chip.textContent="待载入";
-    det.textContent="拿不到 /metrics——多半是页脚 api key 没填，或该后端进程未起";
+    chip.textContent=tt("待载入","pending");
+    det.textContent=tt("拿不到 /metrics——多半是页脚 api key 没填，或该后端进程未起","/metrics unavailable — set the footer api key, or check that the backend is running");
     phTiles();strip.textContent="";
     tb.innerHTML=phRow().repeat(TROWS);
-    hint.textContent="尚无请求记录——统计从引擎启动起累计";
+    hint.textContent=tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start");
     return;
   }
   var eng=d.engine||{},lv=d.live||{},hw=d.hardware||{},st=d.hardware_static||{},
@@ -462,7 +462,7 @@ function renderMonitor(){
   var loaded=modelsList.some(function(b){return b.model===selName&&b.loaded});
   var state=lv.state||"unloaded";
   if(loaded&&lv.queued>0&&state!=="generating"&&state!=="reading")state="queued";
-  var STATE={idle:"待机",reading:"读提示词",generating:"生成中",queued:"排队中",unloaded:"已卸载",error:"异常"};
+  var STATE={idle:tt("待机","standby"),reading:tt("读提示词","prompt decode"),generating:tt("生成中","generating"),queued:tt("排队中","queued"),unloaded:tt("已卸载","offloaded"),error:tt("异常","stale")};
   if(!loaded)state="unloaded";
   chip.textContent=STATE[state]||state;
   if(state==="generating"){
@@ -476,12 +476,12 @@ function renderMonitor(){
     else det.textContent=num(lv.prompt_tokens)+" tok";
   }else if(state==="queued"){
     chip.className="reading";
-    det.textContent=(lv.queued||0)+" 个请求排队 · 先让上一个说完";
+    det.textContent=(lv.queued||0)+tt(" 个请求排队 · 先让上一个说完"," queued · let the previous one finish");
   }else if(state==="idle"){
     chip.className="idle";
-    det.textContent=last?("上次: "+num(last.output_tokens)+" tok · "+fnum(last.decode_tok_s,1)+" tok/s"):"等待请求";
+    det.textContent=last?(tt("上次: ","last: ")+num(last.output_tokens)+" tok · "+fnum(last.decode_tok_s,1)+" tok/s"):tt("等待请求","idle");
   }else{
-    det.textContent="引擎未驻留——下方硬件读数仍是实时的（画布出图也在同一块卡上）";
+    det.textContent=tt("引擎未驻留——下方硬件读数仍是实时的（画布出图也在同一块卡上）","engine not resident — the hardware readings below stay live (canvas output shares the same GPU)");
   }
   var decodeAvg=(t.decode_ms&&t.output_tokens)?t.output_tokens/(t.decode_ms/1000):null;
   var readTok=(t.prompt_tokens||0)-(t.reused||0);
@@ -490,8 +490,8 @@ function renderMonitor(){
   var prefillV=(lv.state&&lv.state!=="idle"&&lv.prefill_tok_s_mean!=null)?lv.prefill_tok_s_mean
               :(avgPrefill!=null?avgPrefill
               :(last&&last.prompt_ms>0?Math.max(0,(last.prompt_tokens||0)-(last.reused||0))/(last.prompt_ms/1000):null));
-  var speedSub=state==="generating"?"当前 decode":(decodeAvg!=null?"decode · 运行均值":(last?"上次请求":"等待首次"));
-  var preSub=state==="reading"?"当前 prefill":(avgPrefill!=null?"prefill · 运行均值":(last?"上次请求":"等待首次"));
+  var speedSub=state==="generating"?tt("当前 decode","current decode"):(decodeAvg!=null?tt("decode · 运行均值","decode · run mean"):(last?tt("上次请求","last req"):tt("等待首次","awaiting first")));
+  var preSub=state==="reading"?tt("当前 prefill","current prefill"):(avgPrefill!=null?tt("prefill · 运行均值","prefill · run mean"):(last?tt("上次请求","last req"):tt("等待首次","awaiting first")));
   function std(m,val,unit,sub,amax){
     return '<div class="tile'+(m.alt?" alt":"")+'"><div class="lab">'+m.label+'</div>'+
       '<div class="val">'+val+(unit?'<small>'+unit+'</small>':"")+'</div>'+
@@ -502,35 +502,35 @@ function renderMonitor(){
     var val;
     if(m.key==="decode"){val=fnum(decodeV,1);sub2=speedSub;amax=null}
     else if(m.key==="prefill"){val=fnum(prefillV,0);sub2=preSub;amax=null}
-    else if(m.key==="gpu"){val=fnum(hw.gpu_util,0);sub2=st.gpu_name?esc(st.gpu_name):"利用率";amax=100}
+    else if(m.key==="gpu"){val=fnum(hw.gpu_util,0);sub2=st.gpu_name?esc(st.gpu_name):tt("利用率","util");amax=100}
     else if(m.key==="vram"){val=gbf(hw.gpu_mem_used,1);
-      sub2=eng.expert_slots?(num(eng.expert_slots)+" experts cached"):(hw.gpu_mem_total?("共 "+gbf(hw.gpu_mem_total,0)+" GB"):"");amax=hw.gpu_mem_total}
-    else if(m.key==="temp"){val=fnum(hw.gpu_temp,0);sub2="阈值 90°C";amax=90}
-    else if(m.key==="power"){val=fnum(hw.gpu_power,0);sub2=hw.gpu_power_limit?("上限 "+fnum(hw.gpu_power_limit,0)+" W"):"";amax=hw.gpu_power_limit}
+      sub2=eng.expert_slots?(num(eng.expert_slots)+" experts cached"):(hw.gpu_mem_total?(tt("共 ","total ")+gbf(hw.gpu_mem_total,0)+" GB"):"");amax=hw.gpu_mem_total}
+    else if(m.key==="temp"){val=fnum(hw.gpu_temp,0);sub2=tt("阈值 90°C","thresh 90°C");amax=90}
+    else if(m.key==="power"){val=fnum(hw.gpu_power,0);sub2=hw.gpu_power_limit?(tt("上限 ","cap ")+fnum(hw.gpu_power_limit,0)+" W"):"";amax=hw.gpu_power_limit}
     else if(m.key==="pcie"){val=fnum(hw.gpu_pcie_rx_mb,(hw.gpu_pcie_rx_mb!=null&&hw.gpu_pcie_rx_mb<10)?1:0);
       sub2="Gen"+(hw.gpu_pcie_gen_max||hw.gpu_pcie_gen||"?")+(hw.gpu_pcie_width?(" x"+hw.gpu_pcie_width):"")}
-    else if(m.key==="cpu"){val=fnum(hw.cpu,0);sub2=st.threads?((st.cores?st.cores+" 核 · ":"")+st.threads+" 线程"):"负载";amax=100}
+    else if(m.key==="cpu"){val=fnum(hw.cpu,0);sub2=st.threads?((st.cores?st.cores+tt(" 核 · "," cores · "):"")+st.threads+tt(" 线程"," threads")):tt("负载","load");amax=100}
     else{var rd=hw.disk_read_mb;val=rd==null?"–":fnum(rd,rd<10?1:0);
-      sub2=hw.disk_write_mb==null?(st.psutil?"":"需 psutil"):("写 "+fnum(hw.disk_write_mb,1)+" MB/s")}
+      sub2=hw.disk_write_mb==null?(st.psutil?"":tt("需 psutil","psutil needed")):(tt("写 ","write ")+fnum(hw.disk_write_mb,1)+" MB/s")}
     tiles.push(std(m,val,m.unit,sub2,amax));
   });
   var ctx=eng.max_context||0,usedNow=0;
   if(state==="reading"||state==="generating")usedNow=(lv.prompt_tokens||0)+(lv.generated||0);
   else if(last)usedNow=(last.prompt_tokens||0)+(last.output_tokens||0);
   var frac=ctx?Math.min(1,usedNow/ctx):0;
-  tiles.push('<div class="tile"><div class="lab">上下文填充</div><div class="val">'+Math.round(frac*100)+
+  tiles.push('<div class="tile"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">'+Math.round(frac*100)+
     '<small>%</small></div><div class="sub">'+(ctx?(kfmt(usedNow)+" / "+Math.round(ctx/1024)+"K tok"):"–")+'</div>'+
     '<div class="pbar"><i style="width:'+(frac*100).toFixed(1)+'%"></i></div></div>');
   var cacheBytes=(eng.expert_cache_mib||0)*1048576;
   var cacheFrac=(hw.gpu_mem_total&&cacheBytes)?Math.min(1,cacheBytes/hw.gpu_mem_total):0;
-  tiles.push('<div class="tile alt"><div class="lab">显存专家缓存</div><div class="val">'+
-    (eng.expert_slots!=null?num(eng.expert_slots):"–")+'<small>槽</small></div><div class="sub">'+
-    (cacheBytes?(gbf(cacheBytes,1)+" GB · "+Math.round(cacheFrac*100)+"% 显存"):"–")+'</div>'+
+  tiles.push('<div class="tile alt"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">'+
+    (eng.expert_slots!=null?num(eng.expert_slots):"–")+'<small>'+tt("槽","slots")+'</small></div><div class="sub">'+
+    (cacheBytes?(gbf(cacheBytes,1)+" GB · "+Math.round(cacheFrac*100)+tt("% 显存","% VRAM")):"–")+'</div>'+
     '<div class="pbar warm"><i style="width:'+(cacheFrac*100).toFixed(1)+'%"></i></div></div>');
   var rp=(hw.ram_total&&hw.ram_used!=null)?Math.min(100,100*hw.ram_used/hw.ram_total):0;
-  tiles.push('<div class="tile"><div class="lab">系统内存</div><div class="val">'+
+  tiles.push('<div class="tile"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">'+
     (hw.ram_used!=null?gbf(hw.ram_used,1):"–")+'<small>GB</small></div><div class="sub">'+
-    (hw.ram_total?("共 "+gbf(hw.ram_total,0)+" GB · 水位 "+Math.round(rp)+"%"):"–")+'</div>'+
+    (hw.ram_total?(tt("共 ","total ")+gbf(hw.ram_total,0)+tt(" GB · 水位 "," GB · floor ")+Math.round(rp)+"%"):"–")+'</div>'+
     '<div class="pbar ram'+(rp>92?" hot":"")+'"><i style="width:'+rp.toFixed(1)+'%"></i></div></div>');
   document.getElementById("mon").innerHTML=tiles.join("");
   
@@ -538,10 +538,13 @@ function renderMonitor(){
     var pS=t.prompt_ms>0&&readTok>0?(" @ "+fnum(readTok/(t.prompt_ms/1000),0)+" tok/s"):"";
     var oS=t.decode_ms>0&&t.output_tokens>0?(" @ "+fnum(t.output_tokens/(t.decode_ms/1000),1)+" tok/s"):"";
     var since=t.since?new Date(t.since*1000):null;
-    var stime=(since&&since.getFullYear()>2020)?((since.getMonth()+1)+"月"+since.getDate()+"日 "+("0"+since.getHours()).slice(-2)+":"+("0"+since.getMinutes()).slice(-2)):"启动";
-    strip.innerHTML="自 "+stime+" 起：<b>"+num(t.requests)+"</b> 次请求 · 读取 prompt <b>"+num(readTok)+"</b> tok"+pS+
-      "（复用 <b>"+num(t.reused)+"</b>） · 生成 <b>"+num(t.output_tokens)+"</b> tok"+oS;
-  }else strip.textContent="本次会话尚无请求——统计从引擎启动起累计";
+    var _hm=since?("0"+since.getHours()).slice(-2)+":"+("0"+since.getMinutes()).slice(-2):"";
+    var stime=!since||since.getFullYear()<=2020?tt("启动","booted"):LANG==="zh"?
+      ((since.getMonth()+1)+"\u6708"+since.getDate()+"\u65e5 "+_hm):
+      (since.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+_hm);
+    strip.innerHTML=tt("自 ","since ")+stime+tt(" 起：<b>"," · <b>")+num(t.requests)+tt("</b> 次请求 · 读取 prompt <b>","</b> reqs · prompt reads <b>")+num(readTok)+"</b> tok"+pS+
+      tt("（复用 <b>"," (cached <b>")+num(t.reused)+tt("</b>） · 生成 <b>","</b>) · generated <b>")+num(t.output_tokens)+"</b> tok"+oS;
+  }else strip.textContent=tt("本次会话尚无请求——统计从引擎启动起累计","no requests this session — counters run since engine start");
   var rows=[];
   for(var ri=0;ri<TROWS;ri++){
     var r=requests[ri];
@@ -556,7 +559,7 @@ function renderMonitor(){
       '<td>'+fnum(pr,0)+'</td><td>'+fnum(r.decode_tok_s,1)+'</td><td>'+hit+'</td><td>'+fnum(r.duration_s,1)+"s</td></tr>");
   }
   tb.innerHTML=rows.join("");
-  hint.textContent=(d.requests_kept>TROWS)?("留存 "+d.requests_kept+" 条 · 表内显示最近 "+TROWS+" 条"):(requests.length?"":"尚无请求记录——统计从引擎启动起累计");
+  hint.textContent=(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
 }
 function pollMetrics(){
   if(!selName)return;
@@ -643,24 +646,24 @@ document.getElementById("s-clear").onclick=function(){
   });
 };
 var cfgKeys=[];
-var CFGNOTE="后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。";
+var CFGNOTE=tt("后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。","Whitelisted /config keys. Saving auto-backs-up the engine config json; changes apply at the model's next boot. Blank = remove the key (back to default).");
 function loadConfig(){
   if(!selName)return;
   qs("router/config?model="+encodeURIComponent(selName),function(d){
     cfgKeys=d.keys||[];
-    document.getElementById("cfg-note").textContent=(d.note||CFGNOTE)+(d.file?("（文件: "+d.file+"）"):"");
+    document.getElementById("cfg-note").textContent=(d.note||CFGNOTE)+(d.file?(tt("（文件: ","(file: ")+d.file+"）"):"");
     var wrap=document.getElementById("cfg-list");wrap.innerHTML="";
     cfgKeys.forEach(function(k){
       var row=document.createElement("div");row.className="crow";
       var inputHtml="";
       if(k.kind==="bool"){
         inputHtml='<span class="chk"><input type="checkbox" data-ck="'+esc(k.key)+'"'+(k.value?" checked":"")+'>'+
-          '<span>'+(k.value==null?"默认":"")+'</span></span>';
+          '<span>'+(k.value==null?tt("默认","default"):"")+'</span></span>';
       }else if(k.kind==="enum"){
-        inputHtml='<select data-ck="'+esc(k.key)+'"><option value="">默认</option>'+
+        inputHtml='<select data-ck="'+esc(k.key)+'"><option value="">'+tt("默认","default")+'</option>'+
           (k.choices||[]).map(function(c){return '<option value="'+esc(c)+'"'+(k.value===c?" selected":"")+'>'+esc(c)+'</option>'}).join("")+'</select>';
       }else{
-        inputHtml='<input type="text" inputmode="'+(k.kind==="number"?"decimal":"text")+'" data-ck="'+esc(k.key)+'" value="'+(k.value==null?"":esc(String(k.value)))+'" placeholder="默认">';
+        inputHtml='<input type="text" inputmode="'+(k.kind==="number"?"decimal":"text")+'" data-ck="'+esc(k.key)+'" value="'+(k.value==null?"":esc(String(k.value)))+'" placeholder=tt("默认","default")>';
       }
       row.innerHTML='<span class="ck">'+esc(k.key)+'</span>'+inputHtml+
         '<div class="ch">'+esc(k.help||"")+'</div>';
@@ -692,17 +695,17 @@ function loadInfo(){
   qs("router/info",function(d){
     INFO=d.models||{};
     var b=d.build||{},a=d.app||{},rows=[];
-    rows.push(["Strata 本体","v"+String(a.version||"?").replace(/^v/,"")+(a.commit?(" @"+String(a.commit).slice(0,8)):"")]);
-    rows.push(["引擎版本",b.version?"v"+b.version:"—"]);
-    rows.push(["构建",(b.source||"—")+(b.commit?(" @"+String(b.commit).slice(0,8)):"")]);
+    rows.push([tt("Strata 本体","Strata core"),"v"+String(a.version||"?").replace(/^v/,"")+(a.commit?(" @"+String(a.commit).slice(0,8)):"")]);
+    rows.push([tt("引擎版本","engine version"),b.version?"v"+b.version:"—"]);
+    rows.push([tt("构建","build"),(b.source||"—")+(b.commit?(" @"+String(b.commit).slice(0,8)):"")]);
     rows.push(["CUDA",(b.cuda||"?")+(b.vision?(" · vision "+b.vision):"")]);
-    rows.push(["预编架构",(b.archs||[]).join("/")+" 本机 sm_"+((b.archs||[]).indexOf(86)>=0?"86":"?")]);
+    rows.push([tt("预编架构","built arch"),(b.archs||[]).join("/")+tt(" 本机 sm_"," · sm_ on this box")+((b.archs||[]).indexOf(86)>=0?"86":"?")]);
     var ms=d.models||{};
     Object.keys(ms).forEach(function(n){
       var m=ms[n];
-      rows.push([cardNick(n),m.alive?("上下文 "+Math.round((m.max_context||0)/1024)+"K · vision "+(m.images?"有":"无")+(m.loaded?" · 在位":" · 待命")):"后端离线"]);
+      rows.push([cardNick(n),m.alive?(tt("上下文 ","ctx ")+Math.round((m.max_context||0)/1024)+"K · vision "+(m.images?tt("有","yes"):tt("无","no"))+(m.loaded?tt(" · 在位"," · live"):tt(" · 待命"," · standby"))):tt("后端离线","backend offline")]);
     });
-    rows.push(["让卡水位",(d.gpu_free_target_mib==null?"自动":d.gpu_free_target_mib+" MiB")]);
+    rows.push([tt("让卡水位","yield floor"),(d.gpu_free_target_mib==null?tt("自动","auto"):d.gpu_free_target_mib+" MiB")]);
     document.getElementById("eng-kv").innerHTML=rows.map(function(r){
       return '<span class="kvchip">'+esc(r[0])+'<b>'+esc(String(r[1]))+'</b></span>'}).join("");
     updateLiveAll();
@@ -729,6 +732,8 @@ function dgBackends(models){
 
 var I18N=(window.__I18N__&&window.__I18N__.zh)?window.__I18N__:{zh:{},en:{}};
 function applyLang(){
+  var _ems=document.querySelectorAll("h2.sec em");
+  for(var _ei=0;_ei<_ems.length;_ei++)_ems[_ei].style.display=LANG==="en"?"none":"";
   var dict=I18N[LANG]||I18N.zh;
   document.querySelectorAll("[data-i18n]").forEach(function(el){
     var v=dict[el.getAttribute("data-i18n")];
@@ -758,7 +763,7 @@ function renderArch(backends){
   g.innerHTML=dgBackends(list).map(function(o){return o.card||o.more}).join("");
 }
 
-var KIND={load:"载入",unload:"让位",gpu:"显存",switch:"切换",backend:"后端",error:"异常"};
+var KIND={load:tt("载入","Load"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
 var evOpen=false;
 function loadEvents(){
   qs("router/events",function(d){
@@ -771,7 +776,7 @@ function loadEvents(){
     if(box.getAttribute("data-sig")===sig)return;
     box.setAttribute("data-sig",sig);
     box.className=evOpen?"open":"";
-    box.innerHTML=evs.length?"":"<p style='color:var(--muted);font-size:.8rem'>还没有事件——加载、卸载、让卡都会出现在这里（网关重启前的记录不留存）。</p>";
+    box.innerHTML=evs.length?"":tt("<p style='color:var(--muted);font-size:.8rem'>还没有事件——加载、卸载、让卡都会出现在这里（网关重启前的记录不留存）。</p>","<p style='color:var(--muted);font-size:.8rem'>no events yet — load / unload / yield all show up here (nothing survives a gateway restart).</p>");
     (evOpen?evs:evs.slice(0,5)).forEach(function(e,i){
       var p=document.createElement("p");
       p.className="ev "+e.kind;
@@ -782,7 +787,7 @@ function loadEvents(){
     if(evs.length>5){
       var b=document.createElement("button");
       b.className="evbtn";
-      b.textContent=evOpen?("收起 · 只留最近 5 条"):("展开其余 "+(evs.length-5)+" 条 ▾");
+      b.textContent=evOpen?(tt("收起 · 只留最近 5 条","collapse · keep the latest 5")):(tt("展开其余 ","show ")+(evs.length-5)+tt(" 条 ▾"," more ▾"));
       b.onclick=function(){evOpen=!evOpen;loadEvents()};
       box.appendChild(b);
     }
@@ -793,7 +798,7 @@ function loadEvents(){
 var cfree=document.getElementById("gfree"),cforce=document.getElementById("gforce");
 var cfreeBusy=null,cfSeen=null;
 function sayFree(res){
-  var line="显存释放 "+(res.freed_vram_mib/1024).toFixed(1)+" GB · 内存释放 "+(res.freed_ram_mib/1024).toFixed(1)+" GB · 用时 "+res.waited_s+" 秒";
+  var line=tt("显存释放 ","VRAM freed ")+(res.freed_vram_mib/1024).toFixed(1)+tt(" GB · 内存释放 "," GB · RAM freed ")+(res.freed_ram_mib/1024).toFixed(1)+tt(" GB · 用时 "," GB · took ")+res.waited_s+tt(" 秒","s");
   if(res.force){
     if(res.gave_card)say(tt("强制让卡完成，显卡已让出（清掉任务 ","force give-card done, GPU handed over (cleared ")+res.tasks_cleared+tt(" 个）。"," jobs).")+line,"");
     else say(tt("强制让卡：等了 ","force give-card: waited ")+res.waited_s+tt(" 秒显卡还没让出来（任务被打断后可能还在收尾）。"," s and the GPU has not handed over yet (interrupted jobs may still be wrapping up).")+line,"busy");
@@ -817,7 +822,7 @@ function doGiveFree(force){
 }
 cfree.onclick=function(){doGiveFree(false)};
 cforce.onclick=function(){
-  if(confirm("强制让卡：会打断正在执行的出图任务并清空排队，然后释放显存。继续吗？"))doGiveFree(true);
+  if(confirm(tt("强制让卡：会打断正在执行的出图任务并清空排队，然后释放显存。继续吗？","Force yield: interrupts running image jobs, clears the queue, then frees VRAM. Continue?")))doGiveFree(true);
 };
 function fetchGpu(){
   fetch("router/gpu").then(function(r){return r.json()}).then(function(c){
@@ -832,15 +837,15 @@ function fetchGpu(){
     var busy=!!fr;
     cfree.disabled=!c.running||busy;
     cforce.disabled=!c.running||busy;
-    cfree.textContent=(busy&&fr.op==="gentle")?("让卡中… "+fr.elapsed_s+"s"):"让卡";
-    cforce.textContent=(busy&&fr.op==="force")?("强制让卡中… "+fr.elapsed_s+"s"):"强制让卡";
+    cfree.textContent=(busy&&fr.op==="gentle")?(tt("让卡中… ","yielding… ")+fr.elapsed_s+"s"):tt("让卡","Yield VRAM");
+    cforce.textContent=(busy&&fr.op==="force")?(tt("强制让卡中… ","forcing yield… ")+fr.elapsed_s+"s"):tt("强制让卡","Force yield");
     cfree.classList.toggle("busy",busy&&fr.op==="gentle");
     cforce.classList.toggle("busy",busy&&fr.op==="force");
-    if(!c.running){lab.textContent="未运行";bar.style.width="100%";return}
+    if(!c.running){lab.textContent=tt("未运行","not running");bar.style.width="100%";return}
     var total=c.vram_total_mib||0,free=c.vram_free_mib||0;
     if(total)bar.style.width=Math.round(free/total*100)+"%";
-    function g(v){return(v/1024).toFixed(1)+" GiB 空"}
-    var st=free>=(c.free_target_mib||0)?"空闲 · ":(busy?"清理中 · ":"出图占用 · ");
+    function g(v){return(v/1024).toFixed(1)+tt(" GiB 空"," GiB free")}
+    var st=free>=(c.free_target_mib||0)?tt("空闲 · ","idle · "):(busy?tt("清理中 · ","cleaning · "):tt("出图占用 · ","image job · "));
     lab.textContent=st+g(free);
   }).catch(function(){});
 }
@@ -857,19 +862,19 @@ function playVid(){var p=vid.play();if(p&&p.catch)p.catch(function(){vid.muted=t
 function paintBg(){
   segbg.querySelectorAll("button").forEach(function(b){b.className=b.dataset.bg===bgmode?"on":""});
   if(bgmode==="off"){vid.pause();stage.className="";stage.setAttribute("aria-hidden","true");
-    svBtn.disabled=true;svBtn.textContent="声音: —";return}
+    svBtn.disabled=true;svBtn.textContent=tt("声音: —","sound: —");return}
   stage.className="on "+bgmode;
   stage.setAttribute("aria-hidden",bgmode==="bg"?"true":"false");
   vid.controls=(bgmode==="solo");
   vid.muted=!(bgsound&&gestured);
-  svBtn.disabled=false;svBtn.textContent=bgsound?"声音: 开":"声音: 关";
+  svBtn.disabled=false;svBtn.textContent=bgsound?tt("声音: 开","sound: on"):tt("声音: 关","sound: off");
   playVid()
 }
 function setBg(m){bgmode=m;try{localStorage.setItem("stratagw.bgmode",m)}catch(e){}paintBg()}
 segbg.querySelectorAll("button").forEach(function(b){b.onclick=function(){setBg(b.dataset.bg)}});
 svBtn.onclick=function(){if(bgmode==="off")return;bgsound=!bgsound;gestured=true;
   try{localStorage.setItem("stratagw.bgsound",bgsound?"1":"0")}catch(e){}
-  vid.muted=!bgsound;svBtn.textContent=bgsound?"声音: 开":"声音: 关"};
+  vid.muted=!bgsound;svBtn.textContent=bgsound?tt("声音: 开","sound: on"):tt("声音: 关","sound: off")};
 stage.addEventListener("click",function(e){if(bgmode==="solo"&&e.target===stage)setBg("off")});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&bgmode==="solo")setBg("off")});
 ["pointerdown","keydown"].forEach(function(ev){document.addEventListener(ev,function(){

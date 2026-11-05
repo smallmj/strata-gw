@@ -422,12 +422,15 @@ details.drawer .dbody .ptitle{display:none}
   border-radius:50%;background:var(--q);box-shadow:0 0 10px var(--q);animation:breathe 2.2s ease-in-out infinite}
 #petstage.resident #petbreath{display:block}
 @keyframes breathe{0%,100%{opacity:.35}50%{opacity:1}}
-#petmenu{position:absolute;right:-6px;top:-42px;display:none;gap:6px;background:var(--card);
+#petmenu{position:absolute;right:-6px;top:-42px;display:none;gap:6px;
+  background:color-mix(in srgb,var(--card) 96%,var(--bg));backdrop-filter:blur(10px);
   border:1px solid var(--line);border-radius:11px;padding:5px 7px;box-shadow:0 10px 30px -12px rgba(0,0,0,.5);z-index:75}
 #petmenu button{font-size:.7rem;border:0;background:transparent;color:var(--fg);cursor:pointer;
   padding:.28rem .55rem;border-radius:8px}
 #petmenu button:hover{background:var(--line)}
-#petchat{position:fixed;z-index:72;display:none;flex-direction:column;background:var(--card);
+#petchat{position:fixed;z-index:72;display:none;flex-direction:column;
+  background:color-mix(in srgb,var(--card) 96%,var(--bg));backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
   border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 64px -20px rgba(0,0,0,.55);
   overflow:hidden;animation:rise .28s both}
 .pc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;

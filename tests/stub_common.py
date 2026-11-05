@@ -89,6 +89,8 @@ class Stub:
                     return self._send(200, json.dumps({"object": "list", "data": [
                         {"id": outer.name, "object": "model", "owned_by": "stub",
                          "status": {"value": "loaded" if outer.loaded else "unloaded"}}]}))
+                if p in ("/props", "/slots"):
+                    return self._send(404, {"error": "endpoint not in this engine build"})
                 if p in ("/", "/monitor"):
                     return self._send(200, f"<html><body>stub:{outer.name}</body></html>", "text/html; charset=utf-8")
                 return self._send(200, f"stub:{outer.name}", "text/plain")
