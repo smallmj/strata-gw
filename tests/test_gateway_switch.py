@@ -454,6 +454,9 @@ try:
        'data-r="badge"', "驻在中")),
        "T43 old structures removed (MCP drawer, log, gauge, anatomy, DDR5 typo, split buttons, top badge)")
     src_txt = open(os.path.join(ROOT, "strata-router.py"), encoding="utf-8").read()
+    for _m in sorted(os.listdir(os.path.join(ROOT, "gw"))):
+        if _m.endswith(".py"):
+            src_txt += open(os.path.join(ROOT, "gw", _m), encoding="utf-8").read()
     ok(all(p in h for p in ('marker-end="url(#arM)"', "M266 54L158 88", 'data-sig', "m.n++",
                             "m.t=e.t",
                             "selectModel(loadedNow[0].model"))
