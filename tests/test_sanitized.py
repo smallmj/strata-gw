@@ -189,4 +189,81 @@ for f in cfgs:
         bad_keys.append(os.path.basename(f))
 ok(not bad_keys, "T9e config-examples ship empty api_key (%s)" % (",".join(bad_keys) or "none/vacuous"))
 
+# ---- T10 (Phase 10): asset scrub + official pet sample ----------------------
+import struct
+import zlib
+
+def _png_read(path):
+    d = open(path, "rb").read()
+    if d[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    pos, chunks, idat = 8, [], b""
+    while pos + 8 <= len(d):
+        ln = struct.unpack(">I", d[pos:pos + 4])[0]
+        tag = d[pos + 4:pos + 8]
+        if tag == b"IDAT":
+            idat += d[pos + 8:pos + 8 + ln]
+        chunks.append(tag.decode("latin-1"))
+        pos += 12 + ln
+        if tag == b"IEND":
+            break
+    w, h, depth, ctype = struct.unpack(">IIBB", d[16:26])
+    return w, h, depth, ctype, chunks, idat
+
+metas = {"tEXt", "iTXt", "zTXt", "eXIf", "comT", "chrm", "comment"}
+png_clean = True
+for name in ("qwen-chan.png", "sc117-chan.png", "pet.png"):
+    got = _png_read(os.path.join(ROOT, "gw-assets", name))
+    if not got or (set(got[4]) & metas):
+        png_clean = False
+ok(png_clean, "T10a shipped PNGs carry no text-metadata chunks")
+
+mp4 = open(os.path.join(ROOT, "gw-assets", "bg-loop.mp4"), "rb").read()
+ok(b'"class_type"' not in mp4 and b"prompt" not in mp4,
+   "T10b bg-loop.mp4 carries no generator workflow JSON")
+
+pv = _png_read(os.path.join(ROOT, "gw-assets", "pet.png"))
+ok(pv and 658 <= pv[0] <= 742 and 886 <= pv[1] <= 1016,
+   "T10c official pet sample in the 700x964 +/-6%% band (got %sx%s)" % (pv[0], pv[1]) if pv else "T10c unreadable")
+# edge ring must be fully transparent (auto-crop left alpha breathing room)
+if pv:
+    w, h, depth, ctype, chunks, idat = pv
+    ok(depth == 8 and ctype == 6, "T10d pet.png is 8-bit RGBA")
+    raw = zlib.decompress(idat)
+    stride = w * 4
+    prev = bytearray(stride)
+    o = 0
+    edge_ok = True
+    for y in range(h):
+        f = raw[o]; o += 1
+        row = bytearray(raw[o:o + stride]); o += stride
+        if f == 1:
+            for x in range(4, stride):
+                row[x] = (row[x] + row[x - 4]) & 255
+        elif f == 2:
+            for x in range(stride):
+                row[x] = (row[x] + prev[x]) & 255
+        elif f == 3:
+            for x in range(stride):
+                left = row[x - 4] if x >= 4 else 0
+                row[x] = (row[x] + (left + prev[x]) // 2) & 255
+        elif f == 4:
+            for x in range(stride):
+                a = row[x - 4] if x >= 4 else 0
+                b2 = prev[x]
+                c = prev[x - 4] if x >= 4 else 0
+                p = a + b2 - c
+                pa, pb, pc = abs(p - a), abs(p - b2), abs(p - c)
+                pr = a if (pa <= pb and pa <= pc) else (b2 if pb <= pc else c)
+                row[x] = (row[x] + pr) & 255
+        else:
+            edge_ok = False  # unknown filter
+        if y == 0 or y == h - 1:
+            if any(row[x * 4 + 3] != 0 for x in range(w)):
+                edge_ok = False
+        if row[3] != 0 or row[stride - 1] != 0:
+            edge_ok = False
+        prev = row
+    ok(edge_ok, "T10e pet sample edge ring fully transparent (RGBA unfiltered scan)")
+
 print("ALL PASS")
