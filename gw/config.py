@@ -12,8 +12,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROUTER_PORT = int(os.environ.get("STRATA_ROUTER_PORT", "18080"))
 FIRST_BACKEND_PORT = 18101
 PORTS_FILE = os.path.join(ROOT, "router-ports.json")
-SERVER_PY = os.path.join(ROOT, "serve", "server.py")
-PYTHON = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
 SPAWN_COOLDOWN_S = 60.0
 LOAD_WAIT_S = 180.0           # a lazy backend's API comes up well inside this
 RESIDENT_TTL_S = 3.0          # how long a residency answer is trusted without re-asking
@@ -26,6 +24,31 @@ def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+def strata_home() -> str:
+    """Strata engine root: env STRATA_HOME > gateway.json "strata_home" > repo ROOT.
+    The production install keeps the gateway inside the engine root; an open-source
+    checkout may live elsewhere and point at the engine via either knob."""
+    h = env("STRATA_HOME") or str(gateway_cfg().get("strata_home") or "")
+    if not h:
+        return ROOT
+    return h if os.path.isabs(h) else os.path.join(ROOT, h)
+
+
+def resolve_python():
+    """Cross-platform engine python: STRATA_PYTHON env, then the .venv under the
+    engine root (Windows Scripts layout or POSIX bin layout). None = not found."""
+    p = env("STRATA_PYTHON")
+    if p:
+        return p
+    home = strata_home()
+    for cand in (os.path.join(home, ".venv", "Scripts", "python.exe"),
+                 os.path.join(home, ".venv", "bin", "python"),
+                 os.path.join(home, ".venv", "bin", "python3")):
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
 def gateway_cfg() -> dict:
     """Optional gateway.json next to the entry (re-read per call: hot reload).
     Sections: "gpu_free" (external VRAM handover), later "github_url" etc."""
@@ -36,6 +59,7 @@ def gateway_cfg() -> dict:
     except (OSError, ValueError):
         return {}
 
+SERVER_PY = os.path.join(strata_home(), "serve", "server.py")
 WATCH_S = float(os.environ.get("STRATA_WATCH_S", "20"))   # state-transition watcher
 
 PROXY_PATHS = ("/router/settings", "/router/config", "/router/mcp", "/router/status",

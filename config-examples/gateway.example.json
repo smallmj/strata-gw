@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy next to strata-router.py as gateway.json and edit. All keys optional.",
+  "github_url": "",
+  "strata_home": "",
+  "gpu_free": {
+    "urls": [],
+    "target_mib": 0,
+    "gentle_wait_s": 6,
+    "wait_s": 30,
+    "timeout_s": 90
+  }
+}

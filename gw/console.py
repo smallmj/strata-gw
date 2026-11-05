@@ -34,6 +34,20 @@ def version() -> str:
         return "?"
 
 
+def git_commit():
+    """Best-effort short sha of this checkout (.git HEAD), None when absent."""
+    try:
+        with open(os.path.join(_ROOT, ".git", "HEAD"), encoding="utf-8") as f:
+            line = f.read().strip()
+        if line.startswith("ref:"):
+            ref = line[4:].strip()
+            with open(os.path.join(_ROOT, ".git", ref), encoding="utf-8") as f:
+                return f.read().strip()[:12]
+        return line[:12]
+    except OSError:
+        return None
+
+
 def github_url() -> str:
     u = _gateway_cfg().get("github_url")
     return u if isinstance(u, str) and u.startswith(("http://", "https://")) else GITHUB_URL_DEFAULT

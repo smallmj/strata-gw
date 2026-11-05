@@ -1,0 +1,7 @@
+{
+  "_comment": "One file per backend model, named strata-<name>.json next to strata-router.py. The gateway scans them at boot.",
+  "model_name": "your-model-name",
+  "port": 0,
+  "api_key": "",
+  "model_dir": "/path/to/model.gguf"
+}

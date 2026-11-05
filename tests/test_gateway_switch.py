@@ -497,6 +497,35 @@ try:
        and "slice(0,12)" not in h2 and "最近 12 条" not in h2
        and 'colspan="9" style="text-align:center' not in h2,
        "T49 monitor table pinned to 10 rows (placeholders keep height stable; no jump on chip click)")
+
+    # ---- T50 (Phase 11): /router/version + engine-root resolution ----
+    s, h = req("GET", "/router/version")
+    try:
+        vj = json.loads(h)
+    except ValueError:
+        vj = {}
+    want = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION"),
+                encoding="utf-8").read().strip()
+    ok(s == 200 and vj.get("version") == want and "commit" in vj,
+       "T50a GET /router/version -> {version==VERSION, commit}")
+
+    # STRATA_HOME redirect: server.py path follows the env; resolver finds it
+    r = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0,'.'); import gw.config as c; print(c.SERVER_PY)"],
+        cwd=ROOT, capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, STRATA_HOME="/nonexistent-engine"))
+    ok("/nonexistent-engine/serve/server.py" in r.stdout,
+       "T50b gw.config.SERVER_PY honours STRATA_HOME")
+    r2 = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0,'.'); import gw.config as c; "
+         "print(c.resolve_python())"],
+        cwd=ROOT, capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, STRATA_HOME="/nonexistent-engine",
+                 STRATA_PYTHON="/opt/weird/python"))
+    ok("/opt/weird/python" in r2.stdout,
+       "T50c resolve_python honours STRATA_PYTHON override")
     print("ALL PASS")
 finally:
     router.terminate(); router.wait(timeout=10)

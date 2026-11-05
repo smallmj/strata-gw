@@ -71,8 +71,17 @@ class Backend:
             if time.time() - self.last_spawn < config.SPAWN_COOLDOWN_S:
                 return
             self.last_spawn = time.time()
-            if not os.path.isfile(config.PYTHON) or not os.path.isfile(config.SERVER_PY):
-                print(f"[router] cannot spawn {self.name}: python/server.py missing", flush=True)
+            py = config.resolve_python()
+            if not os.path.isfile(config.SERVER_PY):
+                print("[router] cannot spawn %s: serve/server.py missing under %s - "
+                      "Strata engine not found; set STRATA_HOME or gateway.json \"strata_home\" "
+                      "(未找到 Strata 引擎，请配置 STRATA_HOME / gateway.json)"
+                      % (self.name, config.strata_home()), flush=True)
+                return
+            if not py or not os.path.isfile(py):
+                print("[router] cannot spawn %s: Strata python env missing - set STRATA_PYTHON "
+                      "(looked for .venv under %s) (未找到引擎 Python 环境)"
+                      % (self.name, config.strata_home()), flush=True)
                 return
             # Foreground child: the backend shares this console, so its startup
             # narrator and engine lines stream into the same window as the
@@ -81,7 +90,7 @@ class Backend:
             # ends the router - Ctrl+C, the window's X, taskkill, a crash - the
             # job's kill-on-close takes the whole tree with it.
             self.proc = subprocess.Popen(
-                [config.PYTHON, config.SERVER_PY, "--engine", "strata", "--config", self.cfg_path,
+                [py, config.SERVER_PY, "--engine", "strata", "--config", self.cfg_path,
                  "--host", "0.0.0.0", "--port", str(self.port),
                  "--api-key", self.key, "--lazy"],
                 cwd=config.ROOT, stdin=subprocess.DEVNULL)

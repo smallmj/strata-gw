@@ -275,6 +275,9 @@ class Handler(BaseHTTPRequestHandler):
             if m2:
                 n = max(0, min(500, int(m2.group(1))))
             return self._json(200, {"lines": [[t, line] for t, line in list(events.LOG)[-n:]]})
+        if method == "GET" and path == "/router/version":
+            return self._json(200, {"version": console.version(),
+                                      "commit": console.git_commit()})
         if method == "GET" and path == "/router/info":
             return self._json(200, backends.router_info())
         if method == "GET" and path == "/router/cards":
