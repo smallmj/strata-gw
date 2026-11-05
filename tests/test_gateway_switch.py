@@ -170,6 +170,16 @@ B = Stub(MB, 18096)
 for name, port in ((MA, 18095), (MB, 18096)):
     with open(os.path.join(ROOT, f"strata-{name}.json"), "w") as f:
         json.dump({"model_name": name, "port": port, "api_key": ""}, f)
+SRC_DIR = os.path.dirname(os.path.abspath(ROUTER_SRC))
+_SKIP = {".git", "testdir", "gw-assets", "tests", "__pycache__", "strata-router.py.orig"}
+for _item in sorted(os.listdir(SRC_DIR)):
+    if _item in _SKIP or _item == os.path.basename(os.path.abspath(ROUTER_SRC)):
+        continue
+    _s, _d = os.path.join(SRC_DIR, _item), os.path.join(ROOT, _item)
+    if os.path.isdir(_s):
+        shutil.copytree(_s, _d, ignore=shutil.ignore_patterns("__pycache__"))
+    else:
+        shutil.copy(_s, _d)
 shutil.copy(ROUTER_SRC, os.path.join(ROOT, "strata-router.py"))
 os.makedirs(os.path.join(ROOT, "gw-assets"), exist_ok=True)
 # 视频素材 fixture：VIS 用真片（HERE/assets-real/bg-loop.mp4），非 VIS 用 3000 字节假片
@@ -253,6 +263,10 @@ try:
        and 'router/assets/qwen-chan.png' in h and 'router/assets/sc117-chan.png' in h
        and "立绘待入" in h,
        "T2 GET /gateway console: real names + monitor + comfy buttons + sections + mascot slots")
+
+    s, h = req("GET", "/gateway")
+    ok("__VERSION__" not in h and "__GW_PORT__" not in h and "__GITHUB_URL__" not in h,
+       "T2b build placeholders substituted in the served page")
 
     s, h = req("GET", "/metrics")
     ok(s == 200 and "stub:aaa-qwen" in h, "T3 no model, none resident -> API follows name-sorted first")
