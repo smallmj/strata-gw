@@ -449,14 +449,17 @@ details.drawer .dbody .ptitle{display:none}
 #ctlbar .ghico,#ctlbar .gearbtn{width:26px;padding:0}
 #ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:15px;height:15px}
 #ctlbar .seg{height:24px}
+#ctlbar #gpuhold{height:24px;padding:.1rem .6rem;box-sizing:border-box;align-items:center}
+#ctlbar #gpuhold .bar{height:4px}
 
 /* ---- K15 (master review): model cards stack like pages of a book ---- */
 #cards.pagesw{position:relative}
 .pagesw .page{display:none}
 .pagesw .page.on{display:block;position:relative;z-index:3;animation:rise .5s both}
+.pagesw .page.on .card{background-color:color-mix(in srgb,var(--card) 95%,var(--bg))}
 .pagesw .page.p1,.pagesw .page.p2{display:block;position:absolute;top:0;left:0;width:100%;cursor:pointer}
-.pagesw .page.p1{z-index:2;transform:translate(14px,14px) scale(.985);opacity:.8}
-.pagesw .page.p2{z-index:1;transform:translate(28px,28px) scale(.97);opacity:.55}
+.pagesw .page.p1{z-index:2;transform:translate(22px,16px) scale(.982);opacity:.9}
+.pagesw .page.p2{z-index:1;transform:translate(44px,32px) scale(.965);opacity:.7}
 .pagesw .page.p1:hover,.pagesw .page.p2:hover{opacity:1}
 .pagesw .page.p1 .card,.pagesw .page.p2 .card{box-shadow:0 14px 34px -18px rgba(0,0,0,.4)}
 .swrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
