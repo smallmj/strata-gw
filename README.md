@@ -1,4 +1,4 @@
-# STRATA — model load console
+# STRATA — the Strata gateway
 
 **One local GPU · several local models · one gateway that folds load-swap, VRAM
 handover, monitoring and tuning into a single page.**
