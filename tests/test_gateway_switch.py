@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = tempfile.mkdtemp(prefix="gwtest-")
 HERE = os.path.dirname(os.path.abspath(__file__))
 VIS = os.environ.get("GW_VISUAL") == "1"
-ROUTER_SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "strata-router.py")
+ROUTER_SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), os.pardir, "strata-router.py")
 ROUTER_PORT = 18090
 
 class Stub:
