@@ -1,0 +1,16 @@
+# real local configs (may contain api_key) — never commit
+strata-*.json
+!config-examples/strata-*.json
+
+# user-uploaded art, local only
+gw-assets/uploads/*
+!gw-assets/uploads/.gitkeep
+
+# runtime state
+router-ports.json
+*.log
+.venv/
+__pycache__/
+
+# scratch fixtures kept out of the published tree
+testdir/
