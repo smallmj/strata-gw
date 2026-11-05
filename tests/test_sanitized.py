@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import glob as globmod
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if len(sys.argv) > 1:
@@ -107,5 +108,85 @@ raw_say = re.findall(r'say\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
 raw_alert = re.findall(r'alert\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
 ok(not raw_say and not raw_alert,
    "T8j say()/alert() bilingual via tt() (raw zh: %d/%d)" % (len(raw_say), len(raw_alert)))
+
+# ---- T9 (Phase 9): personalization audit lint ------------------------------
+# Token table built by concatenation so the scanner never hits its own source.
+def _f(*parts):
+    return "".join(parts)
+
+_STRICT_TOKENS = [
+    _f("co", "m", "fy"), _f("3", "090"), _f("RT", "X"), "GeForce", _f("DD", "R4"),
+    _f("Ya", "RN"), _f("K8", "V4"), _f("IQ3", "_S"), _f("GS", "Q"), _f("512", " ?K"),
+    "MoE", _f("n", "-gram"), _f("M", "TP"), _f("sc", "117"),
+    _f("qw", "en") + r"(?!\w*example)", _f("Q", "wen"), _f("64", " ?GB"),
+    _f("46", ".85"), _f("14", ".4"), _f("54", ".8"), _f("55", ".1 GB"), _f("55", " GB"),
+    _f("两", "档"), _f("三", "档"), _f("互相", "让卡"), _f("酒馆", "RP内嵌"),
+    _f("1808", "1"), _f("1808", "2"), _f("205", "00"), _f("strata", ".cmd"),
+    _f("GATEWAY", "_HTML"), _f("a0021", "b99"), _f("D", r":\\"), _f("C", r":\\Users"),
+]
+_LEAK_TOKENS = [_f("a0021", "b99"), r"[CD]:\\", _f("/home/", "smallmj")]
+_STRICT_PAT = re.compile("|".join(_STRICT_TOKENS))
+_LEAK_PAT = re.compile("|".join(_LEAK_TOKENS))
+_BRAND_PAT = re.compile(_f("co", "m", "fy"), re.I)
+
+def _scan(path, pat):
+    out = []
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return out
+    for i, ln in enumerate(text.splitlines(), 1):
+        m = pat.search(ln)
+        if m:
+            out.append("%s:%d:%s" % (os.path.relpath(path, ROOT), i, m.group(0)))
+    return out
+
+strict_files = []
+for sub in ("console", "gw", "launcher", "config-examples"):
+    d = os.path.join(ROOT, sub)
+    if os.path.isdir(d):
+        strict_files += [f for f in sorted(globmod.glob(os.path.join(d, "*"))) if os.path.isfile(f)]
+entry = os.path.join(ROOT, "strata-router.py")
+if os.path.isfile(entry):
+    strict_files.append(entry)
+viol = []
+for f in strict_files:
+    viol += _scan(f, _STRICT_PAT)
+ok(not viol, "T9a STRICT token scan clean (%d hits)%s"
+   % (len(viol), "" if not viol else " :: " + "; ".join(viol[:6])))
+
+doc_files = [os.path.join(ROOT, n) for n in ("README.md", "AGENTS.md", "LICENSE", "cards", "cards.json")
+             if os.path.isfile(os.path.join(ROOT, n))]
+viol2 = []
+for f in doc_files:
+    viol2 += _scan(f, _LEAK_PAT)
+ok(not viol2, "T9b leak scan (docs + shipped cards) clean (%d)%s"
+   % (len(viol2), "" if not viol2 else " :: " + "; ".join(viol2[:6])))
+
+# ALL layer: every tracked text file, brand token only (concatenated pattern)
+tracked = subprocess.run(["git", "-C", ROOT, "ls-files"],
+                         capture_output=True, text=True, timeout=20).stdout.split()
+viol3 = []
+for rel in tracked:
+    if rel.endswith((".png", ".mp4", ".jpg", ".jpeg", ".webp", ".woff2")):
+        continue
+    viol3 += _scan(os.path.join(ROOT, rel), _BRAND_PAT)
+ok(not viol3, "T9c brand-token scan over ALL tracked text files clean (%d)%s"
+   % (len(viol3), "" if not viol3 else " :: " + "; ".join(viol3[:6])))
+
+ok(os.path.isfile(os.path.join(ROOT, "VERSION"))
+   and open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip(),
+   "T9d VERSION file present and non-empty")
+cfgs = globmod.glob(os.path.join(ROOT, "config-examples", "*.json"))
+bad_keys = []
+for f in cfgs:
+    try:
+        d = json.load(open(f, encoding="utf-8-sig"))
+    except ValueError:
+        bad_keys.append(os.path.basename(f) + ":unparseable")
+        continue
+    if d.get("api_key"):
+        bad_keys.append(os.path.basename(f))
+ok(not bad_keys, "T9e config-examples ship empty api_key (%s)" % (",".join(bad_keys) or "none/vacuous"))
 
 print("ALL PASS")

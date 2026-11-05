@@ -41,10 +41,10 @@
 </header>
 
 <div class="hero">
-  <p data-i18n-html="pg.hero">一块本地 GPU · 两档 <b>IQ3_S</b> 量化 · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
-  <div class="chips"><span data-i18n="pg.chip1">GSQ-RCO IQ3_S 量化</span><span data-i18n="pg.chip2">512K 上下文 · YaRN</span><span data-i18n="pg.chip3">MoE 专家动态路由</span><span data-i18n="pg.chip4">n-gram 投机解码</span><span data-i18n="pg.chip5">Vision 图像输入</span><span data-i18n="pg.chip6">外部显存可让卡</span></div>
+  <p data-i18n-html="pg.hero">一块本地 GPU · 若干本地量化档位 · 一个把加载换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
+  <div class="chips" id="herochips"><span data-i18n="ui.chip1">本地量化档位</span><span data-i18n="ui.chip2">上下文可扩</span><span data-i18n="ui.chip3">专家动态路由</span><span data-i18n="ui.chip4">投机解码加速</span><span data-i18n="ui.chip5">Vision 图像输入</span><span data-i18n="ui.chip6">外部显存可让卡</span></div>
 </div>
-<p class="lead" data-i18n-html="pg.lead">两档模型<b>互斥驻留</b>（内存级只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
+<p class="lead" data-i18n-html="pg.lead">模型<b>互斥驻留</b>（内存只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的模型（冷加载要几分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
 
 <div id="cardwrap"><div class="pagesw" id="cards"></div>
 <div id="cardnav" style="display:none"><button id="cprev" aria-label="prev page">‹</button><div id="pdots"></div><button id="cnext" aria-label="next page">›</button></div></div>
@@ -167,7 +167,7 @@
       <g>
         <rect class="dgbox" x="300" y="240" width="200" height="50" rx="14"/>
         <text class="t" x="400" y="262" text-anchor="middle" data-i18n="dg.ram">RAM · 权重/专家驻留</text>
-        <text class="sm" x="400" y="279" text-anchor="middle" data-i18n="dg.ramsm">MoE 专家常驻 · 热缓存换入</text>
+        <text class="sm" x="400" y="279" text-anchor="middle" data-i18n="dg.ramsm">专家权重常驻 · 热缓存换入</text>
       </g>
       <path class="dg-mutex" d="M214 265H296" marker-start="url(#arMs)" marker-end="url(#arS)"/>
       <text class="xs" x="255" y="255" text-anchor="middle" data-i18n="dg.mutex">互斥驻留</text>
@@ -181,9 +181,9 @@
     </svg>
     <ol class="mech">
       <li data-i18n-html="about.m1"><b>懒加载</b>：点 Load 才拉起对应后端与引擎进程；模型不在位时零占用，任何请求到来也会按需自动装载。</li>
-      <li data-i18n-html="about.m2"><b>互斥驻留</b>：数十 GB 级的大模型在内存里装不下两档——换档时网关先让在位模型退场、确证显存已释放，再冷加载新档（分钟级，卡片转圈报用时）。</li>
-      <li data-i18n-html="about.m3"><b>闲置回收</b>：30 分钟没有请求自动卸载腾卡，之后热重载秒级；「不是网关出手」的卸载（闲置计时等）也会被看门狗记进下方动态时间线。</li>
-      <li data-i18n-html="about.m4"><b>引擎结构</b>：MoE 专家常驻内存、显存只留按热度换入换出的热缓存；KV 量化（K8V4）+ YaRN 扩到 512K；n-gram 草稿 + MTP 投机解码；vision 塔另占小槽。</li>
+      <li data-i18n-html="about.m2"><b>互斥驻留</b>：大模型的内存占用以数十 GB 计，一次只装得下一个——换模时网关先让在位模型退场、确证显存已释放，再冷加载新模（耗时分钟级，卡片转圈报用时）。</li>
+      <li data-i18n-html="about.m3"><b>闲置回收</b>：闲置计时（idle_unload_s，可配置）到期自动卸载腾卡，之后热重载秒级；「不是网关出手」的卸载也会被看门狗记进下方动态时间线。</li>
+      <li data-i18n-html="about.m4"><b>引擎结构</b>：专家权重常驻内存、显存只留按热度换入换出的热缓存；KV 经量化以容纳超长上下文；草稿 + 校验的投机解码提速；vision 分支另占小槽。</li>
     </ol>
     </div>
     <div class="kvbar"><h4 data-i18n="about.kv">运行档案</h4><div class="kvpills" id="eng-kv"><span class="kvchip"><b>加载中…</b></span></div></div>

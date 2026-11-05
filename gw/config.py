@@ -10,7 +10,7 @@ from urllib import request as urlrequest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ROUTER_PORT = int(os.environ.get("STRATA_ROUTER_PORT", "18080"))
-FIRST_BACKEND_PORT = 18081
+FIRST_BACKEND_PORT = 18101
 PORTS_FILE = os.path.join(ROOT, "router-ports.json")
 SERVER_PY = os.path.join(ROOT, "serve", "server.py")
 PYTHON = os.path.join(ROOT, ".venv", "Scripts", "python.exe")

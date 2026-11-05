@@ -13,7 +13,7 @@ document.getElementById("theme").onclick=function(){applyTheme(root.dataset.them
 var CARDS={},INFO={};
 var LANG=(navigator.language||"zh").toLowerCase().indexOf("zh")===0?"zh":"en";
 try{var _lg=localStorage.getItem("stratagw.lang");if(_lg==="zh"||_lg==="en")LANG=_lg}catch(e){}
-document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();syncLangBtn();sig="";refresh()};
+document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();renderHero();syncLangBtn();sig="";refresh()};
 function syncLangBtn(){var b=document.getElementById("langbtn");if(b)b.textContent=LANG==="zh"?"中 / EN":"EN / 中"}
 document.getElementById("gwver").onclick=function(){fetch("router/info").then(function(r){return r.json()}).then(function(j){var b=j.build||j.engine||{};var mv=document.querySelector('meta[name="strata-gw-version"]');var lines=[tt("网关版本","gateway version")+" "+(j.version||(mv&&mv.content)||"?")];if(b.commit){var sh=String(b.commit);if(sh.length>12)sh=sh.substring(0,12);lines.push(tt("引擎构建","engine build")+" "+sh)}if(b.version)lines.push(tt("引擎版本","engine version")+" "+b.version);if(b.built_at||b.built)lines.push(tt("构建时间","built")+" "+(b.built_at||b.built));alert(lines.join("\n"))}).catch(function(){alert(tt("拿不到引擎构建信息（引擎可能没在跑）","cannot read engine build (engine may be offline)"))})};
 var setpop=document.getElementById("setpop");
@@ -38,7 +38,16 @@ function backendOf(n){for(var i=0;i<modelsList.length;i++){if(modelsList[i].mode
 function cardNameList(){var names=modelsList.map(function(b){return b.model});
   Object.keys(CARDS).forEach(function(k){if(k.charAt(0)!=="_"&&names.indexOf(k)<0)names.push(k)});
   return names;}
-function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(window.PETUI)window.PETUI.art();if(cb)cb()})}
+function renderHero(){
+  var box=document.getElementById("herochips");if(!box)return;
+  var els=box.querySelectorAll("span");
+  var chips=(CARDS._hero&&CARDS._hero.chips&&CARDS._hero.chips[LANG])||[];
+  for(var i=0;i<els.length;i++){
+    if(chips.length&&chips[i]!=null){els[i].style.display="";els[i].removeAttribute("data-i18n");els[i].textContent=chips[i];}
+    else if(chips.length){els[i].style.display="none"}
+  }
+}
+function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(window.PETUI)window.PETUI.art();renderHero();if(cb)cb()})}
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
