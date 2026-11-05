@@ -15,63 +15,63 @@
 <div class="wrap">
 <header id="ctlbar">
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M4 17.5 12 3l8 14.5-8 4.5-8-4.5Zm8-11-5.4 9.8L12 18.7l5.4-4.4L12 6.5Z"/></svg></div>
-  <h1>STRATA<small>模型加载台 · LOAD CONSOLE</small></h1>
+  <h1>STRATA<small data-i18n="pg.tagline">模型加载台 · LOAD CONSOLE</small></h1>
   <div class="spacer"></div>
   <button class="tbtn" id="langbtn" title="切换语言 / Switch language">中 / EN</button>
   <button id="theme" title="切换深色/亮色主题" aria-label="切换主题">
     <svg class="sun" viewBox="0 0 24 24"><path d="M12 6.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V2.5a1 1 0 0 1 1-1Zm0 17a1 1 0 0 1 1 1v1.5a1 1 0 0 1-2 0V20.5a1 1 0 0 1 1-1ZM2.5 11h1.5a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Zm17 0h1.5a1 1 0 0 1 0 2H19.5a1 1 0 0 1 0-2ZM5.1 5.1l1.1 1.1a1 1 0 0 1-1.4 1.4L3.7 6.5a1 1 0 0 1 1.4-1.4Zm12.7 12.7 1.1 1.1a1 1 0 0 1-1.4 1.4l-1.1-1.1a1 1 0 0 1 1.4-1.4Zm1.4-12.7a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0ZM6.2 16.8a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 0 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0Z"/></svg>
     <svg class="moon" viewBox="0 0 24 24"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
   </button>
-  <div class="seg" id="seg-bg" title="本页背景视频">
-    <button data-bg="off">关闭</button><button data-bg="bg">背景</button><button data-bg="solo">单独</button>
+  <div class="seg" id="seg-bg" data-i18n-title="ui.videotit" title="本页背景视频">
+    <button data-bg="off" data-i18n="ui.voff">关闭</button><button data-bg="bg" data-i18n="ui.vbg">背景</button><button data-bg="solo" data-i18n="ui.vsolo">单独</button>
   </div>
-  <button class="cbtn" id="vid-sound" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button>
-  <div id="gpuhold"><span class="gh-name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" title="发 /free 并确证显存读数下降；不打断正在跑的任务">让卡</button><button class="cbtn danger" id="gforce" title="先打断任务、清空队列，再释放显存并等到让卡">强制让卡</button></div>
-  <button class="verchip" id="gwver" title="点开看引擎构建信息">v__VERSION__</button>
+  <button class="cbtn" id="vid-sound" data-i18n-title="ui.soundtit" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button>
+  <div id="gpuhold"><span class="gh-name" data-i18n="gpu.name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" data-i18n-title="gpu.freetit" title="发 /free 并确证显存读数下降；不打断正在跑的任务" data-i18n="gpu.free">让卡</button><button class="cbtn danger" id="gforce" data-i18n-title="gpu.forcetit" title="先打断任务、清空队列，再释放显存并等到让卡" data-i18n="gpu.forcet">强制让卡</button></div>
+  <button class="verchip" id="gwver" data-i18n-title="ui.builtdtit" title="点开看引擎构建信息">v__VERSION__</button>
   <a class="ghico" href="__GITHUB_URL__" target="_blank" rel="noopener" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg></a>
-  <button class="gearbtn" id="setgear" title="设置：API key · 桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5c0 .5-.05 1-.13 1.47l1.66 1.2-1.7 2.94-1.9-.66a8 8 0 0 1-2 1.16l-.29 2.03h-3.4l-.29-2.03a8 8 0 0 1-2-1.16l-1.9.66-1.7-2.94 1.66-1.2A8 8 0 0 1 3.87 12c0-.5.05-1 .13-1.47l-1.66-1.2 1.7-2.94 1.9.66a8 8 0 0 1 2-1.16l.29-2.03h3.4l.29 2.03a8 8 0 0 1 2 1.16l1.9-.66 1.7 2.94-1.66 1.2c.08.47.13.97.13 1.47Z"/></svg></button>
+  <button class="gearbtn" id="setgear" data-i18n-title="ui.setstit" title="设置：API key · 桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5c0 .5-.05 1-.13 1.47l1.66 1.2-1.7 2.94-1.9-.66a8 8 0 0 1-2 1.16l-.29 2.03h-3.4l-.29-2.03a8 8 0 0 1-2-1.16l-1.9.66-1.7-2.94 1.66-1.2A8 8 0 0 1 3.87 12c0-.5.05-1 .13-1.47l-1.66-1.2 1.7-2.94 1.9.66a8 8 0 0 1 2-1.16l.29-2.03h3.4l.29 2.03a8 8 0 0 1 2 1.16l1.9-.66 1.7 2.94-1.66 1.2c.08.47.13.97.13 1.47Z"/></svg></button>
   <div id="setpop" style="display:none">
-    <div class="popsec"><b>API key</b><span class="pnote">与 web UI About&gt;Settings 同一把，只存本浏览器。</span></div>
-    <div class="poprow"><input id="key" type="password" size="22" autocomplete="off" placeholder="sk-..."><button id="save">保存</button></div>
-    <div class="popsec"><b>桌宠<em>DESKTOP PET</em></b></div>
-    <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab">显示桌宠</span></div>
-    <div class="poprow"><span class="plab">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
-    <div class="pfoot">状态每 2 秒自动刷新（页内各节）· web UI 入口在 hero 链接与本页各处</div>
+    <div class="popsec"><b>API key</b><span class="pnote" data-i18n="set.keynote">与 web UI About&gt;Settings 同一把，只存本浏览器。</span></div>
+    <div class="poprow"><input id="key" type="password" size="22" autocomplete="off" placeholder="sk-..."><button id="save" data-i18n="ui.save">保存</button></div>
+    <div class="popsec"><b data-i18n="set.pet">桌宠</b><em>DESKTOP PET</em></div>
+    <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab" data-i18n="set.petshow">显示桌宠</span></div>
+    <div class="poprow"><span class="plab" data-i18n="set.petsize">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
+    <div class="pfoot" data-i18n="set.foot">状态每 2 秒自动刷新（页内各节）· web UI 入口在 hero 链接与本页各处</div>
   </div>
 </header>
 
 <div class="hero">
-  <p>一块本地 GPU · 两档 <b>IQ3_S</b> 量化 · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
-  <div class="chips"><span>GSQ-RCO IQ3_S 量化</span><span>512K 上下文 · YaRN</span><span>MoE 专家动态路由</span><span>n-gram 投机解码</span><span>Vision 图像输入</span><span>外部显存可让卡</span></div>
+  <p data-i18n-html="pg.hero">一块本地 GPU · 两档 <b>IQ3_S</b> 量化 · 一个把换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
+  <div class="chips"><span data-i18n="pg.chip1">GSQ-RCO IQ3_S 量化</span><span data-i18n="pg.chip2">512K 上下文 · YaRN</span><span data-i18n="pg.chip3">MoE 专家动态路由</span><span data-i18n="pg.chip4">n-gram 投机解码</span><span data-i18n="pg.chip5">Vision 图像输入</span><span data-i18n="pg.chip6">外部显存可让卡</span></div>
 </div>
-<p class="lead">两档模型<b>互斥驻留</b>（内存级只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
+<p class="lead" data-i18n-html="pg.lead">两档模型<b>互斥驻留</b>（内存级只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的这一档（冷加载约 1.5-3 分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
 
 <div id="cardwrap"><div class="pagesw" id="cards"></div>
 <div id="cardnav" style="display:none"><button id="cprev" aria-label="prev page">‹</button><div id="pdots"></div><button id="cnext" aria-label="next page">›</button></div></div>
 <div id="dossier-edit" style="display:none"><div class="def-inner">
-<div class="def-head"><b>编辑档案</b><span id="ed-who"></span><button id="ed-close" title="关闭">×</button></div>
-<p class="pnote">人设档案存入 cards/cards.json；技术档案行由网关实时数据渲染，不在此填写。</p>
+<div class="def-head"><b data-i18n="fe.head">编辑档案</b><span id="ed-who"></span><button id="ed-close" data-i18n-title="ui.close" title="关闭">×</button></div>
+<p class="pnote" data-i18n="fe.note">人设档案存入 cards/cards.json；技术档案行由网关实时数据渲染，不在此填写。</p>
 <div class="fgrid">
-<div class="field"><label>代号 nick (zh)</label><input type="text" id="ed_nick_zh"></div>
-<div class="field"><label>nick (en)</label><input type="text" id="ed_nick_en"></div>
-<div class="field"><label>形象 who (zh)</label><input type="text" id="ed_who_zh"></div>
-<div class="field"><label>who (en)</label><input type="text" id="ed_who_en"></div>
-<div class="field"><label>副标 sub (zh)</label><input type="text" id="ed_sub_zh"></div>
-<div class="field"><label>sub (en)</label><input type="text" id="ed_sub_en"></div>
-<div class="field"><label>风格场景 style (zh)</label><input type="text" id="ed_style_zh"></div>
-<div class="field"><label>style (en)</label><input type="text" id="ed_style_en"></div>
-<div class="field"><label>标签 tags (zh，逗号分隔)</label><input type="text" id="ed_tags_zh"></div>
-<div class="field"><label>tags (en)</label><input type="text" id="ed_tags_en"></div>
-<div class="field"><label>提醒 notes (zh，逗号分隔)</label><input type="text" id="ed_notes_zh"></div>
-<div class="field"><label>notes (en)</label><input type="text" id="ed_notes_en"></div>
-<div class="field"><label>立绘路径 art</label><input type="text" id="ed_art" placeholder="router/assets/xxx.png"></div>
-<div class="field"><label>强调色 accent</label><select id="ed_accent"><option value="q">q</option><option value="s">s</option></select></div>
+<div class="field"><label data-i18n="fe.nick_zh">代号 nick (zh)</label><input type="text" id="ed_nick_zh"></div>
+<div class="field"><label data-i18n="fe.nick_en">nick (en)</label><input type="text" id="ed_nick_en"></div>
+<div class="field"><label data-i18n="fe.who_zh">形象 who (zh)</label><input type="text" id="ed_who_zh"></div>
+<div class="field"><label data-i18n="fe.who_en">who (en)</label><input type="text" id="ed_who_en"></div>
+<div class="field"><label data-i18n="fe.sub_zh">副标 sub (zh)</label><input type="text" id="ed_sub_zh"></div>
+<div class="field"><label data-i18n="fe.sub_en">sub (en)</label><input type="text" id="ed_sub_en"></div>
+<div class="field"><label data-i18n="fe.style_zh">风格场景 style (zh)</label><input type="text" id="ed_style_zh"></div>
+<div class="field"><label data-i18n="fe.style_en">style (en)</label><input type="text" id="ed_style_en"></div>
+<div class="field"><label data-i18n="fe.tags_zh">标签 tags (zh，逗号分隔)</label><input type="text" id="ed_tags_zh"></div>
+<div class="field"><label data-i18n="fe.tags_en">tags (en)</label><input type="text" id="ed_tags_en"></div>
+<div class="field"><label data-i18n="fe.notes_zh">提醒 notes (zh，逗号分隔)</label><input type="text" id="ed_notes_zh"></div>
+<div class="field"><label data-i18n="fe.notes_en">notes (en)</label><input type="text" id="ed_notes_en"></div>
+<div class="field"><label data-i18n="fe.art">立绘路径 art</label><input type="text" id="ed_art" placeholder="router/assets/xxx.png"></div>
+<div class="field"><label data-i18n="fe.accent">强调色 accent</label><select id="ed_accent"><option value="q">q</option><option value="s">s</option></select></div>
 </div>
-<div class="prow"><button class="primary" id="ed-save">保存档案</button><span class="hint">POST /router/cards · 立即持久</span></div>
+<div class="prow"><button class="primary" id="ed-save" data-i18n="fe.save">保存档案</button><span class="hint" data-i18n="fe.savehint">POST /router/cards · 立即持久</span></div>
 </div></div>
 <p id="msg"></p>
 
-<h2 class="sec" id="sec-monitor">Monitor<em>引擎实况 · 与原版同字段</em></h2>
+<h2 class="sec" id="sec-monitor">Monitor<em data-i18n="sec.monitor">引擎实况 · 与原版同字段</em></h2>
 <div class="monstate" id="mon-bar" style="--ac:var(--q)">
   <span id="mon-chip">—</span><span id="mon-who"></span><span id="mon-detail"></span>
   <span id="mon-prog"><i></i></span>
@@ -80,41 +80,41 @@
 <p id="mon-strip"></p>
 <div class="reqwrap">
   <table id="mon-table"><thead><tr>
-  <th>时刻</th><th>状态</th><th>提示词</th><th>KV 复用</th><th>生成</th><th>预填 t/s</th><th>解码 t/s</th><th>显存命中率</th><th>时长</th>
+  <th data-i18n="mon.th1">时刻</th><th data-i18n="mon.th2">状态</th><th data-i18n="mon.th3">提示词</th><th data-i18n="mon.th4">KV 复用</th><th data-i18n="mon.th5">生成</th><th data-i18n="mon.th6">预填 t/s</th><th data-i18n="mon.th7">解码 t/s</th><th data-i18n="mon.th8">显存命中率</th><th data-i18n="mon.th9">时长</th>
   </tr></thead><tbody id="mon-tb"></tbody></table>
 </div>
 <p id="mon-hint"></p>
 
-<h2 class="sec" id="sec-settings">调教台<em>Settings</em></h2>
+<h2 class="sec" id="sec-settings"><span data-i18n="sec.settings">调教台</span><em>Settings</em></h2>
 <div class="seg" id="seg-models"></div>
 <details class="drawer" id="drawer-sampling">
-<summary>采样默认值<span class="tag">LIVE · 即时生效</span><span class="arr">▾</span></summary>
+<summary><span data-i18n="set.samp">采样默认值</span><span class="tag" data-i18n="set.samptag">LIVE · 即时生效</span><span class="arr">▾</span></summary>
 <div class="dbody">
-  <p class="pnote">后端 /settings：没自带参数的客户端（Hermes、酒馆、脚本）都吃这份默认。留空 = 交回模型卡自己的默认。</p>
+  <p class="pnote" data-i18n="set.samphint">后端 /settings：没自带参数的客户端（Hermes、酒馆、脚本）都吃这份默认。留空 = 交回模型卡自己的默认。</p>
   <div class="fgrid">
     <div class="field"><label for="stemp">temperature<output id="ostemp"></output></label><input type="range" id="stemp" min="0" max="2" step="0.05"></div>
     <div class="field"><label for="stop_p">top_p<output id="os-top_p"></output></label><input type="range" id="stop_p" min="0" max="1" step="0.01" value="0.95"></div>
     <div class="field"><label for="stop_k">top_k<output id="os-top_k"></output></label><input type="range" id="stop_k" min="1" max="64" step="1" value="20"></div>
-    <div class="field"><label for="seffort">思考等级</label><select id="seffort"><option value="">模型默认</option><option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
-    <div class="field"><label for="sbudget">思考预算 tokens</label><input type="text" id="sbudget" inputmode="numeric" placeholder="不限"></div>
-    <div class="field"><label for="sseed">seed</label><input type="text" id="sseed" inputmode="numeric" placeholder="随机"></div>
-    <div class="field"><label for="smax">max tokens</label><input type="text" id="smax" inputmode="numeric" placeholder="默认"></div>
-    <div class="field"><label>加速预测</label><span class="chk"><input type="checkbox" id="sesp"><span>experimental speed projection</span></span></div>
+    <div class="field"><label for="seffort" data-i18n="set.effort">思考等级</label><select id="seffort"><option value="" data-i18n="set.effdef">模型默认</option><option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
+    <div class="field"><label for="sbudget" data-i18n="set.budget">思考预算 tokens</label><input type="text" id="sbudget" inputmode="numeric" data-i18n-ph="ph.unlim" placeholder="不限"></div>
+    <div class="field"><label for="sseed">seed</label><input type="text" id="sseed" inputmode="numeric" data-i18n-ph="ph.rand" placeholder="随机"></div>
+    <div class="field"><label for="smax">max tokens</label><input type="text" id="smax" inputmode="numeric" data-i18n-ph="ph.defv" placeholder="默认"></div>
+    <div class="field"><label data-i18n="set.espp">加速预测</label><span class="chk"><input type="checkbox" id="sesp"><span>experimental speed projection</span></span></div>
   </div>
-  <div class="prow"><button class="primary" id="s-save">保存采样默认</button><button class="ghost" id="s-clear">清除（各端自带参数）</button><span class="hint">GET/POST /settings</span></div>
+  <div class="prow"><button class="primary" id="s-save" data-i18n="set.savebtn">保存采样默认</button><button class="ghost" id="s-clear" data-i18n="set.clearbtn">清除（各端自带参数）</button><span class="hint">GET/POST /settings</span></div>
 </div></details>
 <details class="drawer" id="drawer-config">
-<summary>Model settings<span class="tag">NEXT START · 下次启动生效</span><span class="arr">▾</span></summary>
+<summary>Model settings<span class="tag" data-i18n="set.cfgtag">NEXT START · 下次启动生效</span><span class="arr">▾</span></summary>
 <div class="dbody">
-  <p class="pnote" id="cfg-note">后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。</p>
+  <p class="pnote" id="cfg-note" data-i18n="set.cfghint">后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。</p>
   <div id="cfg-list"></div>
-  <div class="prow"><button class="primary" id="c-save">保存 Model settings</button><span class="hint">保存后需重启该模型才见效</span></div>
+  <div class="prow"><button class="primary" id="c-save" data-i18n="set.cfgsave">保存 Model settings</button><span class="hint" data-i18n="set.cfgwait">保存后需重启该模型才见效</span></div>
 </div></details>
 
-<h2 class="sec" id="sec-about">关于 Strata<em>About</em></h2>
+<h2 class="sec" id="sec-about"><span data-i18n="sec.about">关于 Strata</span><em>About</em></h2>
 <div class="inf-grid">
   <div class="inf-card wide">
-    <h3>Strata 引擎与本机架构</h3>
+    <h3 data-i18n="about.arch">Strata 引擎与本机架构</h3>
     <div class="mechwrap">
     <svg class="diagram" viewBox="0 0 760 300" role="img" aria-label="Strata GW architecture" preserveAspectRatio="xMidYMid meet">
       <defs>
@@ -180,31 +180,32 @@
       </g>
     </svg>
     <ol class="mech">
-      <li><b>懒加载</b>：点 Load 才拉起对应后端与引擎进程；模型不在位时零占用，任何请求到来也会按需自动装载。</li>
-      <li><b>互斥驻留</b>：数十 GB 级的大模型在内存里装不下两档——换档时网关先让在位模型退场、确证显存已释放，再冷加载新档（分钟级，卡片转圈报用时）。</li>
-      <li><b>闲置回收</b>：30 分钟没有请求自动卸载腾卡，之后热重载秒级；「不是网关出手」的卸载（闲置计时等）也会被看门狗记进下方动态时间线。</li>
-      <li><b>引擎结构</b>：MoE 专家常驻内存、显存只留按热度换入换出的热缓存；KV 量化（K8V4）+ YaRN 扩到 512K；n-gram 草稿 + MTP 投机解码；vision 塔另占小槽。</li>
+      <li data-i18n-html="about.m1"><b>懒加载</b>：点 Load 才拉起对应后端与引擎进程；模型不在位时零占用，任何请求到来也会按需自动装载。</li>
+      <li data-i18n-html="about.m2"><b>互斥驻留</b>：数十 GB 级的大模型在内存里装不下两档——换档时网关先让在位模型退场、确证显存已释放，再冷加载新档（分钟级，卡片转圈报用时）。</li>
+      <li data-i18n-html="about.m3"><b>闲置回收</b>：30 分钟没有请求自动卸载腾卡，之后热重载秒级；「不是网关出手」的卸载（闲置计时等）也会被看门狗记进下方动态时间线。</li>
+      <li data-i18n-html="about.m4"><b>引擎结构</b>：MoE 专家常驻内存、显存只留按热度换入换出的热缓存；KV 量化（K8V4）+ YaRN 扩到 512K；n-gram 草稿 + MTP 投机解码；vision 塔另占小槽。</li>
     </ol>
     </div>
-    <div class="kvbar"><h4>运行档案</h4><div class="kvpills" id="eng-kv"><span class="kvchip"><b>加载中…</b></span></div></div>
+    <div class="kvbar"><h4 data-i18n="about.kv">运行档案</h4><div class="kvpills" id="eng-kv"><span class="kvchip"><b>加载中…</b></span></div></div>
   </div>
 </div>
 
-<h2 class="sec" id="sec-dyn">动态<em>Events</em></h2>
+<h2 class="sec" id="sec-dyn"><span data-i18n="sec.dyn">动态</span><em>Events</em></h2>
 <div id="events"></div>
 
 
 </div>
 <div id="petstage" style="display:none">
-  <span id="petbreath" title="有模型在位"></span>
+  <span id="petbreath" data-i18n-title="pet.breathit" title="有模型在位"></span>
   <img id="petimg" src="router/assets/pet.png" alt="Strata desk pet" draggable="false">
-  <div id="petmenu" style="display:none"><button id="pm-art">换图</button><button id="pm-hide">隐藏</button></div>
+  <div id="petmenu" style="display:none"><button id="pm-art" data-i18n="pet.art">换图</button><button id="pm-hide" data-i18n="pet.hide">隐藏</button></div>
 </div>
 <div id="petchat">
-  <div class="pc-head"><b id="pc-title">和驻留模型聊聊</b><button id="pc-close" title="关闭">×</button></div>
-  <div id="pc-note"><p>先载入一个模型才能聊</p><button class="cbtn" id="pc-load">载入模型</button></div>
+  <div class="pc-head"><b id="pc-title" data-i18n="pet.chat">和驻留模型聊聊</b><button id="pc-close" data-i18n-title="ui.close" title="关闭">×</button></div>
+  <div id="pc-note"><p data-i18n="pet.needload">先载入一个模型才能聊</p><button class="cbtn" id="pc-load" data-i18n="pet.loadbtn">载入模型</button></div>
   <iframe id="ptf" title="chat with the resident model" src="about:blank"></iframe>
 </div>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

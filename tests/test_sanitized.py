@@ -70,4 +70,42 @@ if m:
 # S5: old hardware-text backfill JS is gone (moved into monitor kvchips)
 ok("dg-ram" not in js and "dg-gpu" not in js, "S5 old dg-ram/dg-gpu backfill removed from app.js")
 
+# ---- T8 (Phase 8): full-page i18n via console/i18n.js + data-i18n attrs ----
+ij_path = os.path.join(ROOT, "console", "i18n.js")
+ok(os.path.isfile(ij_path), "T8a console/i18n.js exists")
+ij = open(ij_path, encoding="utf-8").read()
+m = re.search(r"window\.__I18N__\s*=\s*(\{.*\})\s*;?\s*$", ij.strip(), re.S)
+ok(m is not None, "T8b i18n.js is a window.__I18N__ JSON assignment")
+TBL = json.loads(m.group(1)) if m else {"zh": {}, "en": {}}
+ok(set(TBL.get("zh", {})) == set(TBL.get("en", {})),
+   "T8c zh/en key sets are exactly equal (%d keys)" % len(TBL.get("zh", {})))
+ok(len(TBL.get("zh", {})) >= 60, "T8d word table is page-wide (>=60 keys)")
+
+# every annotated key in the HTML exists in the table
+anno = re.findall(r'data-i18n(?:-html|-title|-ph)?="([^"]+)"', html)
+missing = sorted({k for k in anno if k not in TBL.get("zh", {})})
+ok(anno and not missing, "T8e all %d HTML annotation keys in table%s"
+   % (len(anno), ("" if not missing else " missing: " + ",".join(missing))))
+ok(len(set(anno)) >= 45, "T8f HTML carries page-wide annotations (>=45 unique keys)")
+for probe in ("pg.hero", "pg.lead", "sec.dyn", "mon.th1", "fe.nick_zh",
+              "pet.needload", "dg.gw", "set.samptag", "ui.save"):
+    ok(probe in TBL.get("zh", {}), "T8g probe key %s present" % probe)
+
+# fold-back: renderer inlines i18n.js and the JSON reaches the page
+sys.path.insert(0, ROOT)
+import gw.console as _console  # noqa: E402
+page = _console.render(18080)
+ok("window.__I18N__" in page and '<script src="i18n.js">' not in page,
+   "T8h render() folds i18n.js inline into the single page")
+
+# runtime copy must not keep its own duplicate word table
+ok("var I18N={" not in js and "window.__I18N__" in js,
+   "T8i app.js reads the injected table (no second source of truth)")
+
+# no raw-Chinese user-facing say()/alert() left: every string goes through tt()/t()
+raw_say = re.findall(r'say\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
+raw_alert = re.findall(r'alert\(\s*"(?:[^"]*?[\u4e00-\u9fff][^"]*?)"', js)
+ok(not raw_say and not raw_alert,
+   "T8j say()/alert() bilingual via tt() (raw zh: %d/%d)" % (len(raw_say), len(raw_alert)))
+
 print("ALL PASS")

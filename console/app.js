@@ -13,7 +13,7 @@ document.getElementById("theme").onclick=function(){applyTheme(root.dataset.them
 var CARDS={},INFO={};
 var LANG=(navigator.language||"zh").toLowerCase().indexOf("zh")===0?"zh":"en";
 try{var _lg=localStorage.getItem("stratagw.lang");if(_lg==="zh"||_lg==="en")LANG=_lg}catch(e){}
-document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();syncLangBtn()};
+document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();syncLangBtn();sig="";refresh()};
 function syncLangBtn(){var b=document.getElementById("langbtn");if(b)b.textContent=LANG==="zh"?"中 / EN":"EN / 中"}
 document.getElementById("gwver").onclick=function(){fetch("router/info").then(function(r){return r.json()}).then(function(j){var b=j.build||j.engine||{};var mv=document.querySelector('meta[name="strata-gw-version"]');var lines=[tt("网关版本","gateway version")+" "+(j.version||(mv&&mv.content)||"?")];if(b.commit){var sh=String(b.commit);if(sh.length>12)sh=sh.substring(0,12);lines.push(tt("引擎构建","engine build")+" "+sh)}if(b.version)lines.push(tt("引擎版本","engine version")+" "+b.version);if(b.built_at||b.built)lines.push(tt("构建时间","built")+" "+(b.built_at||b.built));alert(lines.join("\n"))}).catch(function(){alert(tt("拿不到引擎构建信息（引擎可能没在跑）","cannot read engine build (engine may be offline)"))})};
 var setpop=document.getElementById("setpop");
@@ -44,7 +44,7 @@ var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
 document.getElementById("save").onclick=function(){
   try{localStorage.setItem("stratagw.key",keyEl.value.trim())}catch(e){}
-  say("key 已保存在本浏览器。","");
+  say(tt("key 已保存在本浏览器。","key saved in this browser."),"");
 };
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
 function hdrs(needJson){var h={};var k=keyEl.value.trim();if(k)h.Authorization="Bearer "+k;
@@ -57,7 +57,7 @@ function fnum(v,d2){if(v==null||isNaN(v))return "–";var f=Math.pow(10,d2||0);r
 function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(cb).catch(function(){})}
 function postj(url,obj,cb){fetch(url,{method:"POST",headers:hdrs(true),body:JSON.stringify(obj)})
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})}).then(cb)
-  .catch(function(e){say("请求失败: "+e,"err")})}
+  .catch(function(e){say(tt("请求失败: ","request failed: ")+e,"err")})}
 
 var ops={};      // 本页乐观进行态（服务端 busy 一到就以服务端为准）
 var prev={};    // 上次轮询的 loaded 状态（发现加载完成）
@@ -371,7 +371,7 @@ function refresh(){
       selectModel(loadedNow[0].model,true);
     }
     paint(list);paintSpecials();updateLiveAll();renderArch(list);
-  }).catch(function(e){say("读后端列表失败: "+e,"err")});
+  }).catch(function(e){say(tt("读后端列表失败: ","backend list read failed: ")+e,"err")});
   fetchGpu();
 }
 function act(op,name){
@@ -620,16 +620,16 @@ document.getElementById("s-save").onclick=function(){
     def[f[0]]=v;
   });
   postj("router/settings?model="+encodeURIComponent(selName),{defaults:def},function(rj){
-    if(rj[0]>=400){say("保存采样失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    say("采样默认已保存到 "+selName+"（即时生效）。","");
+    if(rj[0]>=400){say(tt("保存采样失败 HTTP ","sampling save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+    say(tt("采样默认已保存到 ","sampling defaults saved to ")+selName+tt("（即时生效）。"," (live now)."),"");
     if(rj[1].defaults){/* server may normalize; leave form as is */}
   });
 };
 document.getElementById("s-clear").onclick=function(){
   if(!selName)return;
   postj("router/settings?model="+encodeURIComponent(selName),{defaults:null},function(rj){
-    if(rj[0]>=400){say("清除失败 HTTP "+rj[0],"err");return}
-    say("已清除："+selName+" 交回各客户端自带的参数。","");
+    if(rj[0]>=400){say(tt("清除失败 HTTP ","clear failed HTTP ")+rj[0],"err");return}
+    say(tt("已清除：","cleared: ")+selName+tt(" 交回各客户端自带的参数。"," — clients fall back to their own params."),"");
     loadSettings();
   });
 };
@@ -671,9 +671,9 @@ document.getElementById("c-save").onclick=function(){
     set[key]=v;
   });
   postj("router/config?model="+encodeURIComponent(selName),{set:set},function(rj){
-    if(rj[0]>=400){say("保存 Model settings 失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+    if(rj[0]>=400){say(tt("保存 Model settings 失败 HTTP ","model settings save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
     var ch=(rj[1].changed||[]);
-    say("Model settings 已写入 "+selName+"（"+(ch.length?("改动: "+ch.join(", ")):"无改动")+"）— 下次启动该模型时生效。","busy");
+    say(tt("Model settings 已写入 ","model settings written to ")+selName+"（"+(ch.length?tt("改动: ","changed: ")+ch.join(", "):tt("无改动","no changes"))+"）— "+tt("下次启动该模型时生效。","takes effect next time this model starts."),"busy");
     loadConfig();
   });
 };
@@ -718,24 +718,26 @@ function dgBackends(models){
 }
 /*ARCH-PURE-END*/
 
-var I18N={
- zh:{"dg.clients":"OpenAI 兼容客户端","dg.chat":"聊天 UI","dg.sdk":"Agent / SDK","dg.curl":"curl",
-     "dg.gw":"STRATA GW","dg.cap1":"加载台","dg.cap2":"Monitor","dg.cap3":"调教台","dg.cap4":"事件流","dg.cap5":"桌宠",
-     "dg.gwsub":"请求路由 · 状态确证 · 唯一入口","dg.gpu":"GPU · 只坐一位","dg.gpusm":"显存热缓存 · 加载即换入",
-     "dg.ram":"RAM · 权重/专家驻留","dg.ramsm":"MoE 专家常驻 · 热缓存换入","dg.mutex":"互斥驻留","dg.switch":"换机即让位",
-     "dg.give":"外部显存让卡","dg.givesm":"对接任意 /free 出图服务"},
- en:{"dg.clients":"OpenAI-compatible clients","dg.chat":"chat UI","dg.sdk":"agent / SDK","dg.curl":"curl",
-     "dg.gw":"STRATA GW","dg.cap1":"loader","dg.cap2":"monitor","dg.cap3":"train desk","dg.cap4":"events","dg.cap5":"pet",
-     "dg.gwsub":"routing · verified state · single entry","dg.gpu":"GPU · one seat only","dg.gpusm":"hot VRAM cache · swapped in on load",
-     "dg.ram":"RAM · weights/experts","dg.ramsm":"experts resident · hot cache swaps","dg.mutex":"exclusive residency","dg.switch":"handover on switch",
-     "dg.give":"external VRAM give-card","dg.givesm":"any generator exposing /free"}
-};
+var I18N=(window.__I18N__&&window.__I18N__.zh)?window.__I18N__:{zh:{},en:{}};
 function applyLang(){
   var dict=I18N[LANG]||I18N.zh;
   document.querySelectorAll("[data-i18n]").forEach(function(el){
     var v=dict[el.getAttribute("data-i18n")];
     if(v!=null)el.textContent=v;
   });
+  document.querySelectorAll("[data-i18n-html]").forEach(function(el){
+    var v=dict[el.getAttribute("data-i18n-html")];
+    if(v!=null)el.innerHTML=v;
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(function(el){
+    var v=dict[el.getAttribute("data-i18n-title")];
+    if(v!=null)el.setAttribute("title",v);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function(el){
+    var v=dict[el.getAttribute("data-i18n-ph")];
+    if(v!=null)el.setAttribute("placeholder",v);
+  });
+  if(dict["pg.title"])document.title=dict["pg.title"];
 }
 function renderArch(backends){
   var g=document.getElementById("dg-backends");
@@ -784,11 +786,11 @@ var cfreeBusy=null,cfSeen=null;
 function sayFree(res){
   var line="显存释放 "+(res.freed_vram_mib/1024).toFixed(1)+" GB · 内存释放 "+(res.freed_ram_mib/1024).toFixed(1)+" GB · 用时 "+res.waited_s+" 秒";
   if(res.force){
-    if(res.gave_card)say("强制让卡完成，显卡已让出（清掉任务 "+res.tasks_cleared+" 个）。"+line,"");
-    else say("强制让卡：等了 "+res.waited_s+" 秒显卡还没让出来（任务被打断后可能还在收尾）。"+line,"busy");
+    if(res.gave_card)say(tt("强制让卡完成，显卡已让出（清掉任务 ","force give-card done, GPU handed over (cleared ")+res.tasks_cleared+tt(" 个）。"," jobs).")+line,"");
+    else say(tt("强制让卡：等了 ","force give-card: waited ")+res.waited_s+tt(" 秒显卡还没让出来（任务被打断后可能还在收尾）。"," s and the GPU has not handed over yet (interrupted jobs may still be wrapping up).")+line,"busy");
   }else{
-    if(res.freed_vram_mib>=256)say("温和清理："+line,"");
-    else say("温和让卡：显存没降——出图任务正在跑不让卡。等它跑完再点，或用强制让卡。","busy");
+    if(res.freed_vram_mib>=256)say(tt("温和清理：","gentle cleanup: ")+line,"");
+    else say(tt("温和让卡：显存没降——出图任务正在跑不让卡。等它跑完再点，或用强制让卡。","gentle give-card: VRAM unchanged — a running generation refuses to hand over. Wait for it, or use force give-card."),"busy");
   }
 }
 function doGiveFree(force){
@@ -798,11 +800,11 @@ function doGiveFree(force){
     .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
     .then(function(rj){
       cfreeBusy=null;
-      if(rj[0]>=400||!rj[1].ok){say("让卡失败 HTTP "+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");fetchGpu();return}
+      if(rj[0]>=400||!rj[1].ok){say(tt("让卡失败 HTTP ","give-card failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");fetchGpu();return}
       sayFree(rj[1]);
       refresh();
     })
-    .catch(function(e){cfreeBusy=null;say("让卡请求失败: "+e,"err");fetchGpu()});
+    .catch(function(e){cfreeBusy=null;say(tt("让卡请求失败: ","give-card request failed: ")+e,"err");fetchGpu()});
 }
 cfree.onclick=function(){doGiveFree(false)};
 cforce.onclick=function(){
