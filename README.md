@@ -96,8 +96,8 @@ off. It respects `prefers-reduced-motion`.
 ## Tests
 
 ```bash
-for f in tests/test_*.py; do python3 $f strata-router.py; done   # gateway suite
-python3 tests/test_sanitized.py                                  # hygiene lint
+python3 tests/test_gateway_switch.py strata-router.py   # the big baseline suite
+for f in tests/test_*.py; do python3 "$f"; done         # every suite, incl. hygiene lint
 ```
 
 All green = safe to poke at. The baseline suite boots stub backends on ports
