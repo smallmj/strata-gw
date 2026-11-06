@@ -59,22 +59,25 @@ its `GW_HOME` line; Linux/macOS):
 bash launcher/strata-gateway.sh        # or: python3 strata-router.py
 ```
 
-Open `http://127.0.0.1:18080/gateway`. Default gateway port `18080`
-(override with `STRATA_ROUTER_PORT`); backend ports are auto-assigned from
+Open `http://127.0.0.1:18075/gateway`. Default gateway port `18075`
+(override with `STRATA_ROUTER_PORT`; 18080 belongs to the engine itself); backend ports are auto-assigned from
 `18101`. Verify from a terminal:
 
 ```bash
-curl -s http://127.0.0.1:18080/router/version
+curl -s http://127.0.0.1:18075/router/version
 ```
 
-Point any OpenAI-compatible client at `http://127.0.0.1:18080` and load a
+Point any OpenAI-compatible client at `http://127.0.0.1:18075` and load a
 model from the page (or via `POST router/load {"model":"mymodel"}`).
 
 ## Cards, dossiers & art
 
-`cards/cards.json` holds per-model presentation: nick, portrait, persona
-notes, dossier text. The page's **edit dossier** button creates a card for an
-installed model with no card yet; factory cards for models you don't run show
+`cards/cards.json` holds per-model presentation: nick, portrait, tags and
+an operative dossier. The training drawer (特训 / drill) edits tags, dossier,
+palette and portrait, and can have the loaded model write its own tags and
+dossier via **auto-generate**; every installed backend automatically gets a
+card (cards.json only decorates it), and uninstalled factory cards show as
+*not installed* with a one-tap burn; factory cards for models you don't run show
 as *not installed* and can be one-click deleted. Portraits are uploaded
 through the page (stored under `gw-assets/uploads/`, git-ignored).
 
@@ -90,9 +93,10 @@ through the page (stored under `gw-assets/uploads/`, git-ignored).
 
 ## The pet
 
-A draggable desk-pet (`⚙` → pet) sits on the page; tap it for the official
-Strata chat window bound to the resident model — the pet carries no other
-features, loading lives on the cards. Its portrait is served as a virtual
+A draggable desk-pet (`⚙` → pet) sits on the page; tap it for a compact
+native chat window — bubbles streaming over `/v1/chat/completions`, bound to
+the resident model. The pet carries no other features, loading lives on the
+cards. Its portrait is served as a virtual
 model `_pet` through the same gateway. Drag = move (persisted), menu = size /
 off. It respects `prefers-reduced-motion`.
 
