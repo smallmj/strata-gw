@@ -77,10 +77,12 @@ ok("<title>Strata 网关</title>" in html, "K11b html title is Strata 网关")
 ok('"pg.title": "Strata 网关"' in i18njs and '"pg.title": "Strata gateway"' in i18njs,
    "K11c i18n pg.title zh/en")
 
-# ---- K12: ctlbar buttons all flat at the gwver height (24px) ----
-ok("#ctlbar .cbtn,#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar .seg button" in css
-   and "height:24px" in css,
-   "K12a flat 24px rule for every ctlbar control")
+# ---- K12 (ux v7): control scale 28px chips CJK-safe + a REAL settings gear ----
+ok("height:24px" not in css, "K12a the 24px cages are gone")
+ok("height:28px" in css and "white-space:nowrap" in css and "min-height:56px" in css,
+   "K12b 28px chip scale + nowrap + flowing acts row")
+ok("M19.14,12.94" in html, "K12c proper settings gear (notched teeth path)")
+ok("M12 8.5a3.5 3.5" not in html, "K12d the old blob gear is gone")
 
 # ---- K13: diagram flow line arcs above the backend cards, never through them ----
 ok("M450 186 C 560 196, 640 208, 657 236" not in html,

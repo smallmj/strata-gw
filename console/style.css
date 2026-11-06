@@ -10,6 +10,7 @@ html[data-theme=light]{
   --bgm1:rgba(238,242,249,.86); --bgm2:rgba(238,242,249,.62);
 }
 *{box-sizing:border-box}
+button{white-space:nowrap}
 body{margin:0;min-height:100vh;color:var(--fg);overflow-x:hidden;
   font-family:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
   background:linear-gradient(155deg,var(--bg1),var(--bg2) 60%);
@@ -167,7 +168,7 @@ h4.mod::before{content:"";display:inline-block;width:14px;height:1px;background:
 .notes li{font-size:.76rem;color:var(--muted);line-height:1.6;position:relative;padding-left:.25rem}
 .notes li::before{content:"·";position:absolute;left:0;color:var(--ac);font-weight:700}
 .acts{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);
-  height:66px;box-sizing:content-box}
+  min-height:56px;box-sizing:content-box;flex-wrap:wrap}
 .acts button,.acts .statechip{height:38px;box-sizing:border-box;white-space:nowrap}
 .acts button{padding:.5rem 1.15rem;border-radius:11px;border:1px solid var(--line);cursor:pointer;
   font-size:.8rem;font-weight:600;transition:all .25s;background:transparent;color:var(--fg)}
@@ -453,16 +454,17 @@ details.drawer .dbody .ptitle{display:none}
   align-items:center;justify-content:center;background:var(--card);text-align:center;padding:24px}
 #pc-note p{margin:0;font-size:.82rem;color:var(--muted)}
 
-/* ---- K12 (master review): every ctlbar control flat at 24px (gwver parity) ---- */
-#ctlbar .cbtn,#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar .seg button,#ctlbar .tbtn,#ctlbar #theme{
-  height:24px;box-sizing:border-box;padding:.1rem .8rem;font-size:.7rem;line-height:1.1}
-#ctlbar .ghico,#ctlbar .gearbtn{width:26px;padding:0}
-#ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:15px;height:15px}
-#ctlbar .seg{height:24px}
-#ctlbar #gpuhold{height:24px;padding:.1rem .6rem;box-sizing:border-box;align-items:center}
-#ctlbar #gpuhold .bar{height:4px}
+/* ---- ux v7 K12: control scale — 28px chips, auto width, CJK-safe, no cages ---- */
+#ctlbar .cbtn,#ctlbar .tbtn,#ctlbar .verchip,#ctlbar .seg button,#ctlbar .gearbtn,#ctlbar .ghico,#ctlbar #theme{
+  height:28px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;
+  white-space:nowrap;font-size:.72rem;line-height:1;padding:0 .72rem}
+#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar #theme{width:28px;padding:0}
+#ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:16px;height:16px}
+#ctlbar .seg{height:36px;padding:4px}
+#ctlbar #gpuhold{height:28px;padding:.1rem .6rem;box-sizing:border-box;align-items:center;white-space:nowrap}
+#ctlbar #gpuhold .bar{height:4px;width:84px}
 #ctlbar .keybox{display:inline-flex;align-items:center;gap:6px}
-#ctlbar .keybox input{height:24px;box-sizing:border-box;padding:0 .6rem;border-radius:8px;
+#ctlbar .keybox input{height:28px;box-sizing:border-box;padding:0 .6rem;border-radius:8px;
   border:1px solid var(--line);background:rgba(148,163,184,.08);color:var(--fg);font-size:.72rem;width:150px}
 #ctlbar .keybox input:focus{border-color:var(--q)}
 #ctlbar .keybox.flash input{border-color:var(--q);box-shadow:0 0 0 3px color-mix(in srgb,var(--q) 25%,transparent)}
