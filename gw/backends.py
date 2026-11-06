@@ -80,7 +80,9 @@ class Backend:
             "reasoning_effort": cfg.get("reasoning_effort"),
             "sampling": cfg.get("sampling") or {},
         }
-        facts = {k: v for k, v in facts.items() if v not in (None, "", {}, [])}
+        # ux v8: keep the SAME key set for every model — missing entries stay
+        # as None so the console renders one fixed row schema, never
+        # "present on one card, absent on the next".
         _CFG_FACTS[self.cfg_path] = facts
         return facts
 

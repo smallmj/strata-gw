@@ -3,14 +3,18 @@
 **One local GPU · several local models · one gateway that folds load-swap, VRAM
 handover, monitoring and tuning into a single page.**
 
-![console](docs/shot-top.png)
+![console — full page, 中文](docs/preview-full-zh.png)
 
 Strata-gw is the gateway + web console layer of a personal "model loading
 desk": it manages N model backends on **one GPU**, exactly one of which may be
 resident at a time. Load / unload / switch are explicit, verified actions with
-an events timeline — no hidden autoswap. On top of the routing it ships a
-live monitor (tokens/s, VRAM, RAM, expert cache, GPU thermals), a per-model
-tuning desk, an events log, an optional desk-pet with chat window, and
+an events timeline — no hidden autoswap. On top of the routing it ships
+stacked dossier cards (parameters · tags · bio, one uniform schema read from
+the gateway itself, with tags + bio the loaded model can auto-write about
+itself), a per-model training page with collapsible drawers (sampling,
+launch config, portrait upload, tag/bio editing), one ⚙ popover holding token
+· language · background video · desk-pet, a live monitor (tokens/s, VRAM,
+RAM, expert cache, GPU thermals), an events log, an optional desk-pet with chat window, and
 full-page EN/中文 bilingual UI.
 
 It requires **your own Strata engine install** (the engine providing
@@ -18,7 +22,7 @@ It requires **your own Strata engine install** (the engine providing
 
 ## How it works
 
-![architecture](docs/shot-arch.png)
+![full page in English mode — the data-driven architecture diagram lives in the About card](docs/preview-full-en.png)
 
 - Every backend is an OpenAI-compatible server; the gateway exposes one
   aggregated OpenAI-compatible endpoint plus a `router/*` control API.
@@ -86,12 +90,11 @@ through the page (stored under `gw-assets/uploads/`, git-ignored).
 
 ## The pet
 
-A draggable desk-pet (`⚙` → pet) sits on the page; tap it for a chat window
-bound to the resident model. Its portrait is served as a virtual model
-`_pet` through the same gateway. Drag = move (persisted), menu = size /
+A draggable desk-pet (`⚙` → pet) sits on the page; tap it for the official
+Strata chat window bound to the resident model — the pet carries no other
+features, loading lives on the cards. Its portrait is served as a virtual
+model `_pet` through the same gateway. Drag = move (persisted), menu = size /
 off. It respects `prefers-reduced-motion`.
-
-![pet chat](docs/shot-pet.png)
 
 ## Tests
 

@@ -199,12 +199,6 @@ html[data-theme=light] .acts .load{color:#fff}
   background:transparent;color:var(--fg);font-size:1rem;cursor:pointer}
 #dossier-edit #ed-close:hover{border-color:var(--err);color:var(--err)}
 /* ---------------- art upload tools ---------------- */
-.art .art-tools{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;justify-content:center;
-  opacity:0;transition:opacity .3s;z-index:3}
-.card:hover .art-tools{opacity:1}
-.art-tools button{font:inherit;font-size:.66rem;padding:.28rem .6rem;border-radius:8px;
-  border:1px solid var(--line);background:rgba(7,11,20,.72);color:var(--fg);cursor:pointer}
-.art-tools button:hover{border-color:var(--q);color:var(--q)}
 /* ---------------- monitor ---------------- */
 .monstate{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 #mon-chip{font-size:.8rem;font-weight:600;padding:.34rem .95rem;border-radius:999px;border:1px solid var(--line);color:var(--muted);transition:all .5s}
@@ -461,34 +455,37 @@ details.drawer .dbody .ptitle{display:none}
 #ctlbar .seg{height:36px;padding:4px}
 #ctlbar #gpuhold{height:28px;padding:.1rem .6rem;box-sizing:border-box;align-items:center;white-space:nowrap}
 #ctlbar #gpuhold .bar{height:4px;width:84px}
-#ctlbar .keybox{display:inline-flex;align-items:center;gap:6px}
-#ctlbar .keybox input{height:28px;box-sizing:border-box;padding:0 .6rem;border-radius:8px;
-  border:1px solid var(--line);background:rgba(148,163,184,.08);color:var(--fg);font-size:.72rem;width:150px}
-#ctlbar .keybox input:focus{border-color:var(--q)}
-#ctlbar .keybox.flash input{border-color:var(--q);box-shadow:0 0 0 3px color-mix(in srgb,var(--q) 25%,transparent)}
-@media (max-width:1280px){#ctlbar .keybox input{width:96px}}
+#setpop .keyrow{display:flex;align-items:center;gap:6px}
+#setpop .keyrow input{flex:1;min-width:0;height:28px;box-sizing:border-box;padding:0 .6rem;border-radius:8px;
+  border:1px solid var(--line);background:rgba(148,163,184,.08);color:var(--fg);font-size:.72rem}
+#setpop .keyrow input:focus{border-color:var(--q)}
+#setpop .keyrow.flash input{border-color:var(--q);box-shadow:0 0 0 3px color-mix(in srgb,var(--q) 25%,transparent)}
+.keychip.no{border-color:color-mix(in srgb,var(--q) 55%,var(--line));color:var(--q)}
+.keychip.ok{opacity:.8}
 
 /* ---- ux v7 K15: deck = one solid card in view, neighbours peek 44px, slides on switch ---- */
 #cards .page{position:absolute;top:0;left:0;width:100%;
-  transform:translateX(130%) scale(.94);opacity:0;pointer-events:none;
-  transition:transform .5s cubic-bezier(.22,.75,.25,1),opacity .4s}
+  transition:transform .5s cubic-bezier(.22,.75,.22,1),opacity .45s}
 #cards .page.on{transform:none;opacity:1;z-index:3;pointer-events:none}
-#cards .page.on .card{margin:0 52px;pointer-events:auto}
-#cards .page.pr{transform:translateX(calc(100% - 44px)) scale(.975);opacity:.68;
-  z-index:2;pointer-events:auto;cursor:pointer}
-#cards .page.pl{transform:translateX(calc(-100% + 44px)) scale(.975);opacity:.68;
-  z-index:2;pointer-events:auto;cursor:pointer}
-#cards .page.pr:hover,#cards .page.pl:hover{opacity:.9}
-#cards .page.pr .card,#cards .page.pl .card{border-color:color-mix(in srgb,var(--q) 38%,var(--line));
-  background-color:var(--cardbg)}
-#cards .page.on .card{background-color:var(--cardbg)}
+#cards .page.on .card{margin:0 150px 0 30px;pointer-events:auto;background-color:var(--cardbg)}
+#cards .page.n1{transform:translateX(40px) scale(.985);z-index:2;pointer-events:none}
+#cards .page.n1 .card{margin:0 150px 0 30px;pointer-events:auto;background-color:var(--cardbg);
+  border-color:color-mix(in srgb,var(--q) 45%,var(--line))}
+#cards .page.n2{transform:translateX(98px) scale(.97);z-index:1;pointer-events:none}
+#cards .page.n2 .card{margin:0 150px 0 30px;pointer-events:auto;background-color:var(--cardbg);
+  border-color:color-mix(in srgb,var(--q) 28%,var(--line))}
+#cards .page.n1:hover .card{border-color:var(--q)}
+#cards .page.n2:hover .card{border-color:color-mix(in srgb,var(--q) 65%,var(--line))}
+#cards .page.gone-r{transform:translateX(170px) scale(.92);opacity:0;z-index:0;pointer-events:none}
+#cards .page.gone-l{transform:translateX(-170px) scale(.9);opacity:0;z-index:0;pointer-events:none}
+#cards .page.on .card{box-shadow:0 22px 55px -18px rgba(0,0,0,.5)}
 .swrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #ed-swatches{display:flex;gap:6px;flex-wrap:wrap}
 #ed-swatches .sw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line);cursor:pointer}
 #ed-swatches .sw.sel{outline:2px solid var(--fg);outline-offset:1px}
 
 /* ── responsive (ux v7 audit: at ~1280 the gear clipped at the bar's right end) ── */
-@media (max-width:1400px){#ctlbar{gap:8px 10px}#ctlbar .keybox input{width:104px}}
+@media (max-width:1400px){#ctlbar{gap:8px 10px}}
 @media (max-width:1240px){#ctlbar{flex-wrap:wrap}}
 @media (max-width:700px){
   .hero h1{font-size:1.5rem}
@@ -500,3 +497,33 @@ details.drawer .dbody .ptitle{display:none}
 /* tagline must not break mid-word under the logo (ux v7 polish) */
 #ctlbar h1{white-space:nowrap}
 #ctlbar h1 small{white-space:nowrap;word-break:keep-all;margin-left:8px}
+
+/* ux v8: card sections + placeholders */
+.cg{margin:12px 0 4px;font-size:.66rem;letter-spacing:.28em;color:var(--ac);font-weight:800}
+.tags .none,.prose .none{border:0;background:none;padding:0;color:var(--dim);font-size:.74rem;font-style:italic}
+/* ux v8: train-page drawers */
+details.drw{border:1px solid var(--line);border-radius:12px;margin:0 0 10px;padding:0 0 4px;
+  background:color-mix(in srgb,var(--card) 50%,transparent)}
+details.drw summary{cursor:pointer;padding:10px 12px;font-size:.8rem;font-weight:700;color:var(--fg);
+  list-style:none;display:flex;gap:8px;align-items:center}
+details.drw summary::-webkit-details-marker{display:none}
+details.drw summary::before{content:"\25B8";color:var(--ac);transition:transform .2s}
+details.drw[open] summary::before{transform:rotate(90deg)}
+details.drw .pnote{margin:0 12px 8px}
+details.drw .fgrid{margin:0 12px}
+details.drw .poprow{margin:0 12px 8px}
+details.drw .prow{margin:4px 12px 8px}
+details.drw #cfg-list{margin:0 12px}
+#ed_lore{width:100%;box-sizing:border-box;border-radius:9px;border:1px solid var(--line);
+  background:rgba(148,163,184,.08);color:var(--fg);font:inherit;font-size:.78rem;padding:.5rem .6rem;resize:vertical}
+#gen-meta:disabled{opacity:.45;cursor:not-allowed}
+/* ux v8: architecture diagram (data-driven svg) */
+#archsvg{width:100%;max-width:780px;height:auto;display:block}
+.abx rect{fill:var(--cardbg);stroke:var(--line)}
+.abx.gw rect{stroke:color-mix(in srgb,var(--ac) 60%,var(--line));stroke-width:1.6}
+.abx.be rect{stroke:color-mix(in srgb,var(--q) 42%,var(--line))}
+.abx.ext rect{stroke-dasharray:5 4}
+.abx .at{fill:var(--fg);font-size:12px;font-weight:700}
+.abx .as{fill:var(--muted);font-size:9.5px}
+.aln{fill:none;stroke:url(#agr);stroke-width:1.5}
+.aln.dash{stroke-dasharray:4 4}

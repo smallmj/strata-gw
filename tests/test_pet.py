@@ -59,8 +59,8 @@ try:
        "P6 drag threshold 8px (move vs click)")
     ok('ptf.src' in app and "loaded" in app,
        "P7 chat iframe gated on a loaded backend")
-    ok("pc-note" in app and "pc-load" in app,
-       "P7b no-resident note reuses the load action")
+    ok("pc-note" in app and "pc-load" not in app and "pcLoad" not in app,
+       "P7b pet chat is chat-only: the official webUI iframe, no load button bolted on (master v8)")
     css = open(os.path.join(REPO, "console", "style.css"), encoding="utf-8").read()
     ok("#petstage" in css and "position:fixed" in css and "z-index:70" in css,
        "P8 pet stage fixed above the bar")

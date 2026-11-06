@@ -44,10 +44,10 @@ try:
     ok('id="pdots"' in html and 'class="deck"' in html, "C5 paged carousel markup (dots + deck)")
     ok("META={" not in html, "C6 no hardcoded dossier META baked into the page")
     ok('data-r="delcard"' in html or "delcard" in html, "C7 orphan card offers delete")
-    ok('data-r="uploadart"' in html and 'data-r="rmart"' in html,
-       "C7b card art hover tools (upload / remove) present")
-    ok('data-r="editdossier"' in html or "editdossier" in html,
-       "C8 backend without a dossier offers the edit drawer")
+    ok('id="ed-artup"' in html and 'id="ed-artrm"' in html,
+       "C7b art upload / remove tools live in the training drawer (ux v8)")
+    ok('id="ed_tags"' in html and 'id="ed_lore"' in html,
+       "C8 dossier editing happens through the training page drawers (ux v8)")
 
     # DELETE persists: gone from the file AND from the union, survives restart
     s, h = gw.delete("/router/cards/zzz-absent")

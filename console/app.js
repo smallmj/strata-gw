@@ -55,17 +55,26 @@ function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="obje
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
+function openSettings(focusKey){
+  setpop.style.display="block";
+  if(focusKey){keyEl.focus();
+    var kb=document.querySelector("#setpop .keyrow");
+    if(kb){kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
+      setTimeout(function(){kb.classList.remove("flash")},1600)}}
+}
+function paintKeyChip(){var c=document.getElementById("keychip");if(!c)return;
+  var okv=!!keyEl.value.trim();
+  c.textContent=okv?tt("🔑 Token 已设","🔑 Token set"):tt("🔑 未设 Token","🔑 No token");
+  c.className="cbtn keychip "+(okv?"ok":"no");}
+document.getElementById("keychip").onclick=function(){openSettings(true)};
+paintKeyChip();
 document.getElementById("save").onclick=function(){
   try{localStorage.setItem("stratagw.key",keyEl.value.trim())}catch(e){}
-  say(tt("key 已保存在本浏览器。","key saved in this browser."),"");
+  paintKeyChip();
+  say(tt("Token 已保存在本浏览器。","token saved in this browser."),"");
   pollMetrics();
 };
-document.getElementById("mon-keycta").onclick=function(){
-  keyEl.focus();
-  var kb=document.querySelector("#ctlbar .keybox");if(!kb)return;
-  kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
-  setTimeout(function(){kb.classList.remove("flash")},1600);
-};
+document.getElementById("mon-keycta").onclick=function(){openSettings(true)};
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
 function hdrs(needJson){var h={};var k=keyEl.value.trim();if(k)h.Authorization="Bearer "+k;
   if(needJson)h["Content-Type"]="application/json";return h}
@@ -92,32 +101,31 @@ function artHtml(name){
   var ph='<div class="art-ph"><span class="nick">'+esc(nick)+'</span><i></i>'+
     '<span class="who">'+esc(pick(m&&m.who))+'</span><span class="pend">'+tt("立绘待入","portrait pending")+'</span></div>';
   var art=m?String(m.art||""):"";
-  var tools='<div class="art-tools"><button data-r="uploadart">'+tt("上传立绘","upload art")+'</button>'+
-    '<button data-r="rmart" style="display:none">'+tt("移除","remove")+'</button></div>';
-  if(!art)return '<div class="art">'+ph+tools+'</div>';
+  if(!art)return '<div class="art">'+ph+'</div>';
   return '<div class="art"><div class="artfill" style="background-image:url(&quot;'+esc(art)+'&quot;)"></div>'+
     '<img alt="'+esc(nick)+tt("立绘","portrait")+'" src="'+esc(art)+'" '+
-    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+tools+'</div>';
+    'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+'</div>';
 }
 function cardHTML(name){
   var m=cardMeta(name);
   var tags=m?pickarr(m.tags):[],notes=m?pickarr(m.notes):[];
-  var lore=m?pick(m.lore):"";
+  var lore=m?pick(m.lore)||pick(m.style):"";
   var h='<div class="page"><div class="card" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
   h+=artHtml(name);
   h+='<div class="cbody"><div class="cfront">'+
     '<div class="dhead"><span class="dtitle">'+tt("特工信息","DOSSIER")+'</span>'
     +'<h3 class="dnick" title="'+esc(name)+'">'+esc(cardNick(name)||name)+'</h3>'
     +'<div class="dsub">'+esc(name)+(m&&pick(m.sub)?' · '+esc(pick(m.sub)):'')+'</div></div>'
-    +'<dl class="specs" data-r="liverows"></dl>';
-  if(tags.length)h+='<div class="tags">'+tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join("")+'</div>';
-  if(m&&pick(m.style))h+='<p class="prose">'+esc(pick(m.style))+'</p>';
-  if(notes.length)h+='<h4 class="mod">'+tt("使用提醒","field notes")+'</h4><ul class="notes">'+notes.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>';
-  if(lore)h+='<h4 class="mod">'+tt("档案","dossier")+'</h4><p class="prose">'+esc(lore)+'</p>';
+    +'<h4 class="cg">'+tt("参数","SPECS")+'</h4>'
+    +'<dl class="specs" data-r="liverows"></dl>'
+    +'<h4 class="cg">'+tt("标签","TAGS")+'</h4>'
+    +'<div class="tags" data-r="tagrow">'+(tags.length?tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join(""):'<span class="none">'+tt("尚无标签 · 到调教页添加或自动生成","no tags yet · add or auto-generate on the train page")+'</span>')+'</div>'
+    +'<h4 class="cg">'+tt("档案","BIO")+'</h4>'
+    +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到调教页填写或自动生成","no bio yet · write or auto-generate on the train page")+'</span>')+'</p>';
+  if(notes.length)h+='<ul class="notes">'+notes.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>';
   h+='<div class="acts"><button class="load" data-r="toggle">'+tt("载入","Load")+'</button>'+
     '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
     '<button class="ghostbtn" data-r="train">'+tt("调教","train")+'</button>'+
-    '<button class="ghostbtn" data-r="editdossier" style="display:none">'+tt("自定义","customize")+'</button>'+
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
@@ -144,7 +152,7 @@ function openTrain(name){
   trainName=name;back.appendChild(trainForm);card.classList.add("flipped");
   var t=card.querySelector('[data-r=back-title]');
   if(t)t.textContent=tt("调教 · ","train · ")+(cardNick(name)||name);
-  selectModel(name);loadSettings();loadConfig();
+  selectModel(name);loadSettings();loadConfig();populateTrain(name);
 }
 /* delegated safety net: train / back-close on cards rebuilt by build() */
 cardsEl.addEventListener("click",function(e){
@@ -168,17 +176,6 @@ function build(names){
       if(!backendOf(n))return;
       act(card.dataset.st==="loaded"?"unload":"load",n);
     };
-    card.querySelector('[data-r=editdossier]').onclick=function(){openEdit(n)};
-    var ua=card.querySelector('[data-r=uploadart]');
-    if(ua)ua.onclick=function(){artTarget=n;artInput.click()};
-    var rm=card.querySelector('[data-r=rmart]');
-    if(rm)rm.onclick=function(){
-      postj("router/cards",{model:n,card:{art:""}},function(q){
-        if(q[0]>=400){say(tt("移除立绘失败 HTTP ","art remove failed HTTP ")+q[0],"err");return}
-        say(tt("立绘已移除。","art removed."),"");
-        fetchCards(function(){sig="";refresh()});
-      });
-    };
     var del=card.querySelector('[data-r=delcard]');
     del.onclick=function(){
       if(del.dataset.armed==="1"){delCard(n);return}
@@ -194,7 +191,8 @@ function setPage(i){
   pageIdx=((i%cardNames.length)+cardNames.length)%cardNames.length;
   var pages=cardsEl.querySelectorAll(".page");var np=pages.length;
   for(var j=0;j<np;j++){var rel=(j-pageIdx+np)%np;
-    pages[j].className=rel===0?"page on":rel===1?"page pr":rel===np-1?"page pl":"page";}
+    pages[j].className=rel===0?"page on":rel===1?"page n1":rel===2?"page n2":(rel>np/2?"page gone-l":"page gone-r");
+    pages[j].dataset.rel=rel;}
   deckHeight();
   try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
   paintDots();
@@ -209,7 +207,7 @@ cardsEl.addEventListener("click",function(e){
   var pg=e.target;
   while(pg&&pg!==cardsEl&&!(pg.classList&&pg.classList.contains("page")))pg=pg.parentNode;
   if(!pg||pg===cardsEl)return;
-  if(pg.classList.contains("pr")||pg.classList.contains("pl")){
+  if(pg.classList.contains("n1")||pg.classList.contains("n2")){
     var ps=cardsEl.querySelectorAll(".page");
     for(var i=0;i<ps.length;i++){if(ps[i]===pg){setPage(i);return}}
   }
@@ -238,6 +236,7 @@ artInput.onchange=function(){
     postj("router/cards",{model:artTarget,card:{art:rj[1].art}},function(q){
       if(q[0]>=400){say(tt("立绘路径保存失败 HTTP ","art path save failed HTTP ")+q[0],"err");return}
       say(tt("立绘已保存并持久化。","art saved and persisted."),"");
+        if(trainName)populateTrain(trainName);
       fetchCards(function(){sig="";refresh()});
     });
   })
@@ -261,7 +260,7 @@ artInput.onchange=function(){
 var petStage=document.getElementById("petstage"),petImg=document.getElementById("petimg"),
     petChat=document.getElementById("petchat"),ptf=document.getElementById("ptf"),
     pcNote=document.getElementById("pc-note"),petMenu=document.getElementById("petmenu"),
-    petBreath=document.getElementById("petbreath"),pcLoad=document.getElementById("pc-load"),
+    petBreath=document.getElementById("petbreath"),
     petPos=null;
 try{petPos=JSON.parse(localStorage.getItem("stratagw.petpos"))||null}catch(e){petPos=null}
 function closeChat(){petChat.style.display="none";ptf.src="about:blank"}
@@ -298,7 +297,6 @@ function openChat(){petAnchor();petChat.style.display="flex";
   for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded){loadedNow=modelsList[i].model;break}}
   if(loadedNow){pcNote.style.display="none";ptf.src="/"}
   else{pcNote.style.display="flex";ptf.src="about:blank"}}
-pcLoad.onclick=function(){if(modelsList.length)act("load",modelsList[0].model);closeChat()};
 document.getElementById("pc-close").onclick=closeChat;
 ptf.addEventListener("load",function(){if(ptf.src.indexOf("about:blank")>=0)return;
   try{var pth=ptf.contentWindow.location.pathname;
@@ -328,35 +326,27 @@ function updateLiveAll(){cardNames.forEach(function(n){
 function updateLive(card,name){
   var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
   var b=backendOf(name),info=INFO[name]||{},cfg=info.cfg||{},rows=[];
-  function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(c)+'</dd></div>')}
-  if(!b){row(tt("状态","status"),tt("未安装 · 本机没有这个后端","not installed on this machine"))}
-  else{row(tt("端口","port"),":"+b.port);
-    row(tt("进程","process"),b.alive?tt("在线","up"):tt("待冷启动","cold-start pending"));
-    row(tt("驻留","resident"),b.loaded?tt("在位","on GPU"):tt("待载入","not loaded"))}
+  function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(String(c))+'</dd></div>')}
+  var DASH=tt("—","–");
   var lv=(name===selName&&mon.data&&mon.data.live)?mon.data.live:null;
-  if(lv&&lv.state==="generating"&&lv.tok_s!=null)row(tt("当前速度","speed"),fnum(lv.tok_s,1)+" tok/s");
-  if(cfg.quant)row(tt("量化档","quant tier"),String(cfg.quant));
+  var hw=(name===selName&&mon.data&&mon.data.hardware)?mon.data.hardware:null;
+  row(tt("进程","process"),b?(b.alive?tt("在线","up"):tt("待冷启动","cold pending")):tt("未安装","not installed"));
+  row(tt("驻留","resident"),b?(b.loaded?tt("在位","on GPU"):tt("待载入","standby")):DASH);
+  row(tt("速度","speed"),lv&&lv.state==="generating"&&lv.tok_s!=null?fnum(lv.tok_s,1)+" tok/s":DASH);
+  row(tt("端口","port"),b?":"+b.port:DASH);
+  row(tt("量化档","quant"),cfg.quant||DASH);
   var mc=cfg.max_context||info.max_context;
-  if(mc)row(tt("上下文","context"),Math.round(mc/1024)+"K");
-  if(cfg.kv)row("KV",String(cfg.kv));
-  if(cfg.rope)row("RoPE",String(cfg.rope));
-  if(cfg.drafting)row(tt("投机解码","drafting"),cfg.drafting+(cfg.spec?(" · spec "+cfg.spec):""));
-  if(cfg.idle_unload_s!=null)row(tt("闲置卸载","idle unload"),Math.round(cfg.idle_unload_s/60)+tt(" 分钟"," min"));
-  if(cfg.reasoning_effort)row(tt("思考等级","reasoning effort"),String(cfg.reasoning_effort));
+  row(tt("上下文","context"),mc?Math.round(mc/1024)+"K":DASH);
+  row("KV",cfg.kv||DASH);
+  row("RoPE",cfg.rope||DASH);
+  row(tt("投机解码","drafting"),cfg.drafting?cfg.drafting+(cfg.spec?(" · spec "+cfg.spec):""):DASH);
+  row(tt("闲置卸载","idle unload"),cfg.idle_unload_s!=null?Math.round(cfg.idle_unload_s/60)+tt(" 分钟"," min"):DASH);
+  row(tt("思考等级","reasoning"),cfg.reasoning_effort||DASH);
   var smp=cfg.sampling||{};
-  if(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)
-    row(tt("采样默认","sampling defaults"),[smp.temperature!=null?("t "+smp.temperature):null,
-      smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "));
-  if(info.images!=null)row(tt("图像输入","vision"),info.images?tt("有","yes"):tt("无","no"));
-  if(info.alive===false)row(tt("健康检查","health"),tt("后端离线","offline"));
-  var eng=(name===selName&&mon.data&&mon.data.engine)?mon.data.engine:null;
-  if(eng&&eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+tt(" 槽 · "," slots · ")+gbf(eng.expert_cache_mib*1048576,1)+" GB");
-  if(name===selName&&mon.data&&mon.data.hardware){var hw=mon.data.hardware;
-    if(hw.gpu_mem_total!=null)row(tt("显存驻留","VRAM"),gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB");
-    if(hw.ram_total!=null)row(tt("系统内存","RAM"),gbf(hw.ram_used,1)+" / "+gbf(hw.ram_total,0)+" GB")}
-  var rq=(name===selName&&mon.data&&mon.data.requests&&mon.data.requests[0])?mon.data.requests[0]:null;
-  if(rq&&rq.time!=null)row(tt("最近请求","last request"),tstr(rq.time));
-  dl.innerHTML=rows.length?rows.join(""):'<div class="srow"><dt>'+esc(tt("实时档案","live dossier"))+'</dt><dd>'+esc(tt("等待该后端报告…","awaiting backend report…"))+'</dd></div>';
+  row(tt("采样默认","sampling"),(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)?[smp.temperature!=null?("t "+smp.temperature):null,smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "):DASH);
+  row(tt("图像输入","vision"),info.images!=null?(info.images?tt("有","yes"):tt("无","no")):DASH);
+  row(tt("显存占用","VRAM"),hw&&hw.gpu_mem_used!=null?gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB":DASH);
+  dl.innerHTML=rows.join("");
 }
 var ED_PALETTE=["#48c6d8","#f0679a","#8f7bff","#3ba55d","#f5a623","#e05252","#2f80ed","#a0a6b3"];
 var edAccent="";
@@ -367,33 +357,61 @@ function edSetAccent(c){edAccent=String(c||"").toLowerCase();
   var ci=document.getElementById("ed_accentc");
   if(ci&&/^#[0-9a-f]{6}$/.test(edAccent))ci.value=edAccent;
   renderSwatches();}
-function openEdit(name){
-  var d=document.getElementById("dossier-edit");if(!d)return;
-  d.dataset.model=name;d.style.display="flex";
-  var whoEl=document.getElementById("ed-who");if(whoEl)whoEl.textContent=name;
-  var m=cardMeta(name)||{};
-  var nk=document.getElementById("ed_nick");
-  if(nk)nk.value=(m.nick&&(m.nick[LANG]||m.nick.zh||m.nick.en))||"";
+function populateTrain(name){
+  var m=cardMeta(name)||{},el;
+  el=document.getElementById("ed_nick");if(el)el.value=(m.nick&&(m.nick[LANG]||m.nick.zh||m.nick.en))||"";
+  el=document.getElementById("ed_tags");if(el)el.value=pickarr(m.tags).join(", ");
+  el=document.getElementById("ed_lore");if(el)el.value=pick(m.lore)||"";
   edSetAccent(m.accent&&/^#[0-9a-fA-F]{6}$/.test(m.accent)?m.accent:"");
-  var an=document.getElementById("ed-artname");
-  if(an)an.textContent=m.art?String(m.art).split("/").pop():"";
+  var an=document.getElementById("ed-artname");if(an)an.textContent=m.art?String(m.art).split("/").pop():"";
+  var rm=document.getElementById("ed-artrm");if(rm)rm.style.display=m.art?"":"none";
+  refreshGenGate(name);
 }
-function saveEdit(){
-  var d=document.getElementById("dossier-edit");var name=d&&d.dataset.model;if(!name)return;
-  var nk=document.getElementById("ed_nick");var v=nk?nk.value.trim():"";
-  var card={nick:{zh:v||name,en:v||name}};
-  if(edAccent)card.accent=edAccent;
-  postj("router/cards",{model:name,card:card},function(rj){
-    if(rj[0]>=400){say(tt("保存卡片失败 HTTP ","card save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    say(tt("卡片已保存。","card saved."),"");
-    d.style.display="none";
-    fetchCards(function(){sig="";refresh()});
-  });
+function refreshGenGate(name){
+  var g=document.getElementById("gen-meta"),gh=document.getElementById("gen-hint");if(!g)return;
+  var b=backendOf(name||trainName),live=!!(b&&b.loaded);
+  g.disabled=!live;
+  if(gh)gh.textContent=live?tt("模型在位 · 点按钮让它自述","model is live · one click, let it self-describe")
+                             :tt("未加载模型 · 此功能不可用（先点卡片上的载入）","no model loaded · load one on the card first");
+}
+function genMeta(){
+  var gm=document.getElementById("gen-meta");
+  if(!trainName||!gm||gm.disabled)return;
+  if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token。","set the Strata token in ⚙ Settings first."),"err");openSettings(true);return}
+  gm.disabled=true;gm.textContent=tt("生成中…","generating…");
+  fetch("router/gendossier",{method:"POST",
+    headers:{"Content-Type":"application/json",Authorization:"Bearer "+keyEl.value.trim()},
+    body:JSON.stringify({model:trainName,lang:LANG})})
+  .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
+  .then(function(rj){
+    gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
+    if(rj[0]===409){say(tt("该模型未加载，自动生成不可用——先载入再点。","that model isn't loaded — load it first, then generate."),"err");refreshGenGate(trainName);return}
+    if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
+    var tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
+    if(tg)tg.value=(rj[1].tags||[]).join(", ");
+    if(lo)lo.value=rj[1].dossier||"";
+    gm.disabled=false;
+    say(tt("模型已自述并填进标签/档案框——点「保存」写入卡片。","the model described itself — hit Save to persist into the card."),"");
+  })
+  .catch(function(e){gm.disabled=false;gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
+    say(tt("生成失败: ","generate failed: ")+e,"err")});
 }
 (function(){var ci=document.getElementById("ed_accentc");
   if(ci)ci.oninput=function(){edSetAccent(ci.value)};
   var up=document.getElementById("ed-artup");
-  if(up)up.onclick=function(){var d=document.getElementById("dossier-edit");artTarget=d&&d.dataset.model;artInput.click()};})();
+  if(up)up.onclick=function(){if(!trainName)return;artTarget=trainName;artInput.click()};
+  var rm=document.getElementById("ed-artrm");
+  if(rm)rm.onclick=function(){
+    if(!trainName)return;
+    if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token。","set the Strata token in ⚙ Settings first."),"err");openSettings(true);return}
+    postj("router/cards",{model:trainName,card:{art:""}},function(q){
+      if(q[0]>=400){say(tt("移除立绘失败 HTTP ","art remove failed HTTP ")+q[0],"err");return}
+      say(tt("立绘已移除。","art removed."),"");
+      fetchCards(function(){sig="";refresh()});
+    });};
+  var gm=document.getElementById("gen-meta");
+  if(gm)gm.onclick=genMeta;
+})();
 function delCard(name){
   fetch("router/cards/"+encodeURIComponent(name),{method:"DELETE"}).then(function(r){
     return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
@@ -706,23 +724,41 @@ function collectConfig(){var set={};
     set[key]=v;
   });
   return set;}
+function collectCard(){
+  var c={},nk=document.getElementById("ed_nick"),tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
+  var v=nk?nk.value.trim():"";if(v)c.nick={zh:v,en:v};
+  if(edAccent)c.accent=edAccent;
+  if(tg&&tg.value.trim()){var a=tg.value.split(/[,，]/).map(function(x){return x.trim()}).filter(Boolean);
+    if(a.length)c.tags=a;else c.tags=[];}
+  if(lo&&lo.value.trim())c.lore={zh:lo.value.trim(),en:lo.value.trim()};
+  return c;
+}
 document.getElementById("t-save").onclick=function(){
   if(!trainName)return;
-  if(!keyEl.value.trim()){say(tt("先填 API key（顶栏），才能保存调教。","set the API key (top bar) before saving training."),"err");return}
-  postj("router/settings?model="+encodeURIComponent(trainName),{defaults:collectSampling()},function(rj){
-    if(rj[0]>=400){say(tt("保存采样失败 HTTP ","sampling save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    postj("router/config?model="+encodeURIComponent(trainName),{set:collectConfig()},function(rj2){
-      if(rj2[0]>=400){say(tt("采样已存；但 Model settings 保存失败 HTTP ","sampling saved; model settings failed HTTP ")+rj2[0],"err");return}
-      say(tt("已保存。","saved."),"");
-      closeTrain();
-      var ch=(rj2[1].changed||[]);
-      if(ch.length)say(tt("下次启动生效: ","applies next boot: ")+ch.join(", "),"busy");
+  if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token，才能保存调教。","set the Strata token in ⚙ Settings before saving training."),"err");openSettings(true);return}
+  var card=collectCard(),name=trainName;
+  var step2=function(){
+    postj("router/settings?model="+encodeURIComponent(name),{defaults:collectSampling()},function(rj){
+      if(rj[0]>=400){say(tt("保存采样失败 HTTP ","sampling save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
+      postj("router/config?model="+encodeURIComponent(name),{set:collectConfig()},function(rj2){
+        if(rj2[0]>=400){say(tt("采样已存；但 Model settings 保存失败 HTTP ","sampling saved; model settings failed HTTP ")+rj2[0],"err");return}
+        say(tt("已保存。","saved."),"");
+        closeTrain();
+        if(Object.keys(card).length)fetchCards(function(){sig="";refresh()});
+        var ch=(rj2[1].changed||[]);
+        if(ch.length)say(tt("下次启动生效: ","applies next boot: ")+ch.join(", "),"busy");
+      });
     });
-  });
+  };
+  if(Object.keys(card).length){
+    postj("router/cards",{model:name,card:card},function(rj){
+      if(rj[0]>=400){say(tt("卡片信息保存失败 HTTP ","card info save failed HTTP ")+rj[0],"err");return}
+      step2();});
+  }else step2();
 };
 document.getElementById("t-clear").onclick=function(){
   if(!trainName)return;
-  if(!keyEl.value.trim()){say(tt("先填 API key（顶栏）。","set the API key (top bar) first."),"err");return}
+  if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token。","set the Strata token in ⚙ Settings first."),"err");return}
   postj("router/settings?model="+encodeURIComponent(trainName),{defaults:null},function(rj){
     if(rj[0]>=400){say(tt("清除失败 HTTP ","clear failed HTTP ")+rj[0],"err");return}
     say(tt("已清除采样默认 —— 各客户端交回自带参数。","sampling cleared — clients fall back to their own params."),"");
@@ -759,7 +795,7 @@ function loadConfig(){
 /* ---------------- about / engine info ---------------- */
 function loadInfo(){
   qs("router/info",function(d){
-    INFO=d.models||{};
+    LASTINFO=d;INFO=d.models||{};
     var b=d.build||{},a=d.app||{},rows=[];
     rows.push([tt("Strata 本体","Strata core"),"v"+String(a.version||"?").replace(/^v/,"")+(a.commit?(" @"+String(a.commit).slice(0,8)):"")]);
     rows.push([tt("引擎版本","engine version"),b.version?"v"+b.version:"—"]);
@@ -780,19 +816,22 @@ function loadInfo(){
 /* ---------------- dyn ---------------- */
 /*ARCH-PURE-START*/
 function dgEsc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function dgBackends(models){
-  // #dg-backends local coords: cards fill y 14..164, width 150; max 4 + overflow badge
-  var MAX=4,H=40,TOP=14,SPAN=150,out=[];
-  var shown=models.slice(0,MAX),n=shown.length;
-  for(var i=0;i<n;i++){
-    var y=n===1?TOP+(SPAN-H)/2:TOP+i*(SPAN-H)/(n-1);
-    out.push({card:'<path class="dg-req" d="M-20 82L-3 '+(y+H/2).toFixed(0)+'"/>'
-      +'<rect class="dgbe" x="0" y="'+y.toFixed(0)+'" width="150" height="'+H+'" rx="12"/>'
-      +'<text class="t" x="12" y="'+(y+17).toFixed(0)+'">'+dgEsc(shown[i].nick||shown[i].model)+'</text>'
-      +'<text class="sm" x="12" y="'+(y+32).toFixed(0)+'">lazy :'+shown[i].port+'</text>'});
-  }
-  if(models.length>MAX)out.push({more:'<text class="xs" x="150" y="'+(TOP-4)+'" text-anchor="end">+'+(models.length-MAX)+'</text>'});
-  return out;
+var LASTINFO=null,LASTGPU=null;
+function tw(s,fs){var w=0;s=String(s);for(var i=0;i<s.length;i++)w+=s.charCodeAt(i)>0x2e80?fs:fs*0.58;return w}
+function archBox(x,y,cls,title,subs){
+  var w=Math.max(tw(title,12)+26,60),i;
+  for(i=0;i<subs.length;i++)w=Math.max(w,tw(subs[i],9.5)+22);
+  w=Math.min(Math.round(w),300);
+  var h=26+subs.length*15;
+  var svg='<g class="abx '+cls+'"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="13"/>'+
+    '<text class="at" x="'+(x+13)+'" y="'+(y+19)+'">'+dgEsc(title)+'</text>';
+  for(i=0;i<subs.length;i++)svg+='<text class="as" x="'+(x+13)+'" y="'+(y+36+i*15)+'">'+dgEsc(subs[i])+'</text>';
+  return {x:x,y:y,w:w,h:h,svg:svg+"</g>"};
+}
+function archLink(a,b){
+  var x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2;
+  var d="M"+x1+" "+y1+"C"+(x1+44)+" "+y1+","+(x2-44)+" "+y2+","+x2+" "+y2;
+  return '<path class="aln" marker-end="url(#aha)" d="'+d+'"/>';
 }
 /*ARCH-PURE-END*/
 
@@ -818,15 +857,35 @@ function applyLang(){
     if(v!=null)el.setAttribute("placeholder",v);
   });
   if(dict["pg.title"])document.title=dict["pg.title"];
+  paintKeyChip();
+  if(document.getElementById("archsvg")&&typeof modelsList!=="undefined")renderArch(modelsList);
 }
 function renderArch(backends){
-  var g=document.getElementById("dg-backends");
-  if(!g)return;
-  var list=(backends||[]).map(function(b){
-    var c=CARDS[b.model]||{};
-    return {nick:c.nick||b.model,port:b.port};
+  var g=document.getElementById("archsvg");if(!g)return;
+  var li=LASTINFO||{},app=li.app||{},bd=li.build||{};
+  var port="";try{var pm=document.querySelector('meta[name="strata-gw-port"]');if(pm)port=pm.content}catch(e){}
+  var gwS=["v"+String(app.version||"?").replace(/^v/,"")+(port?(" · :"+port):""),
+           tt("路由 · 让卡 · 监控","route · yield · monitor")];
+  if(bd.version)gwS.push(tt("引擎","engine")+" v"+bd.version);
+  var cl=archBox(16,116,"cl",tt("客户端","Clients"),
+    ["/v1/chat/completions",tt("任意 OpenAI 兼容端","any OpenAI-compatible"),tt("Hermes · 酒馆 · 脚本","Hermes · tavern · scripts")]);
+  var gw=archBox(232,92,"gw","STRATA GW",gwS);
+  var ms=(backends||[]).slice(0,3).map(function(b,i){
+    var info=(li.models||{})[b.model]||{},cfg=info.cfg||{};
+    return archBox(474,44+i*90,"be",cardNick(b.model)||b.model,
+      [(cfg.quant||"?")+" · "+(info.max_context?Math.round(info.max_context/1024)+"K":"?"),
+       tt("状态","state")+": "+(b.loaded?tt("在位","live"):(b.alive?tt("待命","standby"):tt("离线","offline")))]);
   });
-  g.innerHTML=dgBackends(list).map(function(o){return o.card||o.more}).join("");
+  var ext=archBox(232,236,"ext",tt("外部显存占用者","external VRAM holder"),
+    LASTGPU?[gbf(LASTGPU.free*1048576,1)+" GB "+tt("空闲","free"),tt("让卡协议 /free","yield via /free")]
+           :[tt("未检测到（可留空）","not detected (optional)"),tt("让卡协议 /free","yield via /free")]);
+  var more=(backends&&backends.length>3)?'<text class="as" x="474" y="'+(44+3*90+8)+'">'+dgEsc(tt("还有","+"))+(backends.length-3)+" …</text>":"";
+  var defs='<defs><linearGradient id="agr" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="760" y2="0"><stop offset="0" stop-color="var(--ac)" stop-opacity=".85"/><stop offset="1" stop-color="var(--q)" stop-opacity=".7"/></linearGradient><marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ac)"/></marker></defs>';
+  var links=archLink(cl,gw);
+  ms.forEach(function(m){links+=archLink(gw,m)});
+  links+='<path class="aln dash" d="M'+(gw.x+18)+' '+(gw.y+gw.h)+'C'+(gw.x+18)+' '+(gw.y+gw.h+26)+','+(ext.x+30)+' '+(ext.y-22)+','+(ext.x+30)+' '+ext.y+'"/>';
+  g.setAttribute("viewBox","0 0 760 320");
+  g.innerHTML=defs+links+more+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
 }
 
 var KIND={load:tt("载入","Load"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
@@ -912,6 +971,7 @@ function fetchGpu(){
     if(total)bar.style.width=Math.round(free/total*100)+"%";
     function g(v){return(v/1024).toFixed(1)+tt(" GiB 空"," GiB free")}
     var st=free>=(c.free_target_mib||0)?tt("空闲 · ","idle · "):(busy?tt("清理中 · ","cleaning · "):tt("出图占用 · ","image job · "));
+    LASTGPU={free:free,total:total};
     lab.textContent=st+g(free);
   }).catch(function(){});
 }

@@ -442,6 +442,8 @@ try:
     ok(cfg.get("idle_unload_s") == 1800 and cfg.get("reasoning_effort") == "medium"
        and (cfg.get("sampling") or {}).get("top_k") == 20, "T62d idle + effort + sampling defaults")
     ok("cfg" in j["models"]["bbb-sc117"], "T62e cfg key present even without extra config")
+    ok(set(j["models"]["aaa-qwen"]["cfg"]) == set(j["models"]["bbb-sc117"]["cfg"]),
+       "T64 uniform cfg schema — identical keys on every model, never drop-then-missing")
 
     # ---- ux v8: auto-generate tags + dossier from the LOADED model ----
     A.loaded = True
@@ -485,7 +487,7 @@ try:
        "prefill_tok_s_mean", "gpu_pcie_rx_mb", "disk_read_mb", "hit_rate",
        "解码速度", "显存专家缓存", "上下文填充", 'id="eng-kv"', "inf-card",
        "尚无请求记录", "requests_kept", "evbtn",
-       'data-r="toggle"', "statechip", "Strata 本体", 'id="dg-backends"')),
+       'data-r="toggle"', "statechip", "Strata 本体", 'id="archsvg"')),
        "T42 monitor parity + card-back training form (no MCP) + merged load toggle + live values chips")
     ok(all(p not in h for p in ("logbox", 'id="drawer-settings"', "moncard", "量化解剖",
        'id="drawer-mcp"', "loadMcp", "mcp-box", "DDR5", 'data-r="unload"',
@@ -495,9 +497,11 @@ try:
     for _m in sorted(os.listdir(os.path.join(ROOT, "gw"))):
         if _m.endswith(".py"):
             src_txt += open(os.path.join(ROOT, "gw", _m), encoding="utf-8").read()
-    ok(all(p in h for p in ('marker-end="url(#arM)"', "M166 118L196 118", 'data-sig', "m.n++",
+    _capp = open(os.path.join(ROOT, "console", "app.js"), encoding="utf-8").read()
+    ok(all(p in h for p in ('id="archsvg"', 'data-sig', "m.n++",
                             "m.t=e.t",
-                            "selectModel(loadedNow[0].model"))
+                            'selectModel(loadedNow[0].model'))
+       and 'marker-end="url(#aha)"' in _capp and "function archLink" in _capp
        and "pre_res = backend.resident() is True" in src_txt
        and 'elif op == "unload" and pre_res and not now_res' in src_txt,
        "T44 arch straight lines, monitor follows resident model, events merged xN + no-flicker sig, "

@@ -27,9 +27,11 @@ for banned in ("18081", "18082", "qwen 后端", "sc117 后端", "RTX", "DDR4",
     ok(banned not in html, "S1 index.html free of %r" % banned)
 
 # S2: the dynamic backends group exists, plus the new gradient/flow vocabulary
-ok(re.search(r'<g id="dg-backends"[ >]', html) is not None, "S2 #dg-backends group present in the diagram")
+ok('id="archsvg"' in html and "<g id=\"dg-backends\"" not in html,
+   "S2 diagram is an empty runtime host (archsvg), no static backend groups baked in")
 css = open(os.path.join(ROOT, "console", "style.css"), encoding="utf-8").read()
-ok("linearGradient" in html and ("stroke-dasharray" in html or "stroke-dasharray" in css),
+_js2 = open(os.path.join(ROOT, "console", "app.js"), encoding="utf-8").read()
+ok(("linearGradient" in html) or ("linearGradient" in _js2 and "url(#agr)" in css),
    "S2 gradient stroke + dashed give-card link")
 ok("@keyframes flow" in css or "@keyframes flow" in html, "S2 flow keyframes shipped")
 

@@ -6,6 +6,7 @@ GitHub link and the settings popover (API key + desktop-pet controls).
 Pure static analysis — no server needed. Expect: ALL PASS."""
 import os
 import subprocess
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,27 +23,33 @@ def ok(cond, name):
 # ---- K1/K2: the bar exists and carries the VRAM strip ----------------------
 ok('id="ctlbar"' in html, "K1 sticky control bar id=ctlbar present")
 cs = html.find('id="ctlbar"')
-ce = html.find("</header>", cs if cs >= 0 else 0)
+_sp = html.find('id="setpop"')
+ce = min(html.find("</header>", cs if cs >= 0 else 0),
+         _sp if _sp >= 0 else 1 << 30)
 bar = html[cs:ce] if cs >= 0 and ce > cs else ""
 ok('id="gpuhold"' in bar, "K2 #gpuhold lives inside the control bar")
 
-# ---- K3-K5: language, theme, video group all on the bar --------------------
-ok('id="langbtn"' in bar, "K3 language toggle #langbtn on the bar")
+# ---- K3-K5: the bar stays short — lang + video hide inside the gear -------
+ok('id="langbtn"' in html and 'id="langbtn"' not in bar,
+   "K3 language toggle hidden inside the gear popover, not the bar")
 ok('id="theme"' in bar, "K4 theme toggle #theme on the bar")
-ok('id="seg-bg"' in bar and 'id="vid-sound"' in bar,
-   "K5 video group (seg-bg + vid-sound) moved onto the bar")
+ok('id="seg-bg"' in html and 'id="vid-sound"' in html and 'id="seg-bg"' not in bar,
+   "K5 video group inside the gear popover")
 
 # ---- K6: version + GitHub link --------------------------------------------
 ok('id="gwver"' in bar and "v__VERSION__" in bar,
    "K6 version chip uses the __VERSION__ placeholder")
-ok('href="__GITHUB_URL__"' in bar, "K6 GitHub anchor uses __GITHUB_URL__")
+ok('href="__GITHUB_URL__"' in html and 'href="__GITHUB_URL__"' not in bar,
+   "K6 GitHub anchor moved to the footer, bar stays slim")
 
 # ---- K7: settings popover keeps pet controls; the API key moved to the bar ----
 ok('id="setpop"' in html, "K7 settings popover #setpop present")
 sp_i = html.find('id="setpop"')
-sp = html[sp_i:sp_i + 1600] if sp_i >= 0 else ""
-ok('id="key"' in bar and 'id="save"' in bar and 'id="key"' not in sp,
-   "K7b API key input+save live on the bar, not in the popover")
+sp = html[sp_i:sp_i + 2600] if sp_i >= 0 else ""
+ok('id="key"' in sp and 'id="save"' in sp and 'id="key"' not in bar,
+   "K7b token input+save live inside the gear popover")
+ok(all(x in sp for x in ('id="key"','id="save"','id="langbtn"','id="seg-bg"','id="vid-sound"')),
+   "K7e token + language + video all reachable from one gear")
 ok('id="pet-toggle"' in sp, "K7c desktop-pet toggle in popover")
 ok('id="pet-size"' in sp and 'min="80"' in sp and 'max="220"' in sp,
    "K7d pet size slider 80-220 in popover")
@@ -84,10 +91,15 @@ ok("height:28px" in css and "white-space:nowrap" in css and "min-height:56px" in
 ok("M19.14,12.94" in html, "K12c proper settings gear (notched teeth path)")
 ok("M12 8.5a3.5 3.5" not in html, "K12d the old blob gear is gone")
 
-# ---- K13: diagram flow line arcs above the backend cards, never through them ----
-ok("M450 186 C 560 196, 640 208, 657 236" not in html,
-   "K13a old through-cards curve gone")
-ok("C 520 30, 620 24, 668 24" in html, "K13b arc-over-top route in place")
+# ---- K13 (ux v8): architecture svg is data-driven, never hardcoded --------
+ok("function archBox" in js and "function archLink" in js and "tw(title,12)" in js,
+   "K13a box widths measured from title/subtitle text (CJK 1em, latin 0.58em)")
+ok("LASTINFO" in js and "LASTGPU" in js and "renderArch(backends)" in js,
+   "K13b arch reads live /router/info + VRAM snapshot, capped backend list")
+ok("M450 186 C 560 196" not in html and "C 520 30, 620 24, 668 24" not in html,
+   "K13c hardcoded diagram curves fully gone")
+ok('id="archsvg"' in html and not re.search(r'<rect[^>]*class="dgn"', html),
+   "K13d empty svg host only — boxes are painted at runtime")
 
 # ---- K14: edit drawer slimmed to nick + palette + art upload ----
 for bad in ("ed_nick_zh", "ed_nick_en", "ed_who_zh", "ed_sub_zh", "ed_style_zh",
@@ -99,15 +111,17 @@ ok('id="ed_nick"' in html and 'type="color" id="ed_accentc"' in html
 ok("fe.nick_zh" not in i18njs and "fe.notes_en" not in i18njs,
    "K14c old bilingual form keys purged from word table")
 
-# ---- K15 (ux v7): one opaque card in view, neighbours peek 44px, slide on switch ----
-ok(".page.pr" in css and ".page.pl" in css and "transition:transform" in css,
-   "K15a deck peek + slide css")
-ok('"page pr"' in js and '"page pl"' in js and '"page p1"' not in js,
-   "K15b setPage uses pr/pl")
-ok("translateX(calc(100% - 44px))" in css and "translateX(calc(-100% + 44px))" in css,
-   "K15c slide geometry peeks 44px")
-ok("margin:0 52px" in css and "pointer-events:none}" in css and "pointer-events:auto}" in css,
-   "K15i on-card inset leaves strips clickable")
+# ---- K15 (ux v8): stacked cascade — on / n1 / n2, each deeper layer shows a
+# WIDER strip, max three cards per screen, deeper ones enter as you flip ------
+ok(".page.n1" in css and ".page.n2" in css and "transition:transform" in css,
+   "K15a cascade layers on/n1/n2 css")
+ok('"page on"' in js and '"page n1"' in js and '"page n2"' in js
+   and '"page gone-r"' in js and '"page gone-l"' in js,
+   "K15b setPage uses the cascade classes")
+ok("translateX(40px)" in css and "translateX(98px)" in css,
+   "K15c each deeper layer steps out one more strip")
+ok("margin:0 150px 0 30px" in css and "pointer-events:none}" in css and "pointer-events:auto;" in css,
+   "K15i inset leaves the right strips clickable")
 ok(".pagesw" not in css and 'class="pagesw"' not in html, "K15d ghost-page stacking retired")
 ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background token")
 ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
@@ -126,12 +140,14 @@ ok('.cback' in css and 'rotateY(180deg)' in css and 'backface-visibility' in css
    "K18f flip css present")
 
 # ---- K19 (ux v7): api key pinned to the control bar; monitor guides the missing key ----
-ok('class="keybox"' in html and html.index('class="keybox"') < html.index("</header>"),
-   "K19a key box inside the sticky control bar")
+ok('id="keychip"' in bar and '<input id="key"' not in bar,
+   "K19a slim token status chip (not an input) on the bar")
+ok('data-i18n-title="ui.keychipnote"' in bar and '"ui.keychipnote"' in i18njs,
+   "K19a2 chip tooltip tells the user the token lives in the gear")
 ok('id="mon-keycta"' in html and 'mon.keycta' in i18njs, "K19b monitor key CTA + i18n key")
 ok('"页脚' not in js and "footer api key" not in js, "K19c stale footer-key wording gone")
 ok('mon-keycta' in js and js.count("pollMetrics()")>=3, "K19d CTA wired + key save re-polls")
-ok(".keybox" in css and "flash" in css, "K19e keybox css with focus flash")
+ok(".keyrow" in css and "flash" in css, "K19e popover key row css with focus flash")
 
 # ---- K20 (ux v7): the desk pet shows by default (opt out via its menu or the gear) ----
 ok('_p===null?true' in js, "K20a pet defaults ON when never toggled")
@@ -166,5 +182,17 @@ ok("height:3.32em" not in css and "-webkit-line-clamp:3" in css, "K17f prose flo
 ok(css.count("height:1.6em") == 0 and ".notes li{font-size:.76rem;color:var(--muted);line-height:1.6;position:relative;padding-left:.25rem}" in css,
    "K17g note rows flow freely")
 ok("grid-template-columns:1fr 1fr" in css, "K17h two-column rows on wide screens")
+
+# ---- K24 (ux v8): training page = drawers for every section + tag/bio edit
+# + model-driven auto-generation gated on "model loaded" + art moved here ----
+for _i in ('id="sect-tags"','id="sect-dossier"','id="sect-portrait"','id="sect-sampling"'):
+    ok(_i in html and 'class="drw"' in html, "K24a drawer section present: " + _i)
+ok('id="ed_tags"' in html and 'id="ed_lore"' in html and 'id="gen-meta"' in html
+   and 'id="gen-hint"' in html, "K24b editable tags + bio + auto-generate button + hint")
+ok("populateTrain" in js and "refreshGenGate" in js and '"router/gendossier"' in js
+   and "collectCard" in js, "K24c train drawer fills from card, gen calls the gateway, save persists card meta")
+ok("details.drw" in css and "[open]" in css, "K24d drawers collapse/expand via css")
+ok('data-r="train"' in js and 'id="uploadart"' not in js,
+   "K24e portrait tools left the card front — they live in the drawer now")
 
 sys.exit(0 if not F else 1)

@@ -104,6 +104,13 @@ class Stub:
                         try: outer.shared = (json.loads(body.decode() or b"{}") or {}).get("defaults") or {}
                         except ValueError: outer.shared = {}
                     return self._send(200, {"ok": True})
+                if p == "/v1/chat/completions":
+                    inner = json.dumps({"tags": ["on-device", "quantized", "self-described"],
+                                        "dossier": "Demo stub self-description: an offline "
+                                                   "quantized model that lives entirely on "
+                                                   "this machine and speaks when asked."})
+                    return self._send(200, json.dumps(
+                        {"choices": [{"message": {"content": inner}}]}))
                 if p == "/load":
                     outer.loaded = True; outer.load_calls += 1
                     return self._send(200, json.dumps({"status": "loaded", "echo": body.decode()}))
