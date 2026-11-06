@@ -18,6 +18,7 @@ from . import events
 
 _lock = threading.Lock()                      # guards BACKENDS and port state
 _spawn_locks: dict[str, threading.Lock] = {}  # one spawn at a time per config
+_CFG_FACTS: dict[str, dict] = {}              # static card facts, per config path
 
 
 class Backend:
@@ -36,6 +37,52 @@ class Backend:
 
     def matches(self, model: str) -> bool:
         return model in (self.name, *self.aliases)
+
+    def cfg_facts(self) -> dict:
+        """Curated static facts straight from the model json (works offline).
+        Every value is read from the user's own config file - never hardcoded,
+        never a tier name written into this repo."""
+        hit = _CFG_FACTS.get(self.cfg_path)
+        if hit is not None:
+            return hit
+        try:
+            with open(self.cfg_path, encoding="utf-8-sig") as f:
+                cfg = json.load(f)
+        except (OSError, ValueError):
+            cfg = {}
+        a = [str(x) for x in (cfg.get("args") or [])]
+
+        def arg(flag):
+            i = a.index(flag) if flag in a else -1
+            return a[i + 1] if 0 <= i and i + 1 < len(a) else None
+
+        quant = None
+        pack = arg("--pack")
+        if pack:
+            quant = str(pack).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or None
+        if not quant and "-" in self.name:
+            tail = self.name.rsplit("-", 1)[-1]
+            if any(ch.isdigit() for ch in tail):      # tier-ish suffix only
+                quant = tail or None
+        mc = arg("--max-context")
+        rope = arg("--rope-scaling")
+        rope_scale = arg("--rope-scale")
+        if rope and rope_scale:
+            rope = rope + " x" + rope_scale
+        facts = {
+            "quant": quant,
+            "max_context": int(mc) if mc and mc.isdigit() else None,
+            "kv": arg("--kv"),
+            "rope": rope,
+            "drafting": cfg.get("drafting") or ("mtp" if arg("--mtp") else None),
+            "spec": arg("--spec"),
+            "idle_unload_s": cfg.get("idle_unload_s"),
+            "reasoning_effort": cfg.get("reasoning_effort"),
+            "sampling": cfg.get("sampling") or {},
+        }
+        facts = {k: v for k, v in facts.items() if v not in (None, "", {}, [])}
+        _CFG_FACTS[self.cfg_path] = facts
+        return facts
 
     def alive(self) -> bool:
         try:
@@ -322,9 +369,10 @@ def router_info() -> dict:
                 d = json.loads(r.read().decode("utf-8", "replace"))
             models[b.name] = {"alive": True, "max_context": d.get("max_context"),
                               "images": d.get("images"), "loaded": d.get("loaded"),
-                              "image_generation": d.get("image_generation")}
+                              "image_generation": d.get("image_generation"),
+                              "cfg": b.cfg_facts()}
         except (HTTPError, URLError, OSError, ValueError):
-            models[b.name] = {"alive": False}
+            models[b.name] = {"alive": False, "cfg": b.cfg_facts()}
     from . import gpu_free
     st = gpu_free.settings()
     return {"build": build, "app": app_version(), "models": models, "port": config.ROUTER_PORT,

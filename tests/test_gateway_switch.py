@@ -169,9 +169,16 @@ MA = "qwen3.8-flash-next-iq3_s" if VIS else "aaa-qwen"
 MB = "sc117-qwen3.8-flash-next-abliterated-iq3_s" if VIS else "bbb-sc117"
 A = Stub(MA, 18095)      # 名字排序第一 = 无驻留且无偏好时的默认
 B = Stub(MB, 18096)
+MA_CFG = {"model_name": MA, "port": 18095, "api_key": "",
+          # neutral fake tier values (never real engine tokens here — lint)
+          "args": ["--pack", "/tmp/stub/pack-q9", "--kv", "z9z9",
+                   "--rope-scaling", "lame", "--rope-scale", "2", "--spec", "4"],
+          "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20},
+          "idle_unload_s": 1800, "drafting": "drafty", "reasoning_effort": "medium"}
 for name, port in ((MA, 18095), (MB, 18096)):
     with open(os.path.join(ROOT, f"strata-{name}.json"), "w") as f:
-        json.dump({"model_name": name, "port": port, "api_key": ""}, f)
+        json.dump(MA_CFG if name == MA else
+                  {"model_name": name, "port": port, "api_key": ""}, f)
 SRC_DIR = os.path.dirname(os.path.abspath(ROUTER_SRC))
 _SKIP = {".git", "testdir", "gw-assets", "tests", "__pycache__", "strata-router.py.orig"}
 for _item in sorted(os.listdir(SRC_DIR)):
@@ -422,6 +429,15 @@ try:
     j = json.loads(h)
     ok(s == 200 and set(j["models"]) == {"aaa-qwen", "bbb-sc117"}
        and j["models"]["aaa-qwen"].get("max_context") == 524288, "T37 /router/info aggregates health info")
+
+    # ---- ux v7: curated static facts from the model json (works even offline) ----
+    cfg = j["models"]["aaa-qwen"].get("cfg") or {}
+    ok(cfg.get("quant") == "pack-q9", "T62a cfg quant from --pack basename")
+    ok(cfg.get("kv") == "z9z9" and cfg.get("rope") == "lame x2", "T62b cfg kv/rope")
+    ok(cfg.get("drafting") == "drafty" and cfg.get("spec") == "4", "T62c drafting + spec")
+    ok(cfg.get("idle_unload_s") == 1800 and cfg.get("reasoning_effort") == "medium"
+       and (cfg.get("sampling") or {}).get("top_k") == 20, "T62d idle + effort + sampling defaults")
+    ok("cfg" in j["models"]["bbb-sc117"], "T62e cfg key present even without extra config")
 
     # ---- 看门狗：闲置自动卸载/驻留转场进事件流 ----
     A.loaded = True
