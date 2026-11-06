@@ -324,4 +324,11 @@ ok("accent-color:var(--ac,var(--q))" in css and "scrollbar-color" in css
    and "background:linear-gradient(135deg,var(--ac,var(--q))" in css,
    "K31i sliders, the drill-page scrollbar and the primary buttons all follow the palette the user picked in the tag drawer")
 
+# ---- K32 (master repro 2026-11-07: 502 on BOTH cards — the thinker ate the whole budget) ----
+ok('"enable_thinking": False' in bk and '"reasoning_effort": "none"' in bk,
+   "K32a the self-report ask tells the engine to skip the soliloquy — both switches, engines disagree on which they honor")
+ok('"max_tokens": 650' in bk, "K32b the budget outgrew 420 — a thinking model spent it all on thinking and died at finish=length")
+ok('msg.get("content") or msg.get("reasoning_content")' in bk,
+   "K32c if the engine monologues anyway, the parser still digs the JSON out of the reasoning")
+
 sys.exit(0 if not F else 1)

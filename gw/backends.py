@@ -196,7 +196,15 @@ class Backend:
         content = tpl.get(lang, tpl["zh"]).replace("{me}", self.name)
         if subject is not None:
             content = content.replace("{subject}", subject.name)
-        body = {"model": self.name, "stream": False, "max_tokens": 420, "temperature": 0.8,
+        # A thinking model will burn the entire budget on its own monologue and
+        # die at finish=length without ever emitting the JSON (master's 502
+        # repro, 2026-11-07): ask it to skip the soliloquy in both dialects
+        # (engines disagree on which they honor) and raise the budget anyway -
+        # and if it monologues regardless, dig the answer out of the stream of
+        # thought rather than returning None.
+        body = {"model": self.name, "stream": False, "max_tokens": 650, "temperature": 0.8,
+                "reasoning_effort": "none",
+                "chat_template_kwargs": {"enable_thinking": False},
                 "messages": [{"role": "user", "content": content}]}
         req = urlrequest.Request(
             f"{self.base}/v1/chat/completions", method="POST",
@@ -205,8 +213,9 @@ class Backend:
             data=json.dumps(body).encode())
         try:
             with config.OPENER.open(req, timeout=120) as r:
-                txt = (json.loads(r.read() or b"{}")["choices"][0]["message"]["content"]) or ""
-        except (URLError, OSError, ValueError, KeyError, IndexError):
+                msg = (json.loads(r.read() or b"{}").get("choices") or [{}])[0].get("message") or {}
+                txt = msg.get("content") or msg.get("reasoning_content") or ""
+        except (URLError, OSError, ValueError):
             return None
         tags, dossier = [], ""
         m = re.search(r"\{.*\}", txt, re.S)
