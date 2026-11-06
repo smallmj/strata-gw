@@ -111,4 +111,19 @@ ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
 
+# ---- K17 (ux v7): dossier headline + denser four-group live rows, nothing clipped ----
+ok('class="dtitle"' in js and 'class="dnick"' in js and 'class="dsub"' in js,
+   "K17a headline hierarchy dtitle/dnick/dsub")
+ok('"特工信息","DOSSIER"' in js, "K17b dossier headline via tt()")
+for needle in ("info.cfg", "cfg.quant", "cfg.max_context", "cfg.kv", "cfg.rope",
+               "cfg.drafting", "cfg.idle_unload_s", "cfg.reasoning_effort", "cfg.sampling"):
+    ok(needle in js, "K17c row source wired: " + needle)
+ok(".dhead" in css and ".dtitle" in css and ".dnick" in css and ".dsub" in css,
+   "K17d headline css present")
+ok("height:58px" not in css, "K17e tags fixed-height cage gone")
+ok("height:3.32em" not in css and "-webkit-line-clamp:3" in css, "K17f prose flows 3 lines")
+ok(css.count("height:1.6em") == 0 and ".notes li{font-size:.76rem;color:var(--muted);line-height:1.6;position:relative;padding-left:.25rem}" in css,
+   "K17g note rows flow freely")
+ok("grid-template-columns:1fr 1fr" in css, "K17h two-column rows on wide screens")
+
 sys.exit(0 if not F else 1)

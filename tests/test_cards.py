@@ -41,7 +41,7 @@ try:
 
     html = gw.get_text("/gateway")
     ok("orphan" in html.lower() and "未安装" in html, "C4 console markup knows the orphan state")
-    ok('id="pdots"' in html and "pagesw" in html, "C5 paged carousel markup (dots + pages)")
+    ok('id="pdots"' in html and 'class="deck"' in html, "C5 paged carousel markup (dots + deck)")
     ok("META={" not in html, "C6 no hardcoded dossier META baked into the page")
     ok('data-r="delcard"' in html or "delcard" in html, "C7 orphan card offers delete")
     ok('data-r="uploadart"' in html and 'data-r="rmart"' in html,

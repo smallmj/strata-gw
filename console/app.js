@@ -96,10 +96,11 @@ function cardHTML(name){
   var lore=m?pick(m.lore):"";
   var h='<div class="page"><div class="card" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
   h+=artHtml(name);
-  h+='<div class="cbody">'+
-    '<div class="mhead"><div><h3 title="'+esc(name)+'">'+esc(name)+'</h3>'+
-    '<div class="sub">'+esc(m?pick(m.sub):tt("点「自定义」设昵称 / 配色 / 立绘","customize to set nickname · palette · portrait"))+'</div></div></div>'+
-    '<h4 class="mod">'+tt("技术档案","technical dossier")+'</h4><dl class="specs" data-r="liverows"></dl>';
+  h+='<div class="cbody"><div class="cfront">'+
+    '<div class="dhead"><span class="dtitle">'+tt("特工信息","DOSSIER")+'</span>'
+    +'<h3 class="dnick" title="'+esc(name)+'">'+esc(cardNick(name)||name)+'</h3>'
+    +'<div class="dsub">'+esc(name)+(m&&pick(m.sub)?' · '+esc(pick(m.sub)):'')+'</div></div>'
+    +'<dl class="specs" data-r="liverows"></dl>';
   if(tags.length)h+='<div class="tags">'+tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join("")+'</div>';
   if(m&&pick(m.style))h+='<p class="prose">'+esc(pick(m.style))+'</p>';
   if(notes.length)h+='<h4 class="mod">'+tt("使用提醒","field notes")+'</h4><ul class="notes">'+notes.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>';
@@ -110,7 +111,7 @@ function cardHTML(name){
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
-    '</div></div>';
+    '</div></div></div>';
   return h;
 }
 var pageIdx=0,cardNames=[];
@@ -277,22 +278,35 @@ function updateLiveAll(){cardNames.forEach(function(n){
   var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c)updateLive(c,n)});deckHeight()}
 function updateLive(card,name){
   var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
-  var b=backendOf(name),info=INFO[name]||{},rows=[];
+  var b=backendOf(name),info=INFO[name]||{},cfg=info.cfg||{},rows=[];
   function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(c)+'</dd></div>')}
   if(!b){row(tt("状态","status"),tt("未安装 · 本机没有这个后端","not installed on this machine"))}
   else{row(tt("端口","port"),":"+b.port);
     row(tt("进程","process"),b.alive?tt("在线","up"):tt("待冷启动","cold-start pending"));
     row(tt("驻留","resident"),b.loaded?tt("在位","on GPU"):tt("待载入","not loaded"))}
-  if(info.alive===false)row(tt("健康检查","health"),tt("后端离线","offline"));
-  if(info.max_context)row(tt("最大上下文","max context"),Math.round(info.max_context/1024)+"K");
+  var lv=(name===selName&&mon.data&&mon.data.live)?mon.data.live:null;
+  if(lv&&lv.state==="generating"&&lv.tok_s!=null)row(tt("当前速度","speed"),fnum(lv.tok_s,1)+" tok/s");
+  if(cfg.quant)row(tt("量化档","quant tier"),String(cfg.quant));
+  var mc=cfg.max_context||info.max_context;
+  if(mc)row(tt("上下文","context"),Math.round(mc/1024)+"K");
+  if(cfg.kv)row("KV",String(cfg.kv));
+  if(cfg.rope)row("RoPE",String(cfg.rope));
+  if(cfg.drafting)row(tt("投机解码","drafting"),cfg.drafting+(cfg.spec?(" · spec "+cfg.spec):""));
+  if(cfg.idle_unload_s!=null)row(tt("闲置卸载","idle unload"),Math.round(cfg.idle_unload_s/60)+tt(" 分钟"," min"));
+  if(cfg.reasoning_effort)row(tt("思考等级","reasoning effort"),String(cfg.reasoning_effort));
+  var smp=cfg.sampling||{};
+  if(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)
+    row(tt("采样默认","sampling defaults"),[smp.temperature!=null?("t "+smp.temperature):null,
+      smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "));
   if(info.images!=null)row(tt("图像输入","vision"),info.images?tt("有","yes"):tt("无","no"));
+  if(info.alive===false)row(tt("健康检查","health"),tt("后端离线","offline"));
   var eng=(name===selName&&mon.data&&mon.data.engine)?mon.data.engine:null;
-  if(eng){if(eng.version!=null)row(tt("引擎版本","engine"),String(eng.version));
-    if(eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+tt(" 槽 · "," slots · ")+gbf(eng.expert_cache_mib*1048576,1)+" GB");
-    if(eng.kv!=null)row(tt("KV 量化","KV quant"),String(eng.kv))}
+  if(eng&&eng.expert_slots!=null&&eng.expert_cache_mib!=null)row(tt("专家缓存","expert cache"),num(eng.expert_slots)+tt(" 槽 · "," slots · ")+gbf(eng.expert_cache_mib*1048576,1)+" GB");
   if(name===selName&&mon.data&&mon.data.hardware){var hw=mon.data.hardware;
     if(hw.gpu_mem_total!=null)row(tt("显存驻留","VRAM"),gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB");
     if(hw.ram_total!=null)row(tt("系统内存","RAM"),gbf(hw.ram_used,1)+" / "+gbf(hw.ram_total,0)+" GB")}
+  var rq=(name===selName&&mon.data&&mon.data.requests&&mon.data.requests[0])?mon.data.requests[0]:null;
+  if(rq&&rq.time!=null)row(tt("最近请求","last request"),tstr(rq.time));
   dl.innerHTML=rows.length?rows.join(""):'<div class="srow"><dt>'+esc(tt("实时档案","live dossier"))+'</dt><dd>'+esc(tt("等待该后端报告…","awaiting backend report…"))+'</dd></div>';
 }
 var ED_PALETTE=["#48c6d8","#f0679a","#8f7bff","#3ba55d","#f5a623","#e05252","#2f80ed","#a0a6b3"];
