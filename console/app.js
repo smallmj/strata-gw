@@ -107,16 +107,36 @@ function cardHTML(name){
   if(lore)h+='<h4 class="mod">'+tt("档案","dossier")+'</h4><p class="prose">'+esc(lore)+'</p>';
   h+='<div class="acts"><button class="load" data-r="toggle">'+tt("载入","Load")+'</button>'+
     '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
+    '<button class="ghostbtn" data-r="train">'+tt("调教","train")+'</button>'+
     '<button class="ghostbtn" data-r="editdossier" style="display:none">'+tt("自定义","customize")+'</button>'+
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
-    '</div></div></div>';
+    '</div>'+
+    '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("调教","train")+'</h4>'+
+    '<button class="ghostbtn" data-r="back-close">'+tt("返回","back")+'</button></div>'+
+    '</div></div>';
   return h;
 }
 var pageIdx=0,cardNames=[];
-var trainName=null;
-function closeTrain(){}
+var trainName=null,trainForm=null,trainSrc=null;
+function closeTrain(){
+  if(!trainName)return;
+  var c=cardsEl.querySelector('[data-model="'+trainName+'"]');if(c)c.classList.remove("flipped");
+  if(trainSrc&&trainForm&&trainForm.parentNode!==trainSrc)trainSrc.appendChild(trainForm);
+  trainName=null;
+}
+function openTrain(name){
+  closeTrain();
+  var card=cardsEl.querySelector('[data-model="'+name+'"]');if(!card)return;
+  var back=card.querySelector('[data-r=back]');if(!back)return;
+  trainSrc=document.getElementById("train-src");trainForm=document.getElementById("train-form");
+  if(!trainSrc||!trainForm)return;
+  trainName=name;back.appendChild(trainForm);card.classList.add("flipped");
+  var t=card.querySelector('[data-r=back-title]');
+  if(t)t.textContent=tt("调教 · ","train · ")+(cardNick(name)||name);
+  selectModel(name);loadSettings();loadConfig();
+}
 function build(names){
   cardNames=names.slice();
   var remember=null;try{remember=localStorage.getItem("stratagw.cardidx")}catch(e){}
@@ -130,6 +150,8 @@ function build(names){
       act(card.dataset.st==="loaded"?"unload":"load",n);
     };
     card.querySelector('[data-r=editdossier]').onclick=function(){openEdit(n)};
+    card.querySelector('[data-r=train]').onclick=function(){openTrain(n)};
+    card.querySelector('[data-r=back-close]').onclick=function(){closeTrain()};
     var ua=card.querySelector('[data-r=uploadart]');
     if(ua)ua.onclick=function(){artTarget=n;artInput.click()};
     var rm=card.querySelector('[data-r=rmart]');
@@ -264,7 +286,9 @@ function paintSpecials(){
     var card=cardsEl.querySelector('[data-model="'+n+'"]');if(!card)return;
     var b=backendOf(n),m=cardMeta(n);
     var ed=card.querySelector('[data-r=editdossier]'),del=card.querySelector('[data-r=delcard]'),
-        tg=card.querySelector('[data-r=toggle]'),live=card.querySelector('[data-r=live]');
+        tg=card.querySelector('[data-r=toggle]'),live=card.querySelector('[data-r=live]'),
+        tr=card.querySelector('[data-r=train]');
+    if(tr)tr.style.display=b?"":"none";
     if(ed)ed.style.display=(b&&!m)?"":"none";
     if(del)del.style.display=(!b&&m)?"":"none";
     var rm2=card.querySelector('[data-r=rmart]');
@@ -393,7 +417,7 @@ function refresh(){
     var list=d.backends||[];modelsList=list;
     applyLang();syncLangBtn();
     var names=cardNameList();
-    if(names.join("|")!==sig){sig=names.join("|");build(names);buildSeg()}
+    if(names.join("|")!==sig){sig=names.join("|");build(names)}
     list.forEach(function(b){
       var was=prev[b.model];
       if(was===false&&b.loaded===true){
@@ -601,33 +625,14 @@ function pollMetrics(){
     .then(function(m){mon.data=m;renderMonitor()})
     .catch(function(){mon.data=null;renderMonitor()});
 }
-[["drawer-sampling","sampling"],["drawer-config","config"]].forEach(function(p){
-  var d=document.getElementById(p[0]);if(!d)return;
-  try{if(localStorage.getItem("stratagw.drawer."+p[1])==="1")d.open=true}catch(e){}
-  d.addEventListener("toggle",function(){
-    try{localStorage.setItem("stratagw.drawer."+p[1],d.open?"1":"0")}catch(e){}
-  });
-});
 
 /* ---------------- settings ---------------- */
 var SAMP=[["temperature","stemp","ostemp",1],["top_p","stop_p","os-top_p",2],["top_k","stop_k","os-top_k",0],
           ["reasoning_effort","seffort",null,0],["reasoning_budget_tokens","sbudget",null,0],
           ["seed","sseed",null,0],["max_tokens","smax",null,0],["experimental_speed_projection","sesp",null,0]];
-function buildSeg(){
-  var seg=document.getElementById("seg-models");seg.innerHTML="";
-  modelsList.forEach(function(b){
-    var btn=document.createElement("button");
-    btn.textContent=cardNick(b.model);
-    btn.dataset.model=b.model;
-    if(b.model===selName)btn.className="on";
-    btn.onclick=function(){selectModel(b.model)};
-    seg.appendChild(btn);
-  });
-}
 function selectModel(name,quiet){
   if(selName===name)return;
   selName=name;
-  buildSeg();
   mon.data=null;pollMetrics();
   loadSettings();loadConfig();
 }
@@ -653,28 +658,46 @@ document.querySelectorAll(".fgrid input[type=range]").forEach(function(el){
     SAMP.forEach(function(f){if(f[1]===el.id)showOut(f)});
   });
 });
-document.getElementById("s-save").onclick=function(){
-  if(!selName)return;
-  var def={};
+function collectSampling(){var def={};
   SAMP.forEach(function(f){
-    var el=document.getElementById(f[1]);var v;
+    var el=document.getElementById(f[1]);if(!el)return;var v;
     if(el.type==="checkbox"){if(el.checked)def[f[0]]=true;return}
     v=el.value;
     if(v===""||v==null)return;
     if(el.type==="range"||el.tagName!=="SELECT"&&el.id!=="seffort")v=+v;
     def[f[0]]=v;
   });
-  postj("router/settings?model="+encodeURIComponent(selName),{defaults:def},function(rj){
+  return def;}
+function collectConfig(){var set={};
+  document.querySelectorAll("#cfg-list [data-ck]").forEach(function(el){
+    var key=el.dataset.ck;var v;
+    if(el.type==="checkbox"){v=el.checked}
+    else if(el.value===""){v=null}
+    else if(el.tagName==="SELECT"){v=el.value}
+    else{v=/^[0-9.]+$/.test(el.value.trim())?+el.value.trim():el.value.trim()}
+    set[key]=v;
+  });
+  return set;}
+document.getElementById("t-save").onclick=function(){
+  if(!trainName)return;
+  if(!keyEl.value.trim()){say(tt("先填 API key（顶栏），才能保存调教。","set the API key (top bar) before saving training."),"err");return}
+  postj("router/settings?model="+encodeURIComponent(trainName),{defaults:collectSampling()},function(rj){
     if(rj[0]>=400){say(tt("保存采样失败 HTTP ","sampling save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    say(tt("采样默认已保存到 ","sampling defaults saved to ")+selName+tt("（即时生效）。"," (live now)."),"");
-    if(rj[1].defaults){/* server may normalize; leave form as is */}
+    postj("router/config?model="+encodeURIComponent(trainName),{set:collectConfig()},function(rj2){
+      if(rj2[0]>=400){say(tt("采样已存；但 Model settings 保存失败 HTTP ","sampling saved; model settings failed HTTP ")+rj2[0],"err");return}
+      say(tt("已保存。","saved."),"");
+      closeTrain();
+      var ch=(rj2[1].changed||[]);
+      if(ch.length)say(tt("下次启动生效: ","applies next boot: ")+ch.join(", "),"busy");
+    });
   });
 };
-document.getElementById("s-clear").onclick=function(){
-  if(!selName)return;
-  postj("router/settings?model="+encodeURIComponent(selName),{defaults:null},function(rj){
+document.getElementById("t-clear").onclick=function(){
+  if(!trainName)return;
+  if(!keyEl.value.trim()){say(tt("先填 API key（顶栏）。","set the API key (top bar) first."),"err");return}
+  postj("router/settings?model="+encodeURIComponent(trainName),{defaults:null},function(rj){
     if(rj[0]>=400){say(tt("清除失败 HTTP ","clear failed HTTP ")+rj[0],"err");return}
-    say(tt("已清除：","cleared: ")+selName+tt(" 交回各客户端自带的参数。"," — clients fall back to their own params."),"");
+    say(tt("已清除采样默认 —— 各客户端交回自带参数。","sampling cleared — clients fall back to their own params."),"");
     loadSettings();
   });
 };
@@ -704,24 +727,6 @@ function loadConfig(){
     });
   });
 }
-document.getElementById("c-save").onclick=function(){
-  if(!selName)return;
-  var set={};
-  document.querySelectorAll("#cfg-list [data-ck]").forEach(function(el){
-    var key=el.dataset.ck;var v;
-    if(el.type==="checkbox"){v=el.checked}
-    else if(el.value===""){v=null}
-    else if(el.tagName==="SELECT"){v=el.value}
-    else{v=/^[0-9.]+$/.test(el.value.trim())?+el.value.trim():el.value.trim()}
-    set[key]=v;
-  });
-  postj("router/config?model="+encodeURIComponent(selName),{set:set},function(rj){
-    if(rj[0]>=400){say(tt("保存 Model settings 失败 HTTP ","model settings save failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");return}
-    var ch=(rj[1].changed||[]);
-    say(tt("Model settings 已写入 ","model settings written to ")+selName+"（"+(ch.length?tt("改动: ","changed: ")+ch.join(", "):tt("无改动","no changes"))+"）— "+tt("下次启动该模型时生效。","takes effect next time this model starts."),"busy");
-    loadConfig();
-  });
-};
 
 /* ---------------- about / engine info ---------------- */
 function loadInfo(){

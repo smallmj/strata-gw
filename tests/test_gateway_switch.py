@@ -266,7 +266,7 @@ try:
     s, h = req("GET", "/gateway")
     ok(s == 200 and "Strata 网关" in h
        and 'id="gforce"' in h and "强制让卡" in h and "让卡" in h
-       and 'id="sec-settings"' in h and 'id="sec-about"' in h
+       and 'id="train-src"' in h and 'id="sec-about"' in h
        and 'id="sec-dyn"' in h and 'id="sec-monitor"' in h
        and "立绘待入" in h,
        "T2 GET /gateway console: sections + give-card buttons + art placeholder")
@@ -464,12 +464,12 @@ try:
        and sum("aaa-qwen became resident" in e["text"] for e in evs2) == c0 + 1,
        "T41b router-caused transitions are not duplicated by the watchdog")
     s, h = req("GET", "/gateway")
-    ok(all(p in h for p in ('id="drawer-sampling"', 'id="drawer-config"',
+    ok(all(p in h for p in ('id="train-src"', 'id="t-save"',
        "prefill_tok_s_mean", "gpu_pcie_rx_mb", "disk_read_mb", "hit_rate",
        "解码速度", "显存专家缓存", "上下文填充", 'id="eng-kv"', "inf-card",
        "尚无请求记录", "requests_kept", "evbtn",
        'data-r="toggle"', "statechip", "Strata 本体", 'id="dg-backends"')),
-       "T42 monitor parity + 2 drawers (no MCP) + merged load toggle + live values chips")
+       "T42 monitor parity + card-back training form (no MCP) + merged load toggle + live values chips")
     ok(all(p not in h for p in ("logbox", 'id="drawer-settings"', "moncard", "量化解剖",
        'id="drawer-mcp"', "loadMcp", "mcp-box", "DDR5", 'data-r="unload"',
        'data-r="badge"', "驻在中")),

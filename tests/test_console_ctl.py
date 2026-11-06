@@ -108,6 +108,18 @@ ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background to
 ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
    "K15f height-stable deck container")
 
+# ---- K18 (ux v7): training flips the card; the standalone tuning desk is gone ----
+ok('data-r="train"' in js and 'id="train-src"' in html and 'id="t-save"' in html
+   and 'id="t-clear"' in html, "K18a train button + shared form holder")
+ok('id="sec-settings"' not in html and 'seg-models' not in html and 'buildSeg' not in js,
+   "K18b standalone tuning desk retired")
+ok('openTrain' in js and 'closeTrain' in js and 'flipped' in js, "K18c flip plumbing")
+ok('data-r="back"' in js and 'back-close' in js, "K18d card back exists")
+ok('collectSampling' in js and 'collectConfig' in js and '已保存' in js,
+   "K18e one save for both zones + saved toast")
+ok('.cback' in css and 'rotateY(180deg)' in css and 'backface-visibility' in css,
+   "K18f flip css present")
+
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
 

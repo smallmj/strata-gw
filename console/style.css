@@ -133,7 +133,19 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
   animation:pulse 2.8s ease-in-out infinite}
 .art-ph i::after{content:"?";position:absolute;inset:0;display:grid;place-items:center;
   font-style:normal;color:var(--ac);font-size:.95rem}
-.cbody{min-width:0}
+.cbody{min-width:0;position:relative;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.3,.72,.22,1)}
+.card{perspective:1500px}
+.card.flipped .cbody{transform:rotateY(180deg)}
+.card.flipped{grid-template-columns:minmax(0,1fr)}
+.card.flipped .art{display:none}
+.cfront{backface-visibility:hidden}
+.cback{position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);
+  overflow-y:auto;display:none;padding:2px 6px 2px 2px}
+.card.flipped .cback{display:block}
+.cback .prow{position:sticky;bottom:0;padding-top:10px;
+  background:linear-gradient(transparent,var(--cardbg) 30%)}
+.cback [data-r=back-close]{float:right;margin:0 0 6px 10px}
+#train-form{width:100%}
 .dhead{margin:0 0 12px}
 .dtitle{display:block;font-size:.82rem;font-weight:800;letter-spacing:.42em;color:var(--ac)}
 .dnick{margin:6px 0 0;font-size:1.3rem;line-height:1.25;font-weight:700;overflow-wrap:anywhere}

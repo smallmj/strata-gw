@@ -74,13 +74,10 @@
 </div>
 <p id="mon-hint"></p>
 
-<h2 class="sec" id="sec-settings"><span data-i18n="sec.settings">调教台</span><em>Settings</em></h2>
-<div class="seg" id="seg-models"></div>
-<details class="drawer" id="drawer-sampling">
-<summary><span data-i18n="set.samp">采样默认值</span><span class="tag" data-i18n="set.samptag">LIVE · 即时生效</span><span class="arr">▾</span></summary>
-<div class="dbody">
-  <p class="pnote" data-i18n="set.samphint">后端 /settings：没自带参数的客户端（Hermes、酒馆、脚本）都吃这份默认。留空 = 交回模型卡自己的默认。</p>
-  <div class="fgrid">
+<div id="train-src" style="display:none"><div id="train-form">
+<h4 class="mod live"><span data-i18n="set.samp">采样默认值</span> <span class="tag" data-i18n="set.samptag">LIVE · 即时生效</span></h4>
+<p class="pnote" data-i18n="set.samphint">后端 /settings：没自带参数的客户端（Hermes、酒馆、脚本）都吃这份默认。留空 = 交回模型卡自己的默认。</p>
+<div class="fgrid">
     <div class="field"><label for="stemp">temperature<output id="ostemp"></output></label><input type="range" id="stemp" min="0" max="2" step="0.05"></div>
     <div class="field"><label for="stop_p">top_p<output id="os-top_p"></output></label><input type="range" id="stop_p" min="0" max="1" step="0.01" value="0.95"></div>
     <div class="field"><label for="stop_k">top_k<output id="os-top_k"></output></label><input type="range" id="stop_k" min="1" max="64" step="1" value="20"></div>
@@ -89,16 +86,12 @@
     <div class="field"><label for="sseed">seed</label><input type="text" id="sseed" inputmode="numeric" data-i18n-ph="ph.rand" placeholder="随机"></div>
     <div class="field"><label for="smax">max tokens</label><input type="text" id="smax" inputmode="numeric" data-i18n-ph="ph.defv" placeholder="默认"></div>
     <div class="field"><label data-i18n="set.espp">加速预测</label><span class="chk"><input type="checkbox" id="sesp"><span>experimental speed projection</span></span></div>
-  </div>
-  <div class="prow"><button class="primary" id="s-save" data-i18n="set.savebtn">保存采样默认</button><button class="ghost" id="s-clear" data-i18n="set.clearbtn">清除（各端自带参数）</button><span class="hint">GET/POST /settings</span></div>
-</div></details>
-<details class="drawer" id="drawer-config">
-<summary>Model settings<span class="tag" data-i18n="set.cfgtag">NEXT START · 下次启动生效</span><span class="arr">▾</span></summary>
-<div class="dbody">
-  <p class="pnote" id="cfg-note" data-i18n="set.cfghint">后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。</p>
-  <div id="cfg-list"></div>
-  <div class="prow"><button class="primary" id="c-save" data-i18n="set.cfgsave">保存 Model settings</button><span class="hint" data-i18n="set.cfgwait">保存后需重启该模型才见效</span></div>
-</div></details>
+</div>
+<h4 class="mod next"><span>Model settings</span> <span class="tag" data-i18n="set.cfgtag">NEXT START · 下次启动生效</span></h4>
+<p class="pnote" id="cfg-note" data-i18n="set.cfghint">后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。</p>
+<div id="cfg-list"></div>
+<div class="prow"><button class="primary" id="t-save" data-i18n="set.saveall">保存</button><button class="ghost" id="t-clear" data-i18n="set.clearbtn">清除采样（各端自带参数）</button><span class="hint" data-i18n="set.cfgwait">保存后需重启该模型才见效</span></div>
+</div></div>
 
 <h2 class="sec" id="sec-about"><span data-i18n="sec.about">关于 Strata</span><em>About</em></h2>
 <div class="inf-grid">
