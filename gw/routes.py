@@ -371,11 +371,21 @@ class Handler(BaseHTTPRequestHandler):
             # master 2026-11-07: one click pens both tongues — two strict-JSON
             # passes, one per language; a slot that fails simply comes back
             # empty, the run succeeds if either lands.
+            # master 2026-11-07 (final shape): Chinese first; English is that
+            # same report translated by the same author — one voice, two
+            # tongues. If only the Chinese pass falls over, English still gets
+            # a solo attempt, so one working slot beats a flat 502.
             langs = {}
-            for lg in ("zh", "en"):
-                g1 = author.gendossier(lg, subject=subject)
-                if g1 is not None:
-                    langs[lg] = {"tags": g1["tags"], "dossier": g1["dossier"]}
+            g1 = author.gendossier("zh", subject=subject)
+            if g1 is not None:
+                langs["zh"] = {"tags": g1["tags"], "dossier": g1["dossier"]}
+                g2 = author.translate_en(g1)
+                if g2 is not None:
+                    langs["en"] = {"tags": g2["tags"], "dossier": g2["dossier"]}
+            else:
+                g2 = author.gendossier("en", subject=subject)
+                if g2 is not None:
+                    langs["en"] = {"tags": g2["tags"], "dossier": g2["dossier"]}
             if not langs:
                 return self._json(502, {"error": {"message": "engine returned no self-description — try again"}})
             return self._json(200, {"model": author.name, "langs": langs})

@@ -310,7 +310,7 @@ ok("Stop-Process" in _ct and "Get-NetTCPConnection" in _ct and "(Get-Location).P
    "K31b the launcher sweeps its own old process tree and frees the port before starting — scoped to its own folder, a router living elsewhere never bleeds")
 ok("特工" in bk and "GEN_PROMPT_OTHER" in bk and "{subject}" in bk,
    "K31c both prompts speak operative: a self-report, and a ghost-write brief for an off-post colleague")
-ok("[:6]" in bk and "dossier = dossier[:lim]" in bk,
+ok("[:6]" in bk and "dossier[:lim]" in bk,
    "K31d six tags at most, and the bio is clamped to what the card's three display lines can hold")
 ok("x.alive()" in rg and "no operative is resident" in rg,
    "K31e generation needs only ONE resident operative on the deck — any card's button then writes that card's bio")
@@ -332,8 +332,12 @@ ok('msg.get("content") or msg.get("reasoning_content")' in bk,
    "K32c if the engine monologues anyway, the parser still digs the JSON out of the reasoning")
 
 # ---- K33 (master 2026-11-07): one click, both tongues ----
-ok('for lg in ("zh", "en")' in rg and '"langs"' in rg,
-   "K33a one generation run pens a Chinese AND an English dossier server-side")
+ok("author.translate_en(g1)" in rg and 'langs["zh"]' in rg,
+   "K33a master's order of 2026-11-07: pass two translates the Chinese report — English is born from Chinese, not a second muse")
+ok("GEN_TRANSLATE" in bk and "Translate the following Chinese operative report" in bk,
+   "K33f the English pass carries a translation brief, not a fresh self-report prompt")
+ok('g2 = author.gendossier("en", subject=subject)' in rg,
+   "K33g if the Chinese pass alone falls over, the author still tries English on its own — one empty slot is better than a 502")
 ok("genPend" in js and "t[other]=genPend.tags[other]" in js and "l[other]=genPend.lore[other]" in js,
    "K33b saving merges the language nobody edited from the generation — the English view stops showing Chinese")
 ok("t.zh=o.slice()" in js and "t.en=o.slice()" in js,

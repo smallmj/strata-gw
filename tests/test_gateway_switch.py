@@ -112,7 +112,7 @@ class Stub:
                         _pm = (json.loads(body.decode() or b"{}").get("messages") or [{}])[-1].get("content") or ""
                     except ValueError:
                         _pm = ""
-                    if "self-report" in _pm or "third-person" in _pm:
+                    if "Translate" in _pm or "self-report" in _pm or "third-person" in _pm:
                         return self._send(200, {"choices": [{"message": {"content":
                             'Sure: {"tags": ["self-report", "test tag", "qa"], '
                             '"dossier": "Automation test operative for the gateway; reading, parsing and Q&A in a plain style."}'}}]})

@@ -196,12 +196,22 @@ class Backend:
         content = tpl.get(lang, tpl["zh"]).replace("{me}", self.name)
         if subject is not None:
             content = content.replace("{subject}", subject.name)
-        # A thinking model will burn the entire budget on its own monologue and
-        # die at finish=length without ever emitting the JSON (master's 502
-        # repro, 2026-11-07): ask it to skip the soliloquy in both dialects
-        # (engines disagree on which they honor) and raise the budget anyway -
-        # and if it monologues regardless, dig the answer out of the stream of
-        # thought rather than returning None.
+        txt = self._ask(content)
+        if txt is None:
+            return None
+        tags, dossier = self._parse(txt, lang)
+        if not tags and not dossier:
+            return None
+        return {"model": self.name, "tags": tags, "dossier": dossier}
+
+    # ---- shared machinery behind gendossier / translate_en ----
+    def _ask(self, content: str) -> str | None:
+        """One non-streaming chat pass with the monologue switched off: a
+        thinking model burns the whole budget on its own narration and dies at
+        finish=length without ever emitting the JSON (master's 502 repro,
+        2026-11-07) — skip the soliloquy in both dialects (engines disagree on
+        which they honor), raise the budget, and dig the answer out of
+        reasoning_content anyway if it insists on monologuing regardless."""
         body = {"model": self.name, "stream": False, "max_tokens": 650, "temperature": 0.8,
                 "reasoning_effort": "none",
                 "chat_template_kwargs": {"enable_thinking": False},
@@ -210,13 +220,18 @@ class Backend:
             f"{self.base}/v1/chat/completions", method="POST",
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {self.key}"},
-            data=json.dumps(body).encode())
+             data=json.dumps(body).encode())
         try:
             with config.OPENER.open(req, timeout=120) as r:
                 msg = (json.loads(r.read() or b"{}").get("choices") or [{}])[0].get("message") or {}
-                txt = msg.get("content") or msg.get("reasoning_content") or ""
+                return msg.get("content") or msg.get("reasoning_content") or ""
         except (URLError, OSError, ValueError):
             return None
+
+    @staticmethod
+    def _parse(txt: str, lang: str):
+        """Strict JSON in, (tags, dossier) out — six tags at most; the bio is
+        clamped to what the card's three display lines can hold."""
         tags, dossier = [], ""
         m = re.search(r"\{.*\}", txt, re.S)
         if m:
@@ -230,9 +245,27 @@ class Backend:
                 pass
         if not dossier:
             dossier = txt.strip()
-        # the card shows three clamped lines — a longer bio only hides its tail
         lim = 160 if lang == "en" else 80
-        dossier = dossier[:lim]
+        return tags, dossier[:lim]
+
+    GEN_TRANSLATE = (
+        "Translate the following Chinese operative report into idiomatic English "
+        "for an operative card. Tags become short English labels (at most 3 words "
+        "each); keep the bio natural and under 140 characters. Strict JSON only, "
+        'no other text: {"tags": [...], "dossier": "..."}\nOriginal: {src}')
+
+    def translate_en(self, src: dict) -> dict | None:
+        """Pass two of generation (master, 2026-11-07): the English report is
+        the SAME operative translating its own Chinese one — one voice, two
+        tongues, not two different moods."""
+        prompt = self.GEN_TRANSLATE.replace(
+            "{src}", json.dumps({"tags": src.get("tags") or [],
+                                 "dossier": src.get("dossier") or ""},
+                                ensure_ascii=False))
+        txt = self._ask(prompt)
+        if txt is None:
+            return None
+        tags, dossier = self._parse(txt, "en")
         if not tags and not dossier:
             return None
         return {"model": self.name, "tags": tags, "dossier": dossier}
