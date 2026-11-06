@@ -162,22 +162,42 @@ class Backend:
         return False
 
     GEN_PROMPT = {
-        "zh": "面向模型管理面板做自我简介。只输出严格 JSON，不要其他文字："
-              '{"tags": ["4-6个短标签"], "dossier": "80-150字的自我介绍"}。'
-              "标签覆盖能力域与风格特征。",
-        "en": "Introduce yourself for a model console. Reply with strict JSON only: "
-              '{"tags": ["4-6 short tags"], "dossier": "an 80-150 character self-introduction"}. '
-              "Tags should cover capability domains and style traits.",
+        "zh": "你现在是特工台上的一名特工，代号 {me}。请以特工口吻做一次自我述职，"
+              "展示在特工卡片上。只输出严格 JSON，不要任何其他文字："
+              '{"tags": ["最多6个短标签，每个2-8字"], '
+              '"dossier": "不超过65字（含标点）的第一人称特工述职"}。'
+              "标签覆盖能力域与风格特征；述职讲能力与局限，不写营销话。",
+        "en": "You are an operative codenamed {me} on the operative console. Deliver a "
+              "first-person operative self-report for your card. Reply with strict JSON only: "
+              '{"tags": ["up to 6 short tags"], "dossier": "a first-person self-report, '
+              'at most 140 characters"}. Tags cover capability domains and style traits.',
+    }
+    GEN_PROMPT_OTHER = {
+        "zh": "你是特工台的值班特工，代号 {me}。同僚特工 {subject} 不在位，无法自述。"
+              "请根据它的代号、命名惯例与你对这类模型的了解，为它的特工卡片撰写第三人称档案；"
+              "不确定的能力一律不写。只输出严格 JSON，不要任何其他文字："
+              '{"tags": ["最多6个短标签，每个2-8字"], '
+              '"dossier": "不超过65字（含标点）的第三人称特工档案"}。',
+        "en": "You are the on-duty operative codenamed {me}. Your colleague {subject} is "
+              "off post and cannot describe itself. From its codename, naming conventions and "
+              "your general knowledge of such models, write its third-person card dossier; "
+              "never claim abilities you are unsure of. Strict JSON only: "
+              '{"tags": ["up to 6 short tags"], "dossier": "a third-person dossier, '
+              'at most 140 characters"}.',
     }
 
-    def gendossier(self, lang: str = "zh") -> dict | None:
-        """Ask the LOADED model to describe itself -> {tags, dossier}; None if it
-        can't be asked (offline or unparseable failure). Residency itself is
-        judged once, up in the route — a second hidden probe here used to
-        flatten a busy-engine flap into the same "not loaded" 409."""
+    def gendossier(self, lang: str = "zh", subject=None) -> dict | None:
+        """This resident model pens a dossier -> {tags, dossier}. No subject: an
+        operative self-report. With a subject: the on-duty operative ghost-writes
+        the card bio of a colleague that is off post (master's rule: one resident
+        model is enough to generate for any card). None if the author can't
+        answer — residency itself is judged up in the route, never probed here."""
+        tpl = self.GEN_PROMPT_OTHER if subject is not None else self.GEN_PROMPT
+        content = tpl.get(lang, tpl["zh"]).replace("{me}", self.name)
+        if subject is not None:
+            content = content.replace("{subject}", subject.name)
         body = {"model": self.name, "stream": False, "max_tokens": 420, "temperature": 0.8,
-                "messages": [{"role": "user",
-                              "content": self.GEN_PROMPT.get(lang, self.GEN_PROMPT["zh"])}]}
+                "messages": [{"role": "user", "content": content}]}
         req = urlrequest.Request(
             f"{self.base}/v1/chat/completions", method="POST",
             headers={"Content-Type": "application/json",
@@ -196,11 +216,14 @@ class Backend:
                 dossier = str(j.get("dossier") or "").strip()
                 t = j.get("tags")
                 if isinstance(t, list):
-                    tags = [str(x).strip() for x in t if str(x).strip()][:8]
+                    tags = [str(x).strip() for x in t if str(x).strip()][:6]
             except ValueError:
                 pass
         if not dossier:
-            dossier = txt.strip()[:220]
+            dossier = txt.strip()
+        # the card shows three clamped lines — a longer bio only hides its tail
+        lim = 160 if lang == "en" else 80
+        dossier = dossier[:lim]
         if not tags and not dossier:
             return None
         return {"model": self.name, "tags": tags, "dossier": dossier}

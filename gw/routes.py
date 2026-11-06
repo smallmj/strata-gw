@@ -357,11 +357,18 @@ class Handler(BaseHTTPRequestHandler):
             if r is None:
                 time.sleep(1.2)
                 r = b.resident()
-            if r is False:
-                return self._json(409, {"error": {"message": "model not resident — clock it in first"}})
-            if r is None:
-                return self._json(503, {"error": {"message": "engine isn't answering the models probe (busy?) — retry shortly"}})
-            g = b.gendossier(str(jj.get("lang") or "zh"))
+            # master's rule: one resident operative is enough — the one on duty
+            # ghost-writes the dossier of a card whose model is off post.
+            author, subject = b, None
+            if r is not True:
+                author = next((x for x in backends.BACKENDS.values()
+                               if x is not b and x.alive() and x.resident() is True), None)
+                if author is None:
+                    if r is None:
+                        return self._json(503, {"error": {"message": "engine isn't answering the models probe (busy?) — retry shortly"}})
+                    return self._json(409, {"error": {"message": "no operative is resident — clock any card in first"}})
+                subject = b
+            g = author.gendossier(str(jj.get("lang") or "zh"), subject=subject)
             if g is None:
                 return self._json(502, {"error": {"message": "engine returned no self-description — try again"}})
             return self._json(200, g)

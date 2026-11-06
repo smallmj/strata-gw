@@ -228,8 +228,8 @@ ok("back-close" not in js and "back-close" not in css and "back-close" not in ht
 ok('"set.saveall": "保存"' in i18njs and '"set.saveall": "Save"' in i18njs
    and 'id="t-save" data-i18n="set.saveall">保存<' in html,
    "K26g file-it renamed to plain 保存/Save (it is a save, not a risk action)")
-ok('confirm(tt("销卡' in js and "再点一次确认" not in js,
-   "K26h burn card confirms through a dialog spelling out the consequence")
+ok('askDlg(tt("销卡"' in js and "再点一次确认" not in js,
+   "K26h burn card confirms through a page-styled dialog spelling out the consequence")
 ok(html.find('id="sec-monitor"') < html.find('id="sec-dyn"') < html.find('id="sec-about"'),
    "K26i events moved up, about sits at the bottom")
 ok("max-width:76ch" not in css and "max-width:74ch" not in css,
@@ -291,7 +291,7 @@ ok("先点卡片上的载入" not in js and "先载入再点" not in js,
 # ---- K30 (master's bug hunt): 409 conflation triaged honestly + adopt-confirm ----
 rg=open(os.path.join(ROOT,"gw","routes.py"),encoding="utf-8").read()
 bk=open(os.path.join(ROOT,"gw","backends.py"),encoding="utf-8").read()
-ok("model not resident" in rg and "engine isn" in rg
+ok("no operative is resident" in rg and "engine isn" in rg
    and "self._json(503," in rg and "self._json(502," in rg and "self._json(409," in rg,
    "K30a the generate route tells three truths apart: off-post 409, engine silent 503, no answer 502")
 ok("time.sleep(1.2)" in rg, "K30b a silent probe earns one patient re-probe before 503 — engines flap mid-task")
@@ -299,7 +299,29 @@ ok("if self.resident() is not True:" not in bk,
    "K30c residency is judged once, at the route — no second hidden gate inside the backend")
 ok("rj[0]===503" in js and "rj[0]===502" in js,
    "K30d each truth gets its own words client-side, and the button re-arms for a retry")
-ok("confirm(tt(" in js and "tg.value=tgsv" in js and "lo.value=dos" in js,
+ok('askDlg(tt("自述出炉"' in js and "tg.value=tgsv" in js and "lo.value=dos" in js,
    "K30e the generated profile waits for the user\u0027s OK before touching the fields — Cancel keeps them as-is")
+
+# ---- K31 (master, 2026-11-07 round 2): operative-flavored prompts, ghost-writer, styled dialog, theme sweep, launcher ----
+_cmdp=os.path.join(ROOT,"strata-gw.cmd")
+ok(os.path.isfile(_cmdp), "K31a the repo ships strata-gw.cmd — the launcher everyone keeps re-inventing")
+_ct=open(_cmdp,encoding="utf-8",errors="replace").read()
+ok("Stop-Process" in _ct and "Get-NetTCPConnection" in _ct and "(Get-Location).Path" in _ct,
+   "K31b the launcher sweeps its own old process tree and frees the port before starting — scoped to its own folder, a router living elsewhere never bleeds")
+ok("特工" in bk and "GEN_PROMPT_OTHER" in bk and "{subject}" in bk,
+   "K31c both prompts speak operative: a self-report, and a ghost-write brief for an off-post colleague")
+ok("[:6]" in bk and "dossier = dossier[:lim]" in bk,
+   "K31d six tags at most, and the bio is clamped to what the card's three display lines can hold")
+ok("x.alive()" in rg and "no operative is resident" in rg,
+   "K31e generation needs only ONE resident operative on the deck — any card's button then writes that card's bio")
+ok("function askDlg" in js and 'id="gw-dlg"' in html and "confirm(tt(" not in js,
+   "K31f every confirmation runs through one page-styled dialog — zero native browser popups left")
+ok('askDlg(tt("自述出炉"' in js and "saveTrain" in js and "直接写入卡片" in js,
+   "K31g the self-portrait dialog writes into the card on the spot when confirmed — tweak-first and discard are the other two doors")
+ok("anyLive" in js and "由值班同事代笔" in js,
+   "K31h the gate lights up whenever anyone is on post, and the hint says who will hold the pen")
+ok("accent-color:var(--ac,var(--q))" in css and "scrollbar-color" in css
+   and "background:linear-gradient(135deg,var(--ac,var(--q))" in css,
+   "K31i sliders, the drill-page scrollbar and the primary buttons all follow the palette the user picked in the tag drawer")
 
 sys.exit(0 if not F else 1)

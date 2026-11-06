@@ -180,7 +180,10 @@ function build(names){
     };
     var del=card.querySelector('[data-r=delcard]');
     del.onclick=function(){
-      if(confirm(tt("销卡会永久删除这个模型的档案卡：档案写回 cards.json，重启也不会回来；后端程序本身不受影响。确认销卡？","Burn card: this permanently deletes the model's dossier — persisted into cards.json, it stays gone across restarts. The backend program itself is untouched. Burn it?")))delCard(n);
+      askDlg(tt("销卡","burn card"),
+        tt("销卡会永久删除这个模型的档案卡：档案写回 cards.json，重启也不会回来；后端程序本身不受影响。","Burn card: this permanently deletes the model's dossier — persisted into cards.json, it stays gone across restarts. The backend program itself is untouched."),
+        [{cls:"ghost",label:tt("取消","Cancel")},
+         {cls:"danger",label:tt("确认销卡","Yes, burn it"),fn:function(){delCard(n)}}]);
     };
   });
   setPage(pageIdx);
@@ -395,6 +398,8 @@ function renderSwatches(){var w=document.getElementById("ed-swatches");if(!w)ret
 function edSetAccent(c){edAccent=String(c||"").toLowerCase();
   var ci=document.getElementById("ed_accentc");
   if(ci&&/^#[0-9a-f]{6}$/.test(edAccent))ci.value=edAccent;
+  var f=document.querySelector(".card.flipped");
+  if(f)f.style.setProperty("--ac",/^#[0-9a-f]{6}$/.test(edAccent)?edAccent:(accentFor(trainName||"")||""));
   renderSwatches();}
 function populateTrain(name){
   var m=cardMeta(name)||{},el;
@@ -408,10 +413,28 @@ function populateTrain(name){
 }
 function refreshGenGate(name){
   var g=document.getElementById("gen-meta"),gh=document.getElementById("gen-hint");if(!g)return;
-  var b=backendOf(name||trainName),live=!!(b&&b.loaded);
-  g.disabled=!live;
-  if(gh)gh.textContent=live?tt("模型在位 · 点按钮让它自述","model is live · one click, let it self-describe")
-                             :tt("未加载模型 · 此功能不可用（先点卡片上的开工）","not on post · clock it in on the card first");
+  var b=backendOf(name||trainName),anyLive=false;
+  for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded){anyLive=true;break}}
+  g.disabled=!anyLive;
+  if(gh)gh.textContent=(b&&b.loaded)?tt("特工在位 · 点按钮让它自述","on post · one click, let it self-describe")
+    :anyLive?tt("这位不在位 · 由值班同事代笔档案","off post · the operative on duty will ghost-write its bio")
+    :tt("台上没有特工在位 · 先在任一卡片点「开工」","nobody on post · clock any card in first");
+}
+function askDlg(title,bodyHtml,actions){
+  var d=document.getElementById("gw-dlg");if(!d)return;
+  var pn=d.firstElementChild;
+  pn.style.setProperty("--ac",accentFor(trainName||"")||accentFor(selName||"")||"");
+  pn.querySelector(".dg-t").textContent=title;
+  pn.querySelector(".dg-b").innerHTML=bodyHtml;
+  var row=pn.querySelector(".dg-row");row.innerHTML="";
+  (actions||[]).forEach(function(a){
+    var bt=document.createElement("button");
+    bt.className="cbtn "+(a.cls||"ghost");bt.textContent=a.label;
+    bt.onclick=function(){d.style.display="none";d.onclick=null;if(a.fn)a.fn()};
+    row.appendChild(bt);
+  });
+  d.style.display="flex";
+  d.onclick=function(e){if(e.target===d){d.style.display="none";d.onclick=null}};
 }
 function genMeta(){
   var gm=document.getElementById("gen-meta");
@@ -424,20 +447,18 @@ function genMeta(){
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
   .then(function(rj){
     gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
-    if(rj[0]===409){say(tt("这位特工不在位——先在卡片上点「开工」，再生成。","that operative is off post — clock it in on the card first, then generate."),"err");refreshGenGate(trainName);return}
+    if(rj[0]===409){say(tt("台上没有特工在位——先在任一卡片上点「开工」。","no operative is resident — clock any card in first."),"err");refreshGenGate(trainName);return}
     if(rj[0]===503){gm.disabled=false;say(tt("引擎此刻不应声（多半正在干活）——歇几秒再点一次。","the engine isn't answering right now (likely mid-task) — wait a few seconds and try again."),"busy");return}
     if(rj[0]===502){gm.disabled=false;say(tt("引擎没交出自述——再点一次试试。","the engine returned no self-description — give it another try."),"err");return}
     if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
     var g=rj[1]||{},tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
     var tgsv=(g.tags||[]).join(", "),dos=g.dossier||"";
     gm.disabled=false;
-    if(confirm(tt("自述出炉：\n标签：","self-portrait done:\ntags: ")+tgsv+"\n"+tt("档案：","bio: ")+dos+"\n\n"+tt("要采用这份自述吗？采用后仍可修改，点「保存」才写入卡片。","Adopt this self-portrait? You can still edit it afterwards; only Save writes it to the card."))){
-      if(tg)tg.value=tgsv;
-      if(lo)lo.value=dos;
-      say(tt("已采用——需要就改，点「保存」写入卡片。","adopted — tweak if you like, then Save writes it to the card."),"")
-    }else{
-      say(tt("未采用——编辑框保持原样。","not adopted — the edit fields stay as they were."),"")
-    }
+    askDlg(tt("自述出炉","self-portrait ready"),
+      "<b>"+tt("标签：","tags: ")+"</b>"+esc(tgsv)+"\n\n<b>"+tt("档案：","bio: ")+"</b>"+esc(dos),
+      [{cls:"ghost",label:tt("放弃","discard"),fn:function(){say(tt("未采用——编辑框与卡片都保持原样。","not adopted — the fields and the card stay as they were."),"")}},
+       {cls:"ghost",label:tt("采用后我再改改","adopt, then I'll tweak"),fn:function(){if(tg)tg.value=tgsv;if(lo)lo.value=dos;say(tt("已填入编辑框——改完点「保存」写入卡片。","in the fields — tweak, then Save writes it to the card."),"")}},
+       {cls:"primary",label:tt("确认，直接写入卡片","confirm — write straight to the card"),fn:function(){if(tg)tg.value=tgsv;if(lo)lo.value=dos;saveTrain();}}]);
   })
   .catch(function(e){gm.disabled=false;gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
     say(tt("生成失败: ","generate failed: ")+e,"err")});
@@ -792,7 +813,7 @@ function collectCard(){
   if(lo&&lo.value.trim())c.lore={zh:lo.value.trim(),en:lo.value.trim()};
   return c;
 }
-document.getElementById("t-save").onclick=function(){
+function saveTrain(){
   if(!trainName)return;
   if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token，才能保存特训档案。","set the Strata token in ⚙ Settings before saving the drill file."),"err");openSettings(true);return}
   var card=collectCard(),name=trainName;
@@ -814,7 +835,8 @@ document.getElementById("t-save").onclick=function(){
       if(rj[0]>=400){say(tt("卡片信息保存失败 HTTP ","card info save failed HTTP ")+rj[0],"err");return}
       step2();});
   }else step2();
-};
+}
+document.getElementById("t-save").onclick=saveTrain;
 document.getElementById("t-clear").onclick=function(){
   if(!trainName)return;
   if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token。","set the Strata token in ⚙ Settings first."),"err");return}
@@ -1032,7 +1054,9 @@ function doGiveFree(force){
 }
 cfree.onclick=function(){doGiveFree(false)};
 cforce.onclick=function(){
-  if(confirm(tt("强制让卡：会打断正在执行的出图任务并清空排队，然后释放显存。继续吗？","Force yield: interrupts running image jobs, clears the queue, then frees VRAM. Continue?")))doGiveFree(true);
+  askDlg(tt("强制让卡","force yield"),
+    tt("强制让卡：会打断正在执行的出图任务并清空排队，然后释放显存。","Force yield: interrupts running image jobs, clears the queue, then frees VRAM."),
+    [{cls:"ghost",label:tt("取消","Cancel")},{cls:"danger",label:tt("继续","Continue"),fn:function(){doGiveFree(true)}}]);
 };
 function fetchGpu(){
   fetch("router/gpu").then(function(r){return r.json()}).then(function(c){
