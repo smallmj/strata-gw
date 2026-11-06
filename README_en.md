@@ -12,8 +12,9 @@ desk": it manages N model backends on **one GPU**, exactly one of which may be
 resident at a time. Load / unload / switch are explicit, verified actions with
 an events timeline — no hidden autoswap. On top of the routing it ships
 stacked operative dossier cards (specs · tags · bio, one uniform schema read
-from the gateway itself, with tags + bio the loaded model can auto-write about
-itself), a per-model flip-over training drawer (sampling defaults, launch
+from the gateway itself, with tags + bio auto-written in one click: a Chinese
+self-report, then the same model translating it into English — both landing in
+their language slots), a per-model flip-over training drawer (sampling defaults, launch
 config, portrait upload, tag/bio editing), one ⚙ popover holding token ·
 language · background video · desk-pet, a live monitor (tokens/s, VRAM, RAM,
 expert cache, GPU thermals), an events feed, and a full-page EN/中文 bilingual
@@ -84,8 +85,10 @@ consequence: the dossier is deleted for good (persisted to `cards.json`,
 survives restarts) while the backend itself stays untouched.
 
 `cards/cards.json` holds per-model presentation: nick, portrait, tags and an
-operative dossier. A loaded model can **auto-write** its own tags and bio with
-one click. Every installed backend automatically gets a card (cards.json only
+operative dossier. A loaded model can **auto-write** its tags and bio with
+one click: it first pens a Chinese self-report, then translates that very
+report into English — one voice, two tongues. If this card's model is off
+post, an on-duty operative ghost-writes its dossier from the codename. Every installed backend automatically gets a card (cards.json only
 decorates it); uninstalled factory cards show as *not installed* with a
 confirm-guarded burn. Portraits are uploaded through the page (stored under
 `gw-assets/uploads/`, git-ignored).
