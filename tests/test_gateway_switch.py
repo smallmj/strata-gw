@@ -107,6 +107,10 @@ class Stub:
                 if p == "/unload":
                     outer.loaded = False; outer.unload_calls += 1
                     return self._send(200, json.dumps({"status": "unloaded"}))
+                if p == "/v1/chat/completions":
+                    return self._send(200, {"choices": [{"message": {"content":
+                        '好的：{"tags": ["自述", "测试标签", "问答"], '
+                        '"dossier": "我是网关自动化档案测试模型，覆盖读解与问答能力，风格平实。"}'}}]})
                 return self._send(200, "{}")
         self.srv = ThreadingHTTPServer(("127.0.0.1", port), H)
         self.srv.daemon_threads = True
@@ -438,6 +442,19 @@ try:
     ok(cfg.get("idle_unload_s") == 1800 and cfg.get("reasoning_effort") == "medium"
        and (cfg.get("sampling") or {}).get("top_k") == 20, "T62d idle + effort + sampling defaults")
     ok("cfg" in j["models"]["bbb-sc117"], "T62e cfg key present even without extra config")
+
+    # ---- ux v8: auto-generate tags + dossier from the LOADED model ----
+    A.loaded = True
+    s, h = req("POST", "/router/gendossier", {"model": "aaa-qwen", "lang": "zh"})
+    j = json.loads(h)
+    ok(s == 200 and isinstance(j.get("tags"), list) and len(j["tags"]) >= 1
+       and j.get("dossier"), "T63a gendossier 200 tags+dossier for loaded model")
+    s, h = req("POST", "/router/gendossier", {"model": "no-such-model"})
+    ok(s == 404, "T63b unknown model -> 404")
+    A.loaded = False
+    s, h = req("POST", "/router/gendossier", {"model": "aaa-qwen"})
+    ok(s == 409, "T63c model not loaded -> 409")
+    A.loaded = True
 
     # ---- 看门狗：闲置自动卸载/驻留转场进事件流 ----
     A.loaded = True

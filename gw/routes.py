@@ -340,6 +340,21 @@ class Handler(BaseHTTPRequestHandler):
             if res is None:
                 return self._json(503, {"error": {"message": "external VRAM holder unreachable (not running?)"}})
             return self._json(200, res)
+        if method == "POST" and path == "/router/gendossier":
+            try:
+                jj = json.loads(body) if body else {}
+            except ValueError:
+                jj = {}
+            if not isinstance(jj, dict):
+                jj = {}
+            name = str(jj.get("model") or "")
+            b = next((x for x in backends.BACKENDS.values() if x.name == name), None)
+            if b is None:
+                return self._json(404, {"error": {"message": "unknown model"}})
+            g = b.gendossier(str(jj.get("lang") or "zh"))
+            if g is None:
+                return self._json(409, {"error": {"message": "model not loaded — load it first"}})
+            return self._json(200, g)
         if method == "POST" and path == "/router/cards":
             try:
                 jj = json.loads(body) if body else {}

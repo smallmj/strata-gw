@@ -159,6 +159,50 @@ class Backend:
             time.sleep(2.0)
         return False
 
+    GEN_PROMPT = {
+        "zh": "面向模型管理面板做自我简介。只输出严格 JSON，不要其他文字："
+              '{"tags": ["4-6个短标签"], "dossier": "80-150字的自我介绍"}。'
+              "标签覆盖能力域与风格特征。",
+        "en": "Introduce yourself for a model console. Reply with strict JSON only: "
+              '{"tags": ["4-6 short tags"], "dossier": "an 80-150 character self-introduction"}. '
+              "Tags should cover capability domains and style traits.",
+    }
+
+    def gendossier(self, lang: str = "zh") -> dict | None:
+        """Ask the LOADED model to describe itself -> {tags, dossier}; None if it
+        can't be asked (not resident, offline, or unparseable failure)."""
+        if self.resident() is not True:
+            return None
+        body = {"model": self.name, "stream": False, "max_tokens": 420, "temperature": 0.8,
+                "messages": [{"role": "user",
+                              "content": self.GEN_PROMPT.get(lang, self.GEN_PROMPT["zh"])}]}
+        req = urlrequest.Request(
+            f"{self.base}/v1/chat/completions", method="POST",
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {self.key}"},
+            data=json.dumps(body).encode())
+        try:
+            with config.OPENER.open(req, timeout=120) as r:
+                txt = (json.loads(r.read() or b"{}")["choices"][0]["message"]["content"]) or ""
+        except (URLError, OSError, ValueError, KeyError, IndexError):
+            return None
+        tags, dossier = [], ""
+        m = re.search(r"\{.*\}", txt, re.S)
+        if m:
+            try:
+                j = json.loads(m.group(0))
+                dossier = str(j.get("dossier") or "").strip()
+                t = j.get("tags")
+                if isinstance(t, list):
+                    tags = [str(x).strip() for x in t if str(x).strip()][:8]
+            except ValueError:
+                pass
+        if not dossier:
+            dossier = txt.strip()[:220]
+        if not tags and not dossier:
+            return None
+        return {"model": self.name, "tags": tags, "dossier": dossier}
+
     def unload(self, timeout: float = 60.0) -> None:
         """Best effort: stop the engine to free RAM/VRAM. busy (409) is fine here:
         the load's own min_free_vram check + the router's retry catch it."""
