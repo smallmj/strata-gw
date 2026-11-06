@@ -35,12 +35,12 @@ ok(("linearGradient" in html) or ("linearGradient" in _js2 and "url(#agr)" in cs
    "S2 gradient stroke + dashed give-card link")
 ok("@keyframes flow" in css or "@keyframes flow" in html, "S2 flow keyframes shipped")
 
-# S3: every diagram LABEL is i18n-tagged (the dynamic port text is exempt: it's data, not prose)
-svg_start = html.index('<svg class="diagram"')
+# S3: the static svg host carries NO baked labels — every label is rendered
+# at runtime from tt(), so both languages fit inside measured boxes
+svg_start = html.index('id="archsvg"')
 svg = html[svg_start:html.index("</svg>", svg_start)]
 tags = re.findall(r"<text\b[^>]*>", svg)
-bad = [t for t in tags if "data-i18n=" not in t and 'id="dg-port"' not in t]
-ok(len(tags) >= 10 and not bad, "S3 all %d svg label(s) i18n-tagged (bad=%r)" % (len(tags), bad))
+ok(not tags, "S3 empty svg host: zero baked diagram labels (runtime tt() only)")
 ok("querySelectorAll('[data-i18n]')" in js or 'querySelectorAll("[data-i18n]")' in js,
    "S3 applyLang replaces data-i18n nodes")
 

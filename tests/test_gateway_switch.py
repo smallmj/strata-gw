@@ -445,6 +445,20 @@ try:
     ok(set(j["models"]["aaa-qwen"]["cfg"]) == set(j["models"]["bbb-sc117"]["cfg"]),
        "T64 uniform cfg schema — identical keys on every model, never drop-then-missing")
 
+    # ---- ux v9: console lifetime parity with the legacy gateway -------------
+    _bk = open(os.path.join(ROOT, "gw", "backends.py"), encoding="utf-8").read()
+    _cf = open(os.path.join(ROOT, "gw", "config.py"), encoding="utf-8").read()
+    _wj = open(os.path.join(ROOT, "gw", "winjob.py"), encoding="utf-8").read()
+    ok("from . import winjob" in _bk and "from serve import winjob" not in _bk,
+       "T65a repo-bundled winjob: no dependency on the engine's serve package")
+    ok("CreateJobObjectW" in _wj and "SetInformationJobObject" in _wj
+       and "AssignProcessToJobObject" in _wj and "KILL_ON_JOB_CLOSE" in _wj,
+       "T65b kill-on-close Job Object implemented with ctypes only")
+    ok("stdout=subprocess.DEVNULL" not in _bk,
+       "T65c backend children keep the console: engine logs stream into the cmd window")
+    ok('"STRATA_ROUTER_PORT", "18075"' in _cf,
+       "T66 default router port is 18075 — the engine's own 18080 stays untouched")
+
     # ---- ux v8: auto-generate tags + dossier from the LOADED model ----
     A.loaded = True
     s, h = req("POST", "/router/gendossier", {"model": "aaa-qwen", "lang": "zh"})

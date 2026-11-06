@@ -143,11 +143,11 @@ class Backend:
                  "--host", "0.0.0.0", "--port", str(self.port),
                  "--api-key", self.key, "--lazy"],
                 cwd=config.ROOT, stdin=subprocess.DEVNULL)
-            try:
-                from serve import winjob
-                winjob.contain(self.proc)
-            except Exception:
-                pass
+            from . import winjob as _winjob
+            if not _winjob.contain(self.proc):
+                print("[router] note: job-object tie-in unavailable here; "
+                  "Ctrl+C / console close still stop the tree via the "
+                  "signal handlers", flush=True)
             print(f"[router] spawned {self.name} on :{self.port} (lazy)", flush=True)
             events.revent("backend", f"{self.name} backend process started on :{self.port}")
         finally:

@@ -828,6 +828,14 @@ function archBox(x,y,cls,title,subs){
   for(i=0;i<subs.length;i++)svg+='<text class="as" x="'+(x+13)+'" y="'+(y+36+i*15)+'">'+dgEsc(subs[i])+'</text>';
   return {x:x,y:y,w:w,h:h,svg:svg+"</g>"};
 }
+function dgBackends(models){
+  var list=(models||[]),shown=list.slice(0,4),out=[],i;
+  for(i=0;i<shown.length;i++)out.push({card:{model:shown[i].model,nick:shown[i].nick||shown[i].model,
+    port:shown[i].port,loaded:!!shown[i].loaded,alive:!!shown[i].alive,
+    quant:shown[i].quant,max_context:shown[i].max_context}});
+  if(list.length>shown.length)out.push({more:list.length-shown.length});
+  return out;
+}
 function archLink(a,b){
   var x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2;
   var d="M"+x1+" "+y1+"C"+(x1+44)+" "+y1+","+(x2-44)+" "+y2+","+x2+" "+y2;
@@ -864,28 +872,39 @@ function renderArch(backends){
   var g=document.getElementById("archsvg");if(!g)return;
   var li=LASTINFO||{},app=li.app||{},bd=li.build||{};
   var port="";try{var pm=document.querySelector('meta[name="strata-gw-port"]');if(pm)port=pm.content}catch(e){}
+  var cards=dgBackends((backends||[]).map(function(b){
+    var info=(li.models||{})[b.model]||{},cfg=info.cfg||{};
+    return {model:b.model,nick:cardNick(b.model)||b.model,port:b.port,
+            loaded:b.loaded,alive:b.alive,quant:cfg.quant,max_context:info.max_context};
+  }));
+  var nCards=0,more=0;
+  cards.forEach(function(c){if(c.card)nCards++;else if(c.more)more=c.more});
   var gwS=["v"+String(app.version||"?").replace(/^v/,"")+(port?(" · :"+port):""),
            tt("路由 · 让卡 · 监控","route · yield · monitor")];
   if(bd.version)gwS.push(tt("引擎","engine")+" v"+bd.version);
-  var cl=archBox(16,116,"cl",tt("客户端","Clients"),
-    ["/v1/chat/completions",tt("任意 OpenAI 兼容端","any OpenAI-compatible"),tt("Hermes · 酒馆 · 脚本","Hermes · tavern · scripts")]);
-  var gw=archBox(232,92,"gw","STRATA GW",gwS);
-  var ms=(backends||[]).slice(0,3).map(function(b,i){
-    var info=(li.models||{})[b.model]||{},cfg=info.cfg||{};
-    return archBox(474,44+i*90,"be",cardNick(b.model)||b.model,
-      [(cfg.quant||"?")+" · "+(info.max_context?Math.round(info.max_context/1024)+"K":"?"),
-       tt("状态","state")+": "+(b.loaded?tt("在位","live"):(b.alive?tt("待命","standby"):tt("离线","offline")))]);
+  var clP=archBox(0,0,"cl",tt("客户端","Clients"),["/v1/chat/completions",tt("任意 OpenAI 兼容端","any OpenAI-compatible"),tt("Hermes · 酒馆 · 脚本","Hermes · tavern · scripts")]);
+  var gwP=archBox(0,0,"gw","STRATA GW",gwS);
+  var colBottom=44+nCards*90+(more?34:0);
+  var H=Math.max(320,colBottom+28,gwP.h+170);
+  var cl=archBox(16,Math.round((H-clP.h)/2),"cl",tt("客户端","Clients"),["/v1/chat/completions",tt("任意 OpenAI 兼容端","any OpenAI-compatible"),tt("Hermes · 酒馆 · 脚本","Hermes · tavern · scripts")]);
+  var gw=archBox(232,Math.round((H-gwP.h)/2),"gw","STRATA GW",gwS);
+  var ms=[],y=44;
+  cards.forEach(function(c){
+    if(c.card){var subs=[(c.quant||"?")+" · "+(c.max_context?Math.round(c.max_context/1024)+"K":"?"),
+      tt("状态","state")+": "+(c.loaded?tt("在位","live"):(c.alive?tt("待命","standby"):tt("离线","offline")))];
+      ms.push(archBox(474,y,"be",c.nick,subs));y+=90;}
+    else if(c.more)ms.push({x:474,y:y,w:80,h:20,svg:'<text class="as" x="474" y="'+(y+8)+'">'+dgEsc(tt("还有","+"))+c.more+" …</text>"});
   });
-  var ext=archBox(232,236,"ext",tt("外部显存占用者","external VRAM holder"),
-    LASTGPU?[gbf(LASTGPU.free*1048576,1)+" GB "+tt("空闲","free"),tt("让卡协议 /free","yield via /free")]
+  var ext=archBox(232,Math.min(H-84,gw.y+gw.h+26),"ext",tt("外部显存占用者","external VRAM holder"),
+    LASTGPU?[gbf(LASTGPU.free*1048576,1)+" GB "+tt("空闲","free"),tt("出图服务在场","holder online")]
            :[tt("未检测到（可留空）","not detected (optional)"),tt("让卡协议 /free","yield via /free")]);
-  var more=(backends&&backends.length>3)?'<text class="as" x="474" y="'+(44+3*90+8)+'">'+dgEsc(tt("还有","+"))+(backends.length-3)+" …</text>":"";
+  if(ext.y+ext.h>H-10)H=ext.y+ext.h+24;
   var defs='<defs><linearGradient id="agr" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="760" y2="0"><stop offset="0" stop-color="var(--ac)" stop-opacity=".85"/><stop offset="1" stop-color="var(--q)" stop-opacity=".7"/></linearGradient><marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ac)"/></marker></defs>';
   var links=archLink(cl,gw);
-  ms.forEach(function(m){links+=archLink(gw,m)});
+  ms.forEach(function(m){if(m.w>30)links+=archLink(gw,m)});
   links+='<path class="aln dash" d="M'+(gw.x+18)+' '+(gw.y+gw.h)+'C'+(gw.x+18)+' '+(gw.y+gw.h+26)+','+(ext.x+30)+' '+(ext.y-22)+','+(ext.x+30)+' '+ext.y+'"/>';
-  g.setAttribute("viewBox","0 0 760 320");
-  g.innerHTML=defs+links+more+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
+  g.setAttribute("viewBox","0 0 760 "+H);
+  g.innerHTML=defs+links+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
 }
 
 var KIND={load:tt("载入","Load"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
