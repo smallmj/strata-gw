@@ -192,7 +192,7 @@ for f in strict_files:
 ok(not viol, "T9a STRICT token scan clean (%d hits)%s"
    % (len(viol), "" if not viol else " :: " + "; ".join(viol[:6])))
 
-doc_files = [os.path.join(ROOT, n) for n in ("README.md", "AGENTS.md", "LICENSE", "cards", "cards.json")
+doc_files = [os.path.join(ROOT, n) for n in ("README.md", "README_en.md", "AGENTS.md", "LICENSE", "cards", "cards.json")
              if os.path.isfile(os.path.join(ROOT, n))]
 viol2 = []
 for f in doc_files:
