@@ -368,10 +368,17 @@ class Handler(BaseHTTPRequestHandler):
                         return self._json(503, {"error": {"message": "engine isn't answering the models probe (busy?) — retry shortly"}})
                     return self._json(409, {"error": {"message": "no operative is resident — clock any card in first"}})
                 subject = b
-            g = author.gendossier(str(jj.get("lang") or "zh"), subject=subject)
-            if g is None:
+            # master 2026-11-07: one click pens both tongues — two strict-JSON
+            # passes, one per language; a slot that fails simply comes back
+            # empty, the run succeeds if either lands.
+            langs = {}
+            for lg in ("zh", "en"):
+                g1 = author.gendossier(lg, subject=subject)
+                if g1 is not None:
+                    langs[lg] = {"tags": g1["tags"], "dossier": g1["dossier"]}
+            if not langs:
                 return self._json(502, {"error": {"message": "engine returned no self-description — try again"}})
-            return self._json(200, g)
+            return self._json(200, {"model": author.name, "langs": langs})
         if method == "POST" and path == "/router/cards":
             try:
                 jj = json.loads(body) if body else {}

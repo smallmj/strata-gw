@@ -108,6 +108,14 @@ class Stub:
                     outer.loaded = False; outer.unload_calls += 1
                     return self._send(200, json.dumps({"status": "unloaded"}))
                 if p == "/v1/chat/completions":
+                    try:
+                        _pm = (json.loads(body.decode() or b"{}").get("messages") or [{}])[-1].get("content") or ""
+                    except ValueError:
+                        _pm = ""
+                    if "self-report" in _pm or "third-person" in _pm:
+                        return self._send(200, {"choices": [{"message": {"content":
+                            'Sure: {"tags": ["self-report", "test tag", "qa"], '
+                            '"dossier": "Automation test operative for the gateway; reading, parsing and Q&A in a plain style."}'}}]})
                     return self._send(200, {"choices": [{"message": {"content":
                         '好的：{"tags": ["自述", "测试标签", "问答"], '
                         '"dossier": "我是网关自动化档案测试模型，覆盖读解与问答能力，风格平实。"}'}}]})
@@ -463,8 +471,12 @@ try:
     A.loaded = True
     s, h = req("POST", "/router/gendossier", {"model": "aaa-qwen", "lang": "zh"})
     j = json.loads(h)
-    ok(s == 200 and isinstance(j.get("tags"), list) and len(j["tags"]) >= 1
-       and j.get("dossier"), "T63a gendossier 200 tags+dossier for loaded model")
+    L = j.get("langs") or {}
+    ok(s == 200 and isinstance(L.get("zh", {}).get("tags"), list) and len(L["zh"]["tags"]) >= 1
+       and L["zh"].get("dossier") and L.get("en", {}).get("tags") and L["en"].get("dossier"),
+       "T63a gendossier 200 pens both tongues in one click: zh+en tags & dossiers")
+    ok(all(ord(c) < 128 for c in (L.get("en", {}).get("dossier") or "x")),
+       "T63a2 the English slot actually carries English — not Chinese dragged along")
     s, h = req("POST", "/router/gendossier", {"model": "no-such-model"})
     ok(s == 404, "T63b unknown model -> 404")
     A.loaded = False

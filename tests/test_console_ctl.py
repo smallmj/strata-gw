@@ -299,7 +299,7 @@ ok("if self.resident() is not True:" not in bk,
    "K30c residency is judged once, at the route — no second hidden gate inside the backend")
 ok("rj[0]===503" in js and "rj[0]===502" in js,
    "K30d each truth gets its own words client-side, and the button re-arms for a retry")
-ok('askDlg(tt("自述出炉"' in js and "tg.value=tgsv" in js and "lo.value=dos" in js,
+ok('askDlg(tt("自述出炉"' in js and "tg.value=(cur.tags||[]).join" in js and "lo.value=cur.dossier" in js,
    "K30e the generated profile waits for the user\u0027s OK before touching the fields — Cancel keeps them as-is")
 
 # ---- K31 (master, 2026-11-07 round 2): operative-flavored prompts, ghost-writer, styled dialog, theme sweep, launcher ----
@@ -330,5 +330,15 @@ ok('"enable_thinking": False' in bk and '"reasoning_effort": "none"' in bk,
 ok('"max_tokens": 650' in bk, "K32b the budget outgrew 420 — a thinking model spent it all on thinking and died at finish=length")
 ok('msg.get("content") or msg.get("reasoning_content")' in bk,
    "K32c if the engine monologues anyway, the parser still digs the JSON out of the reasoning")
+
+# ---- K33 (master 2026-11-07): one click, both tongues ----
+ok('for lg in ("zh", "en")' in rg and '"langs"' in rg,
+   "K33a one generation run pens a Chinese AND an English dossier server-side")
+ok("genPend" in js and "t[other]=genPend.tags[other]" in js and "l[other]=genPend.lore[other]" in js,
+   "K33b saving merges the language nobody edited from the generation — the English view stops showing Chinese")
+ok("t.zh=o.slice()" in js and "t.en=o.slice()" in js,
+   "K33c legacy flat tags seed both slots before the merge, so old cards never lose content")
+ok('tt("中文标签："' in js and 'tt("英文档案：","English bio: ")' in js,
+   "K33d the confirm dialog shows all four sections, labeled in the UI's language")
 
 sys.exit(0 if not F else 1)

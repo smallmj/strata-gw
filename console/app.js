@@ -139,7 +139,7 @@ function cardHTML(name){
   return h;
 }
 var pageIdx=0,cardNames=[];
-var trainName=null,trainForm=null,trainSrc=null;
+var trainName=null,trainForm=null,trainSrc=null,genPend=null;
 function closeTrain(){
   if(!trainName)return;
   var c=cardsEl.querySelector('[data-model="'+trainName+'"]');if(c)c.classList.remove("flipped");
@@ -147,6 +147,7 @@ function closeTrain(){
   trainName=null;
 }
 function openTrain(name){
+  genPend=null;
   closeTrain();
   var card=cardsEl.querySelector('[data-model="'+name+'"]');if(!card)return;
   var back=card.querySelector('[data-r=back]');if(!back)return;
@@ -440,7 +441,7 @@ function genMeta(){
   var gm=document.getElementById("gen-meta");
   if(!trainName||!gm||gm.disabled)return;
   if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token。","set the Strata token in ⚙ Settings first."),"err");openSettings(true);return}
-  gm.disabled=true;gm.textContent=tt("生成中…","generating…");
+  gm.disabled=true;gm.textContent=tt("中英双语生成中…","writing zh + en…");
   fetch("router/gendossier",{method:"POST",
     headers:{"Content-Type":"application/json",Authorization:"Bearer "+keyEl.value.trim()},
     body:JSON.stringify({model:trainName,lang:LANG})})
@@ -451,14 +452,20 @@ function genMeta(){
     if(rj[0]===503){gm.disabled=false;say(tt("引擎此刻不应声（多半正在干活）——歇几秒再点一次。","the engine isn't answering right now (likely mid-task) — wait a few seconds and try again."),"busy");return}
     if(rj[0]===502){gm.disabled=false;say(tt("引擎没交出自述——再点一次试试。","the engine returned no self-description — give it another try."),"err");return}
     if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
-    var g=rj[1]||{},tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
-    var tgsv=(g.tags||[]).join(", "),dos=g.dossier||"";
+    var L=(rj[1]&&rj[1].langs)||{},zh=L.zh||{},en=L.en||{},cur=L[LANG]||zh;
     gm.disabled=false;
+    genPend={tags:{zh:zh.tags||[],en:en.tags||[]},lore:{zh:zh.dossier||"",en:en.dossier||""}};
+    var fill=function(){var tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
+      if(tg)tg.value=(cur.tags||[]).join(", ");
+      if(lo)lo.value=cur.dossier||"";};
     askDlg(tt("自述出炉","self-portrait ready"),
-      "<b>"+tt("标签：","tags: ")+"</b>"+esc(tgsv)+"\n\n<b>"+tt("档案：","bio: ")+"</b>"+esc(dos),
-      [{cls:"ghost",label:tt("放弃","discard"),fn:function(){say(tt("未采用——编辑框与卡片都保持原样。","not adopted — the fields and the card stay as they were."),"")}},
-       {cls:"ghost",label:tt("采用后我再改改","adopt, then I'll tweak"),fn:function(){if(tg)tg.value=tgsv;if(lo)lo.value=dos;say(tt("已填入编辑框——改完点「保存」写入卡片。","in the fields — tweak, then Save writes it to the card."),"")}},
-       {cls:"primary",label:tt("确认，直接写入卡片","confirm — write straight to the card"),fn:function(){if(tg)tg.value=tgsv;if(lo)lo.value=dos;saveTrain();}}]);
+      "<b>"+tt("中文标签：","Chinese tags: ")+"</b>"+esc((zh.tags||[]).join(", "))+
+      "\n<b>"+tt("中文档案：","Chinese bio: ")+"</b>"+esc(zh.dossier||"—")+
+      "\n\n<b>"+tt("英文标签：","English tags: ")+"</b>"+esc((en.tags||[]).join(", "))+
+      "\n<b>"+tt("英文档案：","English bio: ")+"</b>"+esc(en.dossier||"—"),
+      [{cls:"ghost",label:tt("放弃","discard"),fn:function(){genPend=null;say(tt("未采用——编辑框与卡片都保持原样。","not adopted — the fields and the card stay as they were."),"")}},
+       {cls:"ghost",label:tt("采用后我再改改","adopt, then I'll tweak"),fn:function(){fill();say(tt("已填入当前语言编辑框——改完点「保存」，中英双语一并写入卡片。","in the fields for this language — tweak, then Save writes both tongues to the card."),"")}},
+       {cls:"primary",label:tt("确认，直接写入卡片","confirm — write straight to the card"),fn:function(){fill();saveTrain();}}]);
   })
   .catch(function(e){gm.disabled=false;gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
     say(tt("生成失败: ","generate failed: ")+e,"err")});
@@ -808,9 +815,20 @@ function collectCard(){
   var c={},nk=document.getElementById("ed_nick"),tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
   var v=nk?nk.value.trim():"";if(v)c.nick={zh:v,en:v};
   if(edAccent)c.accent=edAccent;
+  var other=LANG==="zh"?"en":"zh",m=cardMeta(trainName)||{};
   if(tg&&tg.value.trim()){var a=tg.value.split(/[,，]/).map(function(x){return x.trim()}).filter(Boolean);
-    if(a.length)c.tags=a;else c.tags=[];}
-  if(lo&&lo.value.trim())c.lore={zh:lo.value.trim(),en:lo.value.trim()};
+    var o=m.tags,t={zh:[],en:[]};
+    if(Array.isArray(o)){t.zh=o.slice();t.en=o.slice();}
+    else if(o&&typeof o==="object"){t.zh=Array.isArray(o.zh)?o.zh.slice():[];t.en=Array.isArray(o.en)?o.en.slice():[];}
+    t[LANG]=a;
+    if(genPend&&genPend.tags[other]&&genPend.tags[other].length)t[other]=genPend.tags[other];
+    c.tags=t;}
+  if(lo&&lo.value.trim()){var ol=m.lore||m.style,l={zh:"",en:""};
+    if(typeof ol==="string"){l.zh=ol;l.en=ol;}
+    else if(ol&&typeof ol==="object"){l.zh=String(ol.zh||"");l.en=String(ol.en||"");}
+    l[LANG]=lo.value.trim();
+    if(genPend&&genPend.lore[other])l[other]=genPend.lore[other];
+    c.lore=l;}
   return c;
 }
 function saveTrain(){
