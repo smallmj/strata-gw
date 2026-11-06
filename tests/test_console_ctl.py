@@ -288,4 +288,18 @@ ok('rows="8"' in html and "min-height:170px" in css,
 ok("先点卡片上的载入" not in js and "先载入再点" not in js,
    "K29e operative lexicon: auto-generate hints never fall back to 载入")
 
+# ---- K30 (master's bug hunt): 409 conflation triaged honestly + adopt-confirm ----
+rg=open(os.path.join(ROOT,"gw","routes.py"),encoding="utf-8").read()
+bk=open(os.path.join(ROOT,"gw","backends.py"),encoding="utf-8").read()
+ok("model not resident" in rg and "engine isn" in rg
+   and "self._json(503," in rg and "self._json(502," in rg and "self._json(409," in rg,
+   "K30a the generate route tells three truths apart: off-post 409, engine silent 503, no answer 502")
+ok("time.sleep(1.2)" in rg, "K30b a silent probe earns one patient re-probe before 503 — engines flap mid-task")
+ok("if self.resident() is not True:" not in bk,
+   "K30c residency is judged once, at the route — no second hidden gate inside the backend")
+ok("rj[0]===503" in js and "rj[0]===502" in js,
+   "K30d each truth gets its own words client-side, and the button re-arms for a retry")
+ok("confirm(tt(" in js and "tg.value=tgsv" in js and "lo.value=dos" in js,
+   "K30e the generated profile waits for the user\u0027s OK before touching the fields — Cancel keeps them as-is")
+
 sys.exit(0 if not F else 1)

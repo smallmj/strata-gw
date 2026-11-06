@@ -351,9 +351,19 @@ class Handler(BaseHTTPRequestHandler):
             b = next((x for x in backends.BACKENDS.values() if x.name == name), None)
             if b is None:
                 return self._json(404, {"error": {"message": "unknown model"}})
+            # three truths, not one catch-all 409: an engine mid-task flaps its
+            # /v1/models probe — that deserves "try again", not "clock it in".
+            r = b.resident()
+            if r is None:
+                time.sleep(1.2)
+                r = b.resident()
+            if r is False:
+                return self._json(409, {"error": {"message": "model not resident — clock it in first"}})
+            if r is None:
+                return self._json(503, {"error": {"message": "engine isn't answering the models probe (busy?) — retry shortly"}})
             g = b.gendossier(str(jj.get("lang") or "zh"))
             if g is None:
-                return self._json(409, {"error": {"message": "model not loaded — load it first"}})
+                return self._json(502, {"error": {"message": "engine returned no self-description — try again"}})
             return self._json(200, g)
         if method == "POST" and path == "/router/cards":
             try:

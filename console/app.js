@@ -424,13 +424,20 @@ function genMeta(){
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
   .then(function(rj){
     gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
-    if(rj[0]===409){say(tt("该模型不在位——先在卡片上点「开工」，再生成。","that model isn't on post — clock it in on the card first, then generate."),"err");refreshGenGate(trainName);return}
+    if(rj[0]===409){say(tt("这位特工不在位——先在卡片上点「开工」，再生成。","that operative is off post — clock it in on the card first, then generate."),"err");refreshGenGate(trainName);return}
+    if(rj[0]===503){gm.disabled=false;say(tt("引擎此刻不应声（多半正在干活）——歇几秒再点一次。","the engine isn't answering right now (likely mid-task) — wait a few seconds and try again."),"busy");return}
+    if(rj[0]===502){gm.disabled=false;say(tt("引擎没交出自述——再点一次试试。","the engine returned no self-description — give it another try."),"err");return}
     if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
-    var tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
-    if(tg)tg.value=(rj[1].tags||[]).join(", ");
-    if(lo)lo.value=rj[1].dossier||"";
+    var g=rj[1]||{},tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
+    var tgsv=(g.tags||[]).join(", "),dos=g.dossier||"";
     gm.disabled=false;
-    say(tt("模型已自述并填进标签/档案框——点「保存」写入卡片。","the model described itself — hit Save to persist into the card."),"");
+    if(confirm(tt("自述出炉：\n标签：","self-portrait done:\ntags: ")+tgsv+"\n"+tt("档案：","bio: ")+dos+"\n\n"+tt("要采用这份自述吗？采用后仍可修改，点「保存」才写入卡片。","Adopt this self-portrait? You can still edit it afterwards; only Save writes it to the card."))){
+      if(tg)tg.value=tgsv;
+      if(lo)lo.value=dos;
+      say(tt("已采用——需要就改，点「保存」写入卡片。","adopted — tweak if you like, then Save writes it to the card."),"")
+    }else{
+      say(tt("未采用——编辑框保持原样。","not adopted — the edit fields stay as they were."),"")
+    }
   })
   .catch(function(e){gm.disabled=false;gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
     say(tt("生成失败: ","generate failed: ")+e,"err")});

@@ -172,9 +172,9 @@ class Backend:
 
     def gendossier(self, lang: str = "zh") -> dict | None:
         """Ask the LOADED model to describe itself -> {tags, dossier}; None if it
-        can't be asked (not resident, offline, or unparseable failure)."""
-        if self.resident() is not True:
-            return None
+        can't be asked (offline or unparseable failure). Residency itself is
+        judged once, up in the route — a second hidden probe here used to
+        flatten a busy-engine flap into the same "not loaded" 409."""
         body = {"model": self.name, "stream": False, "max_tokens": 420, "temperature": 0.8,
                 "messages": [{"role": "user",
                               "content": self.GEN_PROMPT.get(lang, self.GEN_PROMPT["zh"])}]}
