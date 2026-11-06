@@ -114,6 +114,8 @@ function cardHTML(name){
   return h;
 }
 var pageIdx=0,cardNames=[];
+var trainName=null;
+function closeTrain(){}
 function build(names){
   cardNames=names.slice();
   var remember=null;try{remember=localStorage.getItem("stratagw.cardidx")}catch(e){}
@@ -147,14 +149,22 @@ function build(names){
   setPage(pageIdx);
 }
 function setPage(i){
+  if(trainName)closeTrain();
   if(!cardNames.length){paintDots();return}
   pageIdx=((i%cardNames.length)+cardNames.length)%cardNames.length;
   var pages=cardsEl.querySelectorAll(".page");var np=pages.length;
   for(var j=0;j<np;j++){var rel=(j-pageIdx+np)%np;
-    pages[j].className=rel===0?"page on":rel===1?"page p1":rel===2?"page p2":"page";
-    if(rel>0&&rel<3)pages[j].onclick=(function(k){return function(){setPage(k)}})(j);}
+    pages[j].className=rel===0?"page on":rel===1?"page pr":rel===np-1?"page pl":"page";
+    if(np>1&&(rel===1||rel===np-1))pages[j].onclick=(function(k){return function(){setPage(k)}})(j);
+    else if(rel!==0)pages[j].onclick=null;}
+  deckHeight();
   try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
   paintDots();
+}
+function deckHeight(){
+  var mx=0,ps=cardsEl.querySelectorAll(".page .card");
+  for(var i=0;i<ps.length;i++){var h=ps[i].offsetHeight;if(h>mx)mx=h}
+  if(mx)cardsEl.style.height=mx+"px";
 }
 function paintDots(){
   var pd=document.getElementById("pdots");if(!pd)return;
@@ -264,7 +274,7 @@ function paintSpecials(){
   });
 }
 function updateLiveAll(){cardNames.forEach(function(n){
-  var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c)updateLive(c,n)})}
+  var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c)updateLive(c,n)});deckHeight()}
 function updateLive(card,name){
   var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
   var b=backendOf(name),info=INFO[name]||{},rows=[];

@@ -96,9 +96,17 @@ ok('id="ed_nick"' in html and 'type="color" id="ed_accentc"' in html
 ok("fe.nick_zh" not in i18njs and "fe.notes_en" not in i18njs,
    "K14c old bilingual form keys purged from word table")
 
-# ---- K15: model cards stack like book pages (p1/p2 behind) ----
-ok(".page.p1" in css and ".page.p2" in css, "K15a stacked-behind css exists")
-ok('"page p1"' in js and '"page p2"' in js, "K15b setPage assigns depth classes")
+# ---- K15 (ux v7): one opaque card in view, neighbours peek 44px, slide on switch ----
+ok(".page.pr" in css and ".page.pl" in css and "transition:transform" in css,
+   "K15a deck peek + slide css")
+ok('"page pr"' in js and '"page pl"' in js and '"page p1"' not in js,
+   "K15b setPage uses pr/pl")
+ok("translateX(calc(100% - 44px))" in css and "translateX(calc(-100% + 44px))" in css,
+   "K15c slide geometry peeks 44px")
+ok(".pagesw" not in css and 'class="pagesw"' not in html, "K15d ghost-page stacking retired")
+ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background token")
+ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
+   "K15f height-stable deck container")
 
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
