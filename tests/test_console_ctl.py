@@ -341,4 +341,7 @@ ok("t.zh=o.slice()" in js and "t.en=o.slice()" in js,
 ok('tt("中文标签："' in js and 'tt("英文档案：","English bio: ")' in js,
    "K33d the confirm dialog shows all four sections, labeled in the UI's language")
 
+ok("rj[1].tags?{zh:{tags:rj[1].tags" in js,
+   "K33e a half-updated pairing (new page, old backend) still renders the legacy single-tongue reply instead of blanks")
+
 sys.exit(0 if not F else 1)

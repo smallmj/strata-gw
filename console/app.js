@@ -452,7 +452,8 @@ function genMeta(){
     if(rj[0]===503){gm.disabled=false;say(tt("引擎此刻不应声（多半正在干活）——歇几秒再点一次。","the engine isn't answering right now (likely mid-task) — wait a few seconds and try again."),"busy");return}
     if(rj[0]===502){gm.disabled=false;say(tt("引擎没交出自述——再点一次试试。","the engine returned no self-description — give it another try."),"err");return}
     if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
-    var L=(rj[1]&&rj[1].langs)||{},zh=L.zh||{},en=L.en||{},cur=L[LANG]||zh;
+    var L=(rj[1]&&rj[1].langs)||(rj[1]&&rj[1].tags?{zh:{tags:rj[1].tags,dossier:rj[1].dossier}}:{});
+    var zh=L.zh||{},en=L.en||{},cur=L[LANG]||zh;
     gm.disabled=false;
     genPend={tags:{zh:zh.tags||[],en:en.tags||[]},lore:{zh:zh.dossier||"",en:en.dossier||""}};
     var fill=function(){var tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
