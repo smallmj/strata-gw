@@ -411,7 +411,7 @@ function refreshGenGate(name){
   var b=backendOf(name||trainName),live=!!(b&&b.loaded);
   g.disabled=!live;
   if(gh)gh.textContent=live?tt("模型在位 · 点按钮让它自述","model is live · one click, let it self-describe")
-                             :tt("未加载模型 · 此功能不可用（先点卡片上的载入）","no model loaded · load one on the card first");
+                             :tt("未加载模型 · 此功能不可用（先点卡片上的开工）","not on post · clock it in on the card first");
 }
 function genMeta(){
   var gm=document.getElementById("gen-meta");
@@ -424,7 +424,7 @@ function genMeta(){
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
   .then(function(rj){
     gm.textContent=tt("自动生成标签与档案","auto-generate tags & bio");
-    if(rj[0]===409){say(tt("该模型未加载，自动生成不可用——先载入再点。","that model isn't loaded — load it first, then generate."),"err");refreshGenGate(trainName);return}
+    if(rj[0]===409){say(tt("该模型不在位——先在卡片上点「开工」，再生成。","that model isn't on post — clock it in on the card first, then generate."),"err");refreshGenGate(trainName);return}
     if(rj[0]>=400){say(tt("生成失败 HTTP ","generate failed HTTP ")+rj[0],"err");gm.disabled=false;return}
     var tg=document.getElementById("ed_tags"),lo=document.getElementById("ed_lore");
     if(tg)tg.value=(rj[1].tags||[]).join(", ");

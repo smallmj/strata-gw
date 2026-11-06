@@ -533,10 +533,12 @@ details.drw summary::before{content:"\25B8";color:var(--ac);transition:transform
 details.drw[open] summary::before{transform:rotate(90deg)}
 details.drw .pnote{margin:0 12px 8px}
 details.drw .fgrid{margin:0 12px}
+.poprow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 details.drw .poprow{margin:0 12px 8px}
+#ed-artname{flex:1;min-width:0;font-size:.68rem;color:var(--dim);overflow-wrap:anywhere}
 details.drw .prow{margin:4px 12px 8px}
 details.drw #cfg-list{margin:0 12px}
-#ed_lore{width:100%;box-sizing:border-box;border-radius:9px;border:1px solid var(--line);
+#ed_lore{width:100%;min-height:170px;box-sizing:border-box;border-radius:9px;border:1px solid var(--line);
   background:rgba(148,163,184,.08);color:var(--fg);font:inherit;font-size:.78rem;padding:.5rem .6rem;resize:vertical}
 #gen-meta:disabled{opacity:.45;cursor:not-allowed}
 /* ux v8: architecture diagram (data-driven svg) */

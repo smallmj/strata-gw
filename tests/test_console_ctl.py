@@ -275,4 +275,17 @@ ok('tt("未运行"' not in js
 ok('data-i18n-title="gpu.holdtit"' in html and '"gpu.holdtit"' in i18njs,
    "K28e the strip explains in its tooltip what the bar actually measures")
 
+# ---- K29 (master review v10.1): drill-page cosmetics + lexicon sweep ----
+_ti=html.find('id="sect-tags"'); _de=html.find("</details>", _ti)
+ok(_ti>0 and 'id="gen-meta"' in html and html.index('id="gen-meta"')>_de
+   and html.index('id="gen-meta"') < html.index('id="t-save"'),
+   "K29a auto-generate left the tags drawer — it sits on the action row, ahead of Save")
+ok(html.index('id="gen-hint"') > _de, "K29b the gen hint travels with its button")
+ok('.poprow{display:flex' in css and '#ed-artname{' in css,
+   "K29c portrait row is a real flex row — the filename no longer crowds the buttons")
+ok('rows="8"' in html and "min-height:170px" in css,
+   "K29d the bio textarea shows an 80-150-char dossier without hiding the tail")
+ok("先点卡片上的载入" not in js and "先载入再点" not in js,
+   "K29e operative lexicon: auto-generate hints never fall back to 载入")
+
 sys.exit(0 if not F else 1)
