@@ -179,8 +179,15 @@ ok(".dhead" in css and ".dtitle" in css and ".dnick" in css and ".dsub" in css,
    "K17d headline css present")
 ok("height:58px" not in css, "K17e tags fixed-height cage gone")
 ok("height:3.32em" not in css and "-webkit-line-clamp:3" in css, "K17f prose flows 3 lines")
-ok(css.count("height:1.6em") == 0 and ".notes li{font-size:.76rem;color:var(--muted);line-height:1.6;position:relative;padding-left:.25rem}" in css,
-   "K17g note rows flow freely")
+ok('.notes' not in css and 'class="notes"' not in js,
+   "K17g card note micro-list retired in v9 (merged into the operative bio)")
+ok('tt("开工"' in js and 'tt("下班"' in js and 'tt("特训"' in js and
+   'tt("销卡"' in js and 'tt("回岗"' in js,
+   "K25a buttons speak like operatives (开工/下班/特训/销卡/回岗)")
+ok('cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default"' in js,
+   "K25c unset reasoning renders as 'default', never a dash")
+ok('position:sticky;bottom:8px;align-self:flex-end' in css and 'back-close' in css,
+   "K25d the resume button sits at the sheet bottom, clear of the drawers")
 ok("grid-template-columns:1fr 1fr" in css, "K17h two-column rows on wide screens")
 
 # ---- K24 (ux v8): training page = drawers for every section + tag/bio edit

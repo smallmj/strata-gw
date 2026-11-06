@@ -40,7 +40,7 @@
 </header>
 
 <div class="hero">
-  <p data-i18n-html="pg.hero">一块本地 GPU · 若干本地量化档位 · 一个把加载换装、显存腾让、监控和调教都收进一页的本地推理网关 —— 这就是 Strata。</p>
+  <p data-i18n-html="pg.hero">一块本地 GPU · 若干本地量化档位 · 一个把加载换装、显存腾让、监控和特训都收进一页的本地推理网关 —— 这就是 Strata。</p>
   <div class="chips" id="herochips"><span data-i18n="ui.chip1">本地量化档位</span><span data-i18n="ui.chip2">上下文可扩</span><span data-i18n="ui.chip3">专家动态路由</span><span data-i18n="ui.chip4">投机解码加速</span><span data-i18n="ui.chip5">Vision 图像输入</span><span data-i18n="ui.chip6">外部显存可让卡</span></div>
 </div>
 <p class="lead" data-i18n-html="pg.lead">模型<b>互斥驻留</b>（内存只装得下其一）——点 Load，网关先让在位模型退场、再请外部出图服务让卡，然后加载你点的模型（冷加载要几分钟，卡片会转圈报用时）。加载成功后本页下方就是 <b>monitor</b>，不用再跳任何页面；<a href="/">web UI</a> 依然保留给聊天。任何模型都不在驻时，本页就是唯一入口。</p>
@@ -91,14 +91,14 @@
 <div class="field"><label data-i18n="fe.accent">配色</label><div class="swrow"><span id="ed-swatches"></span><input type="color" id="ed_accentc" value="#48c6d8" title="自由取色"></div></div>
 <div class="field wide"><label for="ed_tags" data-i18n="set.tags">标签（逗号分隔）</label><input type="text" id="ed_tags"></div>
 </div>
-<div class="prow"><button class="primary" id="gen-meta" data-i18n="set.gen">自动生成标签与档案</button><span class="hint" id="gen-hint" data-i18n="set.gendl">未加载模型 · 此功能不可用（先点卡片上的载入）</span></div>
+<div class="prow"><button class="primary" id="gen-meta" data-i18n="set.gen">自动生成标签与档案</button><span class="hint" id="gen-hint" data-i18n="set.gendl">未加载模型 · 此功能不可用（先点卡片上的开工）</span></div>
 </details>
 <details class="drw" id="sect-dossier"><summary data-i18n="set.dossiersec">档案</summary>
 <div class="fgrid">
 <div class="field wide"><label for="ed_lore" data-i18n="set.lore">档案（80-150 字）</label><textarea id="ed_lore" rows="5"></textarea></div>
 </div>
 </details>
-<div class="prow"><button class="primary" id="t-save" data-i18n="set.saveall">保存</button><button class="ghost" id="t-clear" data-i18n="set.clearbtn">清除采样（各端自带参数）</button><span class="hint" data-i18n="set.cfgwait">保存后需重启该模型才见效</span></div>
+<div class="prow"><button class="primary" id="t-save" data-i18n="set.saveall">归档</button><button class="ghost" id="t-clear" data-i18n="set.clearbtn">抹掉采样（各端自带参数）</button><span class="hint" data-i18n="set.cfgwait">保存后需重启该模型才见效</span></div>
 </div></div>
 
 <h2 class="sec" id="sec-about"><span data-i18n="sec.about">关于 Strata</span><em>About</em></h2>
@@ -130,7 +130,7 @@
 </div>
 <div id="petchat">
   <div class="pc-head"><b id="pc-title" data-i18n="pet.chat">和驻留模型聊聊</b><button id="pc-close" data-i18n-title="ui.close" title="关闭">×</button></div>
-  <div id="pc-note"><p data-i18n="pet.needload">先载入一个模型才能聊（在下面卡片上点「载入」）</p></div>
+  <div id="pc-note"><p data-i18n="pet.needload">先让一位特工开工才能聊（在卡片上点「开工」）</p></div>
   <iframe id="ptf" title="chat with the resident model" src="about:blank"></iframe>
 </div>
 <script src="i18n.js"></script>

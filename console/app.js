@@ -108,7 +108,7 @@ function artHtml(name){
 }
 function cardHTML(name){
   var m=cardMeta(name);
-  var tags=m?pickarr(m.tags):[],notes=m?pickarr(m.notes):[];
+  var tags=m?pickarr(m.tags):[];
   var lore=m?pick(m.lore)||pick(m.style):"";
   var h='<div class="page"><div class="card" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
   h+=artHtml(name);
@@ -119,19 +119,18 @@ function cardHTML(name){
     +'<h4 class="cg">'+tt("参数","SPECS")+'</h4>'
     +'<dl class="specs" data-r="liverows"></dl>'
     +'<h4 class="cg">'+tt("标签","TAGS")+'</h4>'
-    +'<div class="tags" data-r="tagrow">'+(tags.length?tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join(""):'<span class="none">'+tt("尚无标签 · 到调教页添加或自动生成","no tags yet · add or auto-generate on the train page")+'</span>')+'</div>'
+    +'<div class="tags" data-r="tagrow">'+(tags.length?tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join(""):'<span class="none">'+tt("尚无标签 · 到特训页添加或自动生成","no tags yet · add or auto-generate on the drill page")+'</span>')+'</div>'
     +'<h4 class="cg">'+tt("档案","BIO")+'</h4>'
-    +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到调教页填写或自动生成","no bio yet · write or auto-generate on the train page")+'</span>')+'</p>';
-  if(notes.length)h+='<ul class="notes">'+notes.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>';
-  h+='<div class="acts"><button class="load" data-r="toggle">'+tt("载入","Load")+'</button>'+
+    +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到特训页填写或自动生成","no bio yet · write or auto-generate on the drill page")+'</span>')+'</p>';
+  h+='<div class="acts"><button class="load" data-r="toggle">'+tt("开工","Clock in")+'</button>'+
     '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
-    '<button class="ghostbtn" data-r="train">'+tt("调教","train")+'</button>'+
-    '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("删除卡片","delete card")+'</button>'+
+    '<button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
+    '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("销卡","burn card")+'</button>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
     '</div>'+
-    '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("调教","train")+'</h4>'+
-    '<button class="ghostbtn" data-r="back-close">'+tt("返回","back")+'</button></div>'+
+    '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("特训","drill")+'</h4>'+
+    '<button class="ghostbtn" data-r="back-close">'+tt("回岗","resume")+'</button></div>'+
     '</div></div></div>';
   return h;
 }
@@ -151,7 +150,7 @@ function openTrain(name){
   if(!trainSrc||!trainForm)return;
   trainName=name;back.appendChild(trainForm);card.classList.add("flipped");
   var t=card.querySelector('[data-r=back-title]');
-  if(t)t.textContent=tt("调教 · ","train · ")+(cardNick(name)||name);
+  if(t)t.textContent=tt("特训 · ","drill · ")+(cardNick(name)||name);
   selectModel(name);loadSettings();loadConfig();populateTrain(name);
 }
 /* delegated safety net: train / back-close on cards rebuilt by build() */
@@ -180,7 +179,7 @@ function build(names){
     del.onclick=function(){
       if(del.dataset.armed==="1"){delCard(n);return}
       del.dataset.armed="1";del.textContent=tt("再点一次确认","tap again to confirm");
-      setTimeout(function(){if(del.isConnected){del.dataset.armed="";del.textContent=tt("删除卡片","delete card")}},4000);
+      setTimeout(function(){if(del.isConnected){del.dataset.armed="";del.textContent=tt("销卡","burn card")}},4000);
     };
   });
   setPage(pageIdx);
@@ -341,7 +340,7 @@ function updateLive(card,name){
   row("RoPE",cfg.rope||DASH);
   row(tt("投机解码","drafting"),cfg.drafting?cfg.drafting+(cfg.spec?(" · spec "+cfg.spec):""):DASH);
   row(tt("闲置卸载","idle unload"),cfg.idle_unload_s!=null?Math.round(cfg.idle_unload_s/60)+tt(" 分钟"," min"):DASH);
-  row(tt("思考等级","reasoning"),cfg.reasoning_effort||DASH);
+  row(tt("思考等级","reasoning"),cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default","default"));
   var smp=cfg.sampling||{};
   row(tt("采样默认","sampling"),(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)?[smp.temperature!=null?("t "+smp.temperature):null,smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "):DASH);
   row(tt("图像输入","vision"),info.images!=null?(info.images?tt("有","yes"):tt("无","no")):DASH);
@@ -440,7 +439,7 @@ function paint(list){
         ring=card.querySelector('[data-r=ring]'),el=card.querySelector('[data-r=elapsed]'),
         live=card.querySelector('[data-r=live]');
     var willUnload=(st==="loaded");
-    tg.textContent=act2?(act2.op==="load"?tt("载入中…","loading…"):tt("卸载中…","unloading…")):(willUnload?tt("卸载","Unload"):tt("载入","Load"));
+    tg.textContent=act2?(act2.op==="load"?tt("开工中…","clocking in…"):tt("下班中…","clocking out…")):(willUnload?tt("下班","Clock out"):tt("开工","Clock in"));
     tg.className=act2?(act2.op==="load"?"load":"warnbtn"):(willUnload?"warnbtn":"load");
     tg.disabled=(st==="down"||busyNow);
     if(act2){ring.classList.add("on");
@@ -735,7 +734,7 @@ function collectCard(){
 }
 document.getElementById("t-save").onclick=function(){
   if(!trainName)return;
-  if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token，才能保存调教。","set the Strata token in ⚙ Settings before saving training."),"err");openSettings(true);return}
+  if(!keyEl.value.trim()){say(tt("先在 ⚙ 设置里填 Strata token，才能保存特训档案。","set the Strata token in ⚙ Settings before saving the drill file."),"err");openSettings(true);return}
   var card=collectCard(),name=trainName;
   var step2=function(){
     postj("router/settings?model="+encodeURIComponent(name),{defaults:collectSampling()},function(rj){
@@ -907,7 +906,7 @@ function renderArch(backends){
   g.innerHTML=defs+links+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
 }
 
-var KIND={load:tt("载入","Load"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
+var KIND={load:tt("开工","clock-in"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
 var evOpen=false;
 function loadEvents(){
   qs("router/events",function(d){
@@ -920,7 +919,7 @@ function loadEvents(){
     if(box.getAttribute("data-sig")===sig)return;
     box.setAttribute("data-sig",sig);
     box.className=evOpen?"open":"";
-    box.innerHTML=evs.length?"":tt("<p style='color:var(--muted);font-size:.8rem'>还没有事件——加载、卸载、让卡都会出现在这里（网关重启前的记录不留存）。</p>","<p style='color:var(--muted);font-size:.8rem'>no events yet — load / unload / yield all show up here (nothing survives a gateway restart).</p>");
+    box.innerHTML=evs.length?"":tt("<p style='color:var(--muted);font-size:.8rem'>还没有事件——开工、下班、让卡都会出现在这里（网关重启前的记录不留存）。</p>","<p style='color:var(--muted);font-size:.8rem'>no events yet — clock-in / clock-out / yield all show up here (nothing survives a gateway restart).</p>");
     (evOpen?evs:evs.slice(0,5)).forEach(function(e,i){
       var p=document.createElement("p");
       p.className="ev "+e.kind;
