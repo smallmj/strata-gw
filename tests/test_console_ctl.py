@@ -129,6 +129,10 @@ ok('"页脚' not in js and "footer api key" not in js, "K19c stale footer-key wo
 ok('mon-keycta' in js and js.count("pollMetrics()")>=3, "K19d CTA wired + key save re-polls")
 ok(".keybox" in css and "flash" in css, "K19e keybox css with focus flash")
 
+# ---- K20 (ux v7): the desk pet shows by default (opt out via its menu or the gear) ----
+ok('_p===null?true' in js, "K20a pet defaults ON when never toggled")
+ok('catch(e){petOn=true}' in js, "K20b pet defaults ON even when storage is blocked")
+
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
 
