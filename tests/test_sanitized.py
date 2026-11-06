@@ -107,8 +107,8 @@ ok("var I18N={" not in js and "window.__I18N__" in js,
 
 # boot language path: the refresh callback (runs at boot) must apply the stored
 # language over the zh-prefilled HTML, not wait for a manual toggle
-ok("modelsList=list;\n    applyLang();syncLangBtn();" in js,
-   "T8k stored language applied on boot refresh")
+ok("modelsList=list;\n    if(LANG!==appliedLang){applyLang();syncLangBtn()}" in js,
+   "T8k stored language applied on boot refresh (gated: only on change, K27f)")
 
 # no raw-Chinese user-facing say()/alert() left: every string goes through tt()/t()
 # T8l: every CJK double-quoted literal must be tt()-wrapped, a language-button

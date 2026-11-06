@@ -76,6 +76,7 @@ document.getElementById("save").onclick=function(){
 };
 document.getElementById("mon-keycta").onclick=function(){openSettings(true)};
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
+function setTxt(el,t){if(!el)return;if(el._v!==t){el._v=t;el.textContent=t}}
 function hdrs(needJson){var h={};var k=keyEl.value.trim();if(k)h.Authorization="Bearer "+k;
   if(needJson)h["Content-Type"]="application/json";return h}
 function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
@@ -83,11 +84,11 @@ function tstr(t){var d=new Date(t*1000);return ("0"+d.getHours()).slice(-2)+":"+
 function num(v){if(v==null)return "–";var s=""+Math.round(v);
   return s.replace(/([0-9])(?=([0-9]{3})+$)/g,"$1,")}
 function fnum(v,d2){if(v==null||isNaN(v))return "–";var f=Math.pow(10,d2||0);return Math.round(v*f)/f}
-var qfail=0;
+var qfail=0,okrun=0;
 function setGwConn(on){var b=document.getElementById("gwbanner");if(!b)return;
   if(on){b.style.display="none"}
   else{b.style.display="";b.textContent=tt("连不上网关——服务可能没在跑或端口不对，页面会自动重试直到接上","gateway unreachable — service down or wrong port; the page retries automatically")}}
-function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(function(d){qfail=0;setGwConn(true);cb(d)}).catch(function(){if(++qfail>=3)setGwConn(false)})}
+function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(function(d){okrun=Math.min(9,okrun+1);if(okrun>=2){qfail=0;setGwConn(true)}cb(d)}).catch(function(){okrun=0;if(++qfail>=3)setGwConn(false)})}
 function postj(url,obj,cb){fetch(url,{method:"POST",headers:hdrs(true),body:JSON.stringify(obj)})
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})}).then(cb)
   .catch(function(e){say(tt("请求失败: ","request failed: ")+e,"err")})}
@@ -359,7 +360,7 @@ function updateLiveAll(){cardNames.forEach(function(n){
   var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c&&updateLive(c,n))touchDeck()});
   if(deckDirty){deckDirty=false;deckHeight()}}
 function updateLive(card,name){
-  var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
+  var dl=card.querySelector('[data-r=liverows]');if(!dl)return false;
   var b=backendOf(name),info=INFO[name]||{},cfg=info.cfg||{},rows=[];
   function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(String(c))+'</dd></div>')}
   var DASH=tt("—","–");
@@ -381,7 +382,9 @@ function updateLive(card,name){
   row(tt("采样默认","sampling"),(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)?[smp.temperature!=null?("t "+smp.temperature):null,smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "):DASH);
   row(tt("图像输入","vision"),info.images!=null?(info.images?tt("有","yes"):tt("无","no")):DASH);
   row(tt("显存占用","VRAM"),hw&&hw.gpu_mem_used!=null?gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB":DASH);
-  dl.innerHTML=rows.join("");
+  var h=rows.join("");
+  if(dl._h!==h){dl._h=h;dl.innerHTML=h;return true}
+  return false
 }
 var ED_PALETTE=["#48c6d8","#f0679a","#8f7bff","#3ba55d","#f5a623","#e05252","#2f80ed","#a0a6b3"];
 var edAccent="";
@@ -475,25 +478,25 @@ function paint(list){
         ring=card.querySelector('[data-r=ring]'),el=card.querySelector('[data-r=elapsed]'),
         live=card.querySelector('[data-r=live]');
     var willUnload=(st==="loaded");
-    tg.textContent=act2?(act2.op==="load"?tt("开工中…","clocking in…"):tt("下班中…","clocking out…")):(willUnload?tt("下班","Clock out"):tt("开工","Clock in"));
-    tg.className=act2?(act2.op==="load"?"load":"warnbtn"):(willUnload?"warnbtn":"load");
+    setTxt(tg,act2?(act2.op==="load"?tt("开工中…","clocking in…"):tt("下班中…","clocking out…")):(willUnload?tt("下班","Clock out"):tt("开工","Clock in")));
+    var tcls=act2?(act2.op==="load"?"load":"warnbtn"):(willUnload?"warnbtn":"load");
+    if(tg._c!==tcls){tg._c=tcls;tg.className=tcls}
     tg.disabled=(st==="down"||busyNow);
     if(act2){ring.classList.add("on");
       var e0=Math.round((Date.now()-act2.t0)/1000);
-      el.textContent=e0<100?(e0+"s"):(Math.floor(e0/60)+"m"+("0"+(e0%60)).slice(-2)+"s");}
+      setTxt(el,e0<100?(e0+"s"):(Math.floor(e0/60)+"m"+("0"+(e0%60)).slice(-2)+"s"));}
     else ring.classList.remove("on");
     var lv=mon.data&&mon.data.live?mon.data.live:null;
-    if(st==="down")live.textContent=tt("离线","offline");
-    else if(act2)live.textContent=(act2.op==="load"?tt("请上卡","yield ask"):tt("让卡中","yielding"));
-    else if(st==="loaded")live.textContent=(lv&&lv.state==="generating")?(fnum(lv.tok_s,1)+" tok/s"):
-      ((lv&&lv.state==="reading")?tt("读提示词","prompt decode"):tt("静驻","idle resident"));
-    else live.textContent=tt("待加载","not loaded");
+    var ltxt=st==="down"?tt("离线","offline"):act2?(act2.op==="load"?tt("请上卡","yield ask"):tt("让卡中","yielding")):
+      (st==="loaded"?((lv&&lv.state==="generating")?(fnum(lv.tok_s,1)+" tok/s"):
+      ((lv&&lv.state==="reading")?tt("读提示词","prompt decode"):tt("静驻","idle resident"))):tt("待加载","not loaded"));
+    setTxt(live,ltxt);
   });
 }
 function refresh(){
   fetch("router/backends").then(function(r){return r.json()}).then(function(d){
     var list=d.backends||[];modelsList=list;
-    applyLang();syncLangBtn();
+    if(LANG!==appliedLang){applyLang();syncLangBtn()}
     var names=cardNameList();
     if(names.join("|")!==sig){sig=names.join("|");build(names)}
     list.forEach(function(b){
@@ -585,16 +588,19 @@ function renderMonitor(){
   var tb=document.getElementById("mon-tb");
   var hint=document.getElementById("mon-hint");
   bar.style.setProperty("--ac",accentFor(selName||""));
-  chip.className="";det.textContent="";who.textContent=selName?"· "+selName:"";prog.style.width="0";
-  var d=mon.data;
+  var wtxt=selName?"· "+selName:"";if(who._v!==wtxt){who._v=wtxt;who.textContent=wtxt}
+  var d=mon.data,ccls="",ctext="",dtxt="";
   if(!d){
-    chip.textContent=tt("待载入","pending");
-    det.textContent=keyEl.value.trim()?tt("拿不到 /metrics——key 不对，或该后端进程未起。","/metrics unavailable — wrong key, or the backend process is down.")
+    ctext=tt("待载入","pending");
+    dtxt=keyEl.value.trim()?tt("拿不到 /metrics——key 不对，或该后端进程未起。","/metrics unavailable — wrong key, or the backend process is down.")
       :tt("还没填 API key —— 填入后 Monitor 与卡片实时行才会点亮。","no API key yet — set one in the bar above and monitor lights up.");
+    if(chip._c!==ccls){chip._c=ccls;chip.className=ccls}
+    if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
+    if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
-    phTiles();strip.textContent="";
-    tb.innerHTML=phRow().repeat(TROWS);
-    hint.textContent=tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start");
+    phTiles();setTxt(strip,"");
+    var pr0=phRow().repeat(TROWS);if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
+    setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
   }
   document.getElementById("mon-keycta").style.display="none";
@@ -606,25 +612,29 @@ function renderMonitor(){
   if(loaded&&lv.queued>0&&state!=="generating"&&state!=="reading")state="queued";
   var STATE={idle:tt("待机","standby"),reading:tt("读提示词","prompt decode"),generating:tt("生成中","generating"),queued:tt("排队中","queued"),unloaded:tt("已卸载","offloaded"),error:tt("异常","stale")};
   if(!loaded)state="unloaded";
-  chip.textContent=STATE[state]||state;
+  ctext=STATE[state]||state;
+  prog.style.width="0";
   if(state==="generating"){
-    chip.className="gen";
-    det.textContent=num(lv.generated)+" tok · "+fnum(lv.tok_s,1)+" tok/s"+(lv.phase?" · "+lv.phase:"");
+    ccls="gen";
+    dtxt=num(lv.generated)+" tok · "+fnum(lv.tok_s,1)+" tok/s"+(lv.phase?" · "+lv.phase:"");
     if(lv.max_tokens)prog.style.width=Math.min(100,(100*(lv.generated||0))/lv.max_tokens)+"%";
   }else if(state==="reading"){
-    chip.className="reading";
-    if(lv.prompt_total){det.textContent=num(lv.prompt_read)+" / "+num(lv.prompt_total)+" tok · "+Math.round(100*(lv.prompt_read||0)/lv.prompt_total)+"%";
+    ccls="reading";
+    if(lv.prompt_total){dtxt=num(lv.prompt_read)+" / "+num(lv.prompt_total)+" tok · "+Math.round(100*(lv.prompt_read||0)/lv.prompt_total)+"%";
       prog.style.width=Math.min(100,100*(lv.prompt_read||0)/lv.prompt_total)+"%";}
-    else det.textContent=num(lv.prompt_tokens)+" tok";
+    else dtxt=num(lv.prompt_tokens)+" tok";
   }else if(state==="queued"){
-    chip.className="reading";
-    det.textContent=(lv.queued||0)+tt(" 个请求排队 · 先让上一个说完"," queued · let the previous one finish");
+    ccls="reading";
+    dtxt=(lv.queued||0)+tt(" 个请求排队 · 先让上一个说完"," queued · let the previous one finish");
   }else if(state==="idle"){
-    chip.className="idle";
-    det.textContent=last?(tt("上次: ","last: ")+num(last.output_tokens)+" tok · "+fnum(last.decode_tok_s,1)+" tok/s"):tt("等待请求","idle");
+    ccls="idle";
+    dtxt=last?(tt("上次: ","last: ")+num(last.output_tokens)+" tok · "+fnum(last.decode_tok_s,1)+" tok/s"):tt("等待请求","idle");
   }else{
-    det.textContent=tt("引擎未驻留——下方硬件读数仍是实时的（画布出图也在同一块卡上）","engine not resident — the hardware readings below stay live (canvas output shares the same GPU)");
+    dtxt=tt("引擎未驻留——下方硬件读数仍是实时的（画布出图也在同一块卡上）","engine not resident — the hardware readings below stay live (canvas output shares the same GPU)");
   }
+  if(chip._c!==ccls){chip._c=ccls;chip.className=ccls}
+  if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
+  if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
   var decodeAvg=(t.decode_ms&&t.output_tokens)?t.output_tokens/(t.decode_ms/1000):null;
   var readTok=(t.prompt_tokens||0)-(t.reused||0);
   var avgPrefill=(t.prompt_ms>0&&readTok>0)?readTok/(t.prompt_ms/1000):null;
@@ -674,7 +684,8 @@ function renderMonitor(){
     (hw.ram_used!=null?gbf(hw.ram_used,1):"–")+'<small>GB</small></div><div class="sub">'+
     (hw.ram_total?(tt("共 ","total ")+gbf(hw.ram_total,0)+tt(" GB · 水位 "," GB · floor ")+Math.round(rp)+"%"):"–")+'</div>'+
     '<div class="pbar ram'+(rp>92?" hot":"")+'"><i style="width:'+rp.toFixed(1)+'%"></i></div></div>');
-  document.getElementById("mon").innerHTML=tiles.join("");
+  var mt=document.getElementById("mon"),mh=tiles.join("");
+  if(mt._h!==mh){mt._h=mh;mt.innerHTML=mh}
   
   if(t.requests){
     var pS=t.prompt_ms>0&&readTok>0?(" @ "+fnum(readTok/(t.prompt_ms/1000),0)+" tok/s"):"";
@@ -684,9 +695,10 @@ function renderMonitor(){
     var stime=!since||since.getFullYear()<=2020?tt("启动","booted"):LANG==="zh"?
       ((since.getMonth()+1)+"\u6708"+since.getDate()+"\u65e5 "+_hm):
       (since.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+_hm);
-    strip.innerHTML=tt("自 ","since ")+stime+tt(" 起：<b>"," · <b>")+num(t.requests)+tt("</b> 次请求 · 读取 prompt <b>","</b> reqs · prompt reads <b>")+num(readTok)+"</b> tok"+pS+
+    var sh=tt("自 ","since ")+stime+tt(" 起：<b>"," · <b>")+num(t.requests)+tt("</b> 次请求 · 读取 prompt <b>","</b> reqs · prompt reads <b>")+num(readTok)+"</b> tok"+pS+
       tt("（复用 <b>"," (cached <b>")+num(t.reused)+tt("</b>） · 生成 <b>","</b>) · generated <b>")+num(t.output_tokens)+"</b> tok"+oS;
-  }else strip.textContent=tt("本次会话尚无请求——统计从引擎启动起累计","no requests this session — counters run since engine start");
+    if(strip._h!==sh){strip._h=sh;strip.innerHTML=sh}
+  }else setTxt(strip,tt("本次会话尚无请求——统计从引擎启动起累计","no requests this session — counters run since engine start"));
   var rows=[];
   for(var ri=0;ri<TROWS;ri++){
     var r=requests[ri];
@@ -700,8 +712,8 @@ function renderMonitor(){
       '<td>'+num(r.prompt_tokens)+'</td><td>'+num(r.reused)+'</td><td>'+num(r.output_tokens)+'</td>'+
       '<td>'+fnum(pr,0)+'</td><td>'+fnum(r.decode_tok_s,1)+'</td><td>'+hit+'</td><td>'+fnum(r.duration_s,1)+"s</td></tr>");
   }
-  tb.innerHTML=rows.join("");
-  hint.textContent=(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
+  var rh=rows.join("");if(tb._h!==rh){tb._h=rh;tb.innerHTML=rh}
+  setTxt(hint,(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start")));
 }
 function pollMetrics(){
   if(!selName)return;
@@ -884,7 +896,9 @@ function archLink(a,b){
 /*ARCH-PURE-END*/
 
 var I18N=(window.__I18N__&&window.__I18N__.zh)?window.__I18N__:{zh:{},en:{}};
+var appliedLang=null;
 function applyLang(){
+  appliedLang=LANG;
   var _ems=document.querySelectorAll("h2.sec em");
   for(var _ei=0;_ei<_ems.length;_ei++)_ems[_ei].style.display=LANG==="en"?"none":"";
   var dict=I18N[LANG]||I18N.zh;
@@ -912,6 +926,9 @@ function renderArch(backends){
   var g=document.getElementById("archsvg");if(!g)return;
   var li=LASTINFO||{},app=li.app||{},bd=li.build||{};
   var port="";try{var pm=document.querySelector('meta[name="strata-gw-port"]');if(pm)port=pm.content}catch(e){}
+  var asig=LANG+"|"+port+"|"+(backends||[]).map(function(b){return b.model+(b.loaded?"L":"")+(b.alive?"A":"")+":"+b.port+":"+cardNick(b.model)}).join(",")+"|"+((li.app||{}).version||"")+"|"+(LASTGPU?LASTGPU.free+"/"+LASTGPU.total:"-");
+  if(g.getAttribute("data-sig")===asig)return;
+  g.setAttribute("data-sig",asig);
   var cards=dgBackends((backends||[]).map(function(b){
     var info=(li.models||{})[b.model]||{},cfg=info.cfg||{};
     return {model:b.model,nick:cardNick(b.model)||b.model,port:b.port,
@@ -1022,17 +1039,17 @@ function fetchGpu(){
     var busy=!!fr;
     cfree.disabled=!c.running||busy;
     cforce.disabled=!c.running||busy;
-    cfree.textContent=(busy&&fr.op==="gentle")?(tt("让卡中… ","yielding… ")+fr.elapsed_s+"s"):tt("让卡","Yield VRAM");
-    cforce.textContent=(busy&&fr.op==="force")?(tt("强制让卡中… ","forcing yield… ")+fr.elapsed_s+"s"):tt("强制让卡","Force yield");
+    setTxt(cfree,(busy&&fr.op==="gentle")?(tt("让卡中… ","yielding… ")+fr.elapsed_s+"s"):tt("让卡","Yield VRAM"));
+    setTxt(cforce,(busy&&fr.op==="force")?(tt("强制让卡中… ","forcing yield… ")+fr.elapsed_s+"s"):tt("强制让卡","Force yield"));
     cfree.classList.toggle("busy",busy&&fr.op==="gentle");
     cforce.classList.toggle("busy",busy&&fr.op==="force");
-    if(!c.running){lab.textContent=tt("未运行","not running");bar.style.width="100%";return}
+    if(!c.running){setTxt(lab,tt("未运行","not running"));bar.style.width="100%";return}
     var total=c.vram_total_mib||0,free=c.vram_free_mib||0;
     if(total)bar.style.width=Math.round(free/total*100)+"%";
     function g(v){return(v/1024).toFixed(1)+tt(" GiB 空"," GiB free")}
     var st=free>=(c.free_target_mib||0)?tt("空闲 · ","idle · "):(busy?tt("清理中 · ","cleaning · "):tt("出图占用 · ","image job · "));
     LASTGPU={free:free,total:total};
-    lab.textContent=st+g(free);
+    setTxt(lab,st+g(free));
   }).catch(function(){});
 }
 
@@ -1086,7 +1103,11 @@ if(!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches))
     for(var i=0;i<n;i++)P.push({x:Math.random()*W,y:Math.random()*H,
       vx:(Math.random()-.5)*.16*DPR,vy:(Math.random()-.5)*.16*DPR,r:Math.random()*1.6+.5})}
   size();addEventListener("resize",size);
+  var FRAME=33,lastFrame=0;
   (function tick(){
+    requestAnimationFrame(tick);
+    if(document.hidden)return;
+    var now=Date.now();if(now-lastFrame<FRAME)return;lastFrame=now;
     cx.clearRect(0,0,W,H);
     var acc=root.dataset.theme==="light"?"14,116,144":"94,234,212";
     for(var i=0;i<P.length;i++){
@@ -1101,7 +1122,6 @@ if(!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches))
           cx.lineWidth=DPR*.6;cx.stroke()}
       }
     }
-    requestAnimationFrame(tick);
   })();
 }
 })();

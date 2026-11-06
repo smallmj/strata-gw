@@ -237,4 +237,25 @@ ok("max-width:76ch" not in css and "max-width:74ch" not in css,
 ok("margin:0 70px" in css and "translateX(40px)" in css and "translateX(98px)" in css,
    "K26k deck centered: symmetric 70px gutters, layered peeks kept")
 
+# ---- K27 (flicker annihilation): 2s polling must not repaint anything unless
+# the content actually changed; rebuilds are signature-gated, DOM writes are
+# diff-gated, banner + fx canvas never strobe under model load ----
+ok('if(dl._h!==h){dl._h=h;dl.innerHTML=h;return true}' in js,
+   "K27a live spec rows rewritten only when changed")
+ok('g.getAttribute("data-sig")===asig' in js and 'g.setAttribute("data-sig",asig)' in js,
+   "K27b architecture svg rebuilt only on data/language change")
+ok('if(mt._h!==mh){mt._h=mh;mt.innerHTML=mh}' in js,
+   "K27c monitor tile grid rewritten only on change")
+ok('if(tb._h!==rh){tb._h=rh;tb.innerHTML=rh}' in js,
+   "K27d request table rewritten only on change")
+ok('if(chip._c!==ccls){chip._c=ccls;chip.className=ccls}' in js
+   and 'chip.className="";det.textContent=""' not in js,
+   "K27e monitor chip class never wiped and re-added — transition strobe killed")
+ok("LANG!==appliedLang" in js and "appliedLang=LANG" in js,
+   "K27f full i18n sweep runs on language change, not every poll")
+ok("okrun>=2" in js, "K27g gateway banner clears only after two clean polls — never flaps")
+ok("now-lastFrame<FRAME" in js and "document.hidden" in js,
+   "K27h fx canvas capped ~30fps and paused when the tab is hidden")
+ok("function setTxt" in js, "K27i text writes diff-gated through one helper")
+
 sys.exit(0 if not F else 1)
