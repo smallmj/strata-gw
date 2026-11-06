@@ -26,19 +26,29 @@
   <button class="cbtn" id="keychip" data-i18n="ui.keyno" data-i18n-title="ui.keychipnote" title="Strata token：在右上角 ⚙ 设置里输入，页面即可连接本机模型">🔑 未设 Token</button>
   <button class="gearbtn" id="setgear" data-i18n-title="ui.setstit" title="设置：Token · 语言 · 视频 · 桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.39,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,7.29C8.66,7.05,8.12,6.74,7.63,6.36L5.24,5.4c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.94C2.62,9.14,2.66,9.41,2.84,9.55l2.03,1.58C4.82,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></button>
   <div id="setpop" style="display:none">
-    <div class="popsec"><b data-i18n="set.keysec">Strata Token</b><em>API KEY</em></div>
+    <div class="sec">
+      <div class="popsec"><b data-i18n="set.keysec">Strata Token</b><em>API KEY</em></div>
+      <p class="pnote" data-i18n="ui.keychipnote">填了这把 token，页面才能连上本机模型；与 web UI About>Settings 同一把，只存本浏览器</p>
     <div class="poprow keyrow"><input id="key" type="password" size="11" autocomplete="off" placeholder="sk-..." data-i18n-title="set.keynote" title="与 web UI About&gt;Settings 同一把，只存本浏览器。"><button class="cbtn" id="save" data-i18n="ui.save">保存</button></div>
-    <div class="popsec"><b data-i18n="set.medisec">语言与媒体</b><em>LANG · VIDEO</em></div>
+    </div>
+    <div class="sec">
+      <div class="popsec"><b data-i18n="set.medisec">语言与媒体</b><em>LANG · VIDEO</em></div>
     <div class="poprow"><button class="tbtn" id="langbtn" title="切换语言 / Switch language">中 / EN</button></div>
     <div class="poprow"><div class="seg" id="seg-bg" data-i18n-title="ui.videotit" title="本页背景视频"><button data-bg="off" data-i18n="ui.voff">关闭</button><button data-bg="bg" data-i18n="ui.vbg">背景</button><button data-bg="solo" data-i18n="ui.vsolo">单独</button></div><button class="cbtn" id="vid-sound" data-i18n-title="ui.soundtit" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button></div>
+    </div>
+    <div class="sec">
     <div class="popsec"><b data-i18n="set.pet">桌宠</b><em>DESKTOP PET</em></div>
     <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab" data-i18n="set.petshow">显示桌宠</span></div>
     <div class="poprow"><span class="plab" data-i18n="set.petsize">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
+    </div>
+    <div class="sec lite">
     <div class="poprow"><a class="ghico" href="__GITHUB_URL__" target="_blank" rel="noopener" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg></a><span class="plab" data-i18n="ui.git">项目主页 GitHub</span></div>
+    </div>
     <div class="pfoot" data-i18n="set.foot">状态每 2 秒自动刷新（页内各节）· web UI 入口在 hero 链接与本页各处</div>
   </div>
 </header>
 
+<div id="gwbanner" style="display:none"></div>
 <div class="hero">
   <p data-i18n-html="pg.hero">一块本地 GPU · 若干本地量化档位 · 一个把加载换装、显存腾让、监控和特训都收进一页的本地推理网关 —— 这就是 Strata。</p>
   <div class="chips" id="herochips"><span data-i18n="ui.chip1">本地量化档位</span><span data-i18n="ui.chip2">上下文可扩</span><span data-i18n="ui.chip3">专家动态路由</span><span data-i18n="ui.chip4">投机解码加速</span><span data-i18n="ui.chip5">Vision 图像输入</span><span data-i18n="ui.chip6">外部显存可让卡</span></div>
@@ -129,9 +139,10 @@
   <div id="petmenu" style="display:none"><button id="pm-art" data-i18n="pet.art">换图</button><button id="pm-hide" data-i18n="pet.hide">隐藏</button></div>
 </div>
 <div id="petchat">
-  <div class="pc-head"><b id="pc-title" data-i18n="pet.chat">和驻留模型聊聊</b><button id="pc-close" data-i18n-title="ui.close" title="关闭">×</button></div>
+  <div class="pc-head"><b id="pc-title" data-i18n="pet.chat">和驻留模型聊聊</b><span id="pc-model"></span><button id="pc-close" data-i18n-title="ui.close" title="关闭">×</button></div>
+  <div id="pc-log"></div>
+  <form id="pc-form" autocomplete="off"><input id="pc-in" maxlength="2000" data-i18n-ph="pet.ask" placeholder="说点什么…"><button class="primary" id="pc-send" type="submit" data-i18n="pet.send">发送</button></form>
   <div id="pc-note"><p data-i18n="pet.needload">先让一位特工开工才能聊（在卡片上点「开工」）</p></div>
-  <iframe id="ptf" title="chat with the resident model" src="about:blank"></iframe>
 </div>
 <script src="i18n.js"></script>
 <script src="app.js"></script>

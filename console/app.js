@@ -83,7 +83,11 @@ function tstr(t){var d=new Date(t*1000);return ("0"+d.getHours()).slice(-2)+":"+
 function num(v){if(v==null)return "–";var s=""+Math.round(v);
   return s.replace(/([0-9])(?=([0-9]{3})+$)/g,"$1,")}
 function fnum(v,d2){if(v==null||isNaN(v))return "–";var f=Math.pow(10,d2||0);return Math.round(v*f)/f}
-function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(cb).catch(function(){})}
+var qfail=0;
+function setGwConn(on){var b=document.getElementById("gwbanner");if(!b)return;
+  if(on){b.style.display="none"}
+  else{b.style.display="";b.textContent=tt("连不上网关——服务可能没在跑或端口不对，页面会自动重试直到接上","gateway unreachable — service down or wrong port; the page retries automatically")}}
+function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(function(d){qfail=0;setGwConn(true);cb(d)}).catch(function(){if(++qfail>=3)setGwConn(false)})}
 function postj(url,obj,cb){fetch(url,{method:"POST",headers:hdrs(true),body:JSON.stringify(obj)})
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})}).then(cb)
   .catch(function(e){say(tt("请求失败: ","request failed: ")+e,"err")})}
@@ -257,12 +261,12 @@ artInput.onchange=function(){
   },{passive:true});
 /* ---------- Phase 7: desktop pet + chat window ---------- */
 var petStage=document.getElementById("petstage"),petImg=document.getElementById("petimg"),
-    petChat=document.getElementById("petchat"),ptf=document.getElementById("ptf"),
+    petChat=document.getElementById("petchat"),
     pcNote=document.getElementById("pc-note"),petMenu=document.getElementById("petmenu"),
     petBreath=document.getElementById("petbreath"),
     petPos=null;
 try{petPos=JSON.parse(localStorage.getItem("stratagw.petpos"))||null}catch(e){petPos=null}
-function closeChat(){petChat.style.display="none";ptf.src="about:blank"}
+function closeChat(){petChat.style.display="none"}
 window.STRATA_PET={apply:function(on,size){petStage.style.display=on?"block":"none";petImg.style.height=size+"px";if(!on)closeChat();if(on)placePet()}};
 window.PETUI={art:function(){if(CARDS&&CARDS._pet&&CARDS._pet.art)petImg.src=CARDS._pet.art},
   state:function(resident){petStage.classList[resident?"add":"remove"]("resident")}};
@@ -292,14 +296,45 @@ function petAnchor(){var w=Math.min(420,Math.round(innerWidth*0.92)),h=Math.min(
   petChat.style.width=w+"px";petChat.style.height=h+"px"}
 function toggleChat(){if(petChat.style.display==="flex"){closeChat();return}openChat()}
 function openChat(){petAnchor();petChat.style.display="flex";
-  var loadedNow=null;
-  for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded){loadedNow=modelsList[i].model;break}}
-  if(loadedNow){pcNote.style.display="none";ptf.src="/"}
-  else{pcNote.style.display="flex";ptf.src="about:blank"}}
+  var live=liveModel();
+  if(live){pcNote.style.display="none";chatCtl.style.display="";
+    document.getElementById("pc-model").textContent=live.nick;
+    if(chatModel!==live.model){chatModel=live.model;chatMsgs=[];renderChatLog()}
+    var inp=document.getElementById("pc-in");if(inp)inp.focus()}
+  else{pcNote.style.display="flex";chatCtl.style.display="none"}}
 document.getElementById("pc-close").onclick=closeChat;
-ptf.addEventListener("load",function(){if(ptf.src.indexOf("about:blank")>=0)return;
-  try{var pth=ptf.contentWindow.location.pathname;
-    if(pth==="/gateway"){ptf.src="about:blank";pcNote.style.display="flex"}}catch(e){}});
+var chatCtl=document.getElementById("pc-form"),chatModel=null,chatMsgs=[],chatBusy=false;
+function liveModel(){for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded)
+    return{model:modelsList[i].model,nick:cardNick(modelsList[i].model)||modelsList[i].model}}return null}
+function renderChatLog(){var el=document.getElementById("pc-log");
+  el.innerHTML=chatMsgs.map(function(m){return '<div class="cm '+m.role+'">'+esc(m.text)+"</div>"}).join("");
+  el.scrollTop=el.scrollHeight}
+function sendChat(){var inp=document.getElementById("pc-in"),q=inp.value.trim();
+  if(!q||chatBusy||!chatModel)return;inp.value="";
+  chatMsgs.push({role:"user",text:q});chatMsgs.push({role:"assistant",text:""});renderChatLog();chatBusy=true;
+  fetch("v1/chat/completions",{method:"POST",headers:hdrs(true),
+    body:JSON.stringify({model:chatModel,stream:true,
+      messages:[{role:"system",content:tt("你就是这款模型本人，正以小窗陪主人闲聊：口语化、简短（三句以内）、别卖弄术语。","you ARE this model, chatting in a compact window: conversational, brief (max 3 sentences), no jargon.")}]
+        .concat(chatMsgs.slice(0,-1).map(function(m){return{role:m.role,content:m.text}}))})})
+  .then(function(r){if(!r.ok||!r.body)return Promise.reject("HTTP "+r.status);
+    var rd=r.body.getReader(),dec=new TextDecoder(),buf="";
+    function pump(){return rd.read().then(function(x){if(x.done)return;
+      buf+=dec.decode(x.value,{stream:true});var lines=buf.split("\n");buf=lines.pop();
+      lines.forEach(function(ln){ln=ln.trim();if(ln.indexOf("data:")!==0)return;
+        var p=ln.slice(5).trim();if(!p||p==="[DONE]")return;
+        try{var j2=JSON.parse(p),ch=j2.choices&&j2.choices[0];
+          if(ch&&ch.delta&&ch.delta.content){chatMsgs[chatMsgs.length-1].text+=ch.delta.content;renderChatLog()}}catch(e){}});
+      return pump()})}
+    return pump()})
+  .then(function(){chatBusy=false;
+    var last=chatMsgs[chatMsgs.length-1];
+    if(last&&last.role==="assistant"&&!last.text)last.text=tt("（没有回复）","(empty reply)");
+    renderChatLog()})
+  .catch(function(e){chatBusy=false;
+    var last=chatMsgs[chatMsgs.length-1];
+    if(last&&last.role==="assistant")last.text=tt("接不上了：","send failed: ")+e;
+    renderChatLog()})}
+chatCtl.addEventListener("submit",function(e){e.preventDefault();sendChat()});
 window.STRATA_PET.apply(petOn,petSize);
 
 })();
@@ -495,7 +530,11 @@ function act(op,name){
         say(op+" "+name+tt(" 失败 HTTP "," failed HTTP ")+rj[0]+" "+((rj[1].error&&rj[1].error.message)||""),"err");
         refresh()}
     })
-    .catch(function(e){delete ops[name];say(op+" "+name+tt(" 失败: "," failed: ")+e,"err");refresh()});
+    .catch(function(e){delete ops[name];
+      var msg=(e instanceof TypeError)
+        ?tt("连不上网关（服务没在跑？双击 start-gw 启动后本按钮会自动可用）","gateway unreachable (is the service running?)")
+        :String(e);
+      say((op==="load"?tt("开工","Clock in"):tt("下班","Clock out"))+" "+(cardNick(name)||name)+tt(" 失败: "," failed: ")+msg,"err");refresh()});
 }
 
 /* ---------------- monitor ---------------- */

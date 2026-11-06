@@ -30,7 +30,7 @@ try:
     # ---- P1/P2: DOM contract on the page ----
     s, page = gw.req("GET", "/gateway")
     ok(s == 200, "P1a /gateway 200")
-    for frag in ('id="petstage"', 'id="petchat"', 'id="petimg"', 'id="ptf"', 'id="pc-close"'):
+    for frag in ('id="petstage"', 'id="petchat"', 'id="petimg"', 'id="pc-log"', 'id="pc-close"'):
         ok(frag in page, "P1 " + frag + " present")
     ok("router/assets/pet.png" in page, "P2 pet src ships pointing at the example art")
 
@@ -57,8 +57,9 @@ try:
        "P5 pet position persisted + prefs hook exported")
     ok(">8" in app or "8)" in app.replace(" ", ""),
        "P6 drag threshold 8px (move vs click)")
-    ok('ptf.src' in app and "loaded" in app,
-       "P7 chat iframe gated on a loaded backend")
+    _pet_html = open(os.path.join(REPO, "console", "index.html"), encoding="utf-8").read()
+    ok("sendChat" in app and "v1/chat/completions" in app and "<iframe" not in _pet_html,
+       "P7 native chat window posting to /v1/chat/completions — no webUI iframe")
     ok("pc-note" in app and "pc-load" not in app and "pcLoad" not in app,
        "P7b pet chat is chat-only: the official webUI iframe, no load button bolted on (master v8)")
     css = open(os.path.join(REPO, "console", "style.css"), encoding="utf-8").read()
@@ -68,7 +69,7 @@ try:
     ok("#petimg" in css[css.index("@media (prefers-reduced-motion"):]
        if "@media (prefers-reduced-motion" in css else False,
        "P8c reduced-motion kills the sway")
-    ok("#petchat" in css and "#ptf" in css, "P8d chat panel styled")
+    ok("#petchat" in css and "#pc-log" in css and "#ptf" not in css, "P8d chat panel styled")
 finally:
     gw.close()
 
