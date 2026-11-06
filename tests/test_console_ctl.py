@@ -258,4 +258,21 @@ ok("now-lastFrame<FRAME" in js and "document.hidden" in js,
    "K27h fx canvas capped ~30fps and paused when the tab is hidden")
 ok("function setTxt" in js, "K27i text writes diff-gated through one helper")
 
+# ---- K28 (master review v10b): pet chat must be clearable; the top VRAM chip
+# speaks about THIS card with honest numbers, bar = real free VRAM ----
+ok('id="pc-new"' in html and 'getElementById("pc-new")' in js and
+   'chatMsgs=[];renderChatLog()' in js,
+   "K28a new-chat button clears the pet chat log")
+ok('"pet.newchat"' in i18njs and 'data-i18n-title="pet.newchat"' in html,
+   "K28b new-chat tooltip localized")
+ok('"gpu.name": "显存占用"' in i18njs and '"gpu.name": "VRAM use"' in i18njs
+   and '>外部显存</span>' not in html,
+   "K28c top-bar label is 显存占用 — the ambiguous 外部显存 wording retires from the bar")
+ok('tt("未运行"' not in js
+   and 'bar.style.width="100%";return}' not in js
+   and 'LASTGPU=c.running?{free:free,total:total}:null;' in js,
+   "K28d no fake full bar when the holder is off: real smi numbers drive it; arch keeps holder-only data")
+ok('data-i18n-title="gpu.holdtit"' in html and '"gpu.holdtit"' in i18njs,
+   "K28e the strip explains in its tooltip what the bar actually measures")
+
 sys.exit(0 if not F else 1)

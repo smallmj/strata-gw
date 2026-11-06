@@ -453,6 +453,10 @@ details.drawer .dbody .ptitle{display:none}
 #pc-close{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:transparent;
   color:var(--muted);cursor:pointer;font-size:.9rem;line-height:1}
 #pc-close:hover{color:var(--fg);border-color:var(--s)}
+#pc-new{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:transparent;
+  color:var(--muted);cursor:pointer;display:grid;place-items:center}
+#pc-new svg{width:14px;height:14px;fill:currentColor}
+#pc-new:hover{color:var(--q);border-color:var(--q)}
 #pc-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px;min-height:150px}
 .cm{max-width:86%;padding:.5rem .75rem;border-radius:12px;font-size:.8rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}
 .cm.user{align-self:flex-end;background:color-mix(in srgb,var(--ac) 20%,var(--card));border:1px solid var(--ac)}

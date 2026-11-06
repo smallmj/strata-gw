@@ -304,6 +304,7 @@ function openChat(){petAnchor();petChat.style.display="flex";
     var inp=document.getElementById("pc-in");if(inp)inp.focus()}
   else{pcNote.style.display="flex";chatCtl.style.display="none"}}
 document.getElementById("pc-close").onclick=closeChat;
+document.getElementById("pc-new").onclick=function(){chatMsgs=[];renderChatLog();var i2=document.getElementById("pc-in");if(i2)i2.focus()};
 var chatCtl=document.getElementById("pc-form"),chatModel=null,chatMsgs=[],chatBusy=false;
 function liveModel(){for(var i=0;i<modelsList.length;i++){if(modelsList[i].loaded)
     return{model:modelsList[i].model,nick:cardNick(modelsList[i].model)||modelsList[i].model}}return null}
@@ -1043,13 +1044,14 @@ function fetchGpu(){
     setTxt(cforce,(busy&&fr.op==="force")?(tt("强制让卡中… ","forcing yield… ")+fr.elapsed_s+"s"):tt("强制让卡","Force yield"));
     cfree.classList.toggle("busy",busy&&fr.op==="gentle");
     cforce.classList.toggle("busy",busy&&fr.op==="force");
-    if(!c.running){setTxt(lab,tt("未运行","not running"));bar.style.width="100%";return}
+    // the strip speaks about THIS GPU: bar length = real free VRAM (image
+    // service reading when present, else nvidia-smi), label = honest used/total
     var total=c.vram_total_mib||0,free=c.vram_free_mib||0;
-    if(total)bar.style.width=Math.round(free/total*100)+"%";
-    function g(v){return(v/1024).toFixed(1)+tt(" GiB 空"," GiB free")}
-    var st=free>=(c.free_target_mib||0)?tt("空闲 · ","idle · "):(busy?tt("清理中 · ","cleaning · "):tt("出图占用 · ","image job · "));
-    LASTGPU={free:free,total:total};
-    setTxt(lab,st+g(free));
+    LASTGPU=c.running?{free:free,total:total}:null;
+    if(total&&free<=total){
+      bar.style.width=Math.round(free/total*100)+"%";
+      setTxt(lab,tt("已用 ","used ")+((total-free)/1024).toFixed(1)+" / "+(total/1024).toFixed(1)+" GB");
+    }else setTxt(lab,tt("检测中…","reading…"));
   }).catch(function(){});
 }
 
