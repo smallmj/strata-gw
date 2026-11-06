@@ -461,6 +461,12 @@ details.drawer .dbody .ptitle{display:none}
 #ctlbar .seg{height:24px}
 #ctlbar #gpuhold{height:24px;padding:.1rem .6rem;box-sizing:border-box;align-items:center}
 #ctlbar #gpuhold .bar{height:4px}
+#ctlbar .keybox{display:inline-flex;align-items:center;gap:6px}
+#ctlbar .keybox input{height:24px;box-sizing:border-box;padding:0 .6rem;border-radius:8px;
+  border:1px solid var(--line);background:rgba(148,163,184,.08);color:var(--fg);font-size:.72rem;width:150px}
+#ctlbar .keybox input:focus{border-color:var(--q)}
+#ctlbar .keybox.flash input{border-color:var(--q);box-shadow:0 0 0 3px color-mix(in srgb,var(--q) 25%,transparent)}
+@media (max-width:1280px){#ctlbar .keybox input{width:96px}}
 
 /* ---- ux v7 K15: deck = one solid card in view, neighbours peek 44px, slides on switch ---- */
 #cards .page{position:absolute;top:0;left:0;width:100%;

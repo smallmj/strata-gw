@@ -57,6 +57,13 @@ try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
 document.getElementById("save").onclick=function(){
   try{localStorage.setItem("stratagw.key",keyEl.value.trim())}catch(e){}
   say(tt("key 已保存在本浏览器。","key saved in this browser."),"");
+  pollMetrics();
+};
+document.getElementById("mon-keycta").onclick=function(){
+  keyEl.focus();
+  var kb=document.querySelector("#ctlbar .keybox");if(!kb)return;
+  kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
+  setTimeout(function(){kb.classList.remove("flash")},1600);
 };
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
 function hdrs(needJson){var h={};var k=keyEl.value.trim();if(k)h.Authorization="Bearer "+k;
@@ -507,12 +514,15 @@ function renderMonitor(){
   var d=mon.data;
   if(!d){
     chip.textContent=tt("待载入","pending");
-    det.textContent=tt("拿不到 /metrics——多半是页脚 api key 没填，或该后端进程未起","/metrics unavailable — set the footer api key, or check that the backend is running");
+    det.textContent=keyEl.value.trim()?tt("拿不到 /metrics——key 不对，或该后端进程未起。","/metrics unavailable — wrong key, or the backend process is down.")
+      :tt("还没填 API key —— 填入后 Monitor 与卡片实时行才会点亮。","no API key yet — set one in the bar above and monitor lights up.");
+    document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
     phTiles();strip.textContent="";
     tb.innerHTML=phRow().repeat(TROWS);
     hint.textContent=tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start");
     return;
   }
+  document.getElementById("mon-keycta").style.display="none";
   var eng=d.engine||{},lv=d.live||{},hw=d.hardware||{},st=d.hardware_static||{},
       h=d.history||{},t=d.totals||{};
   var requests=d.requests||[],last=requests[0]||null;

@@ -37,11 +37,12 @@ ok('id="gwver"' in bar and "v__VERSION__" in bar,
    "K6 version chip uses the __VERSION__ placeholder")
 ok('href="__GITHUB_URL__"' in bar, "K6 GitHub anchor uses __GITHUB_URL__")
 
-# ---- K7: settings popover (API key + pet controls) --------------------------
+# ---- K7: settings popover keeps pet controls; the API key moved to the bar ----
 ok('id="setpop"' in html, "K7 settings popover #setpop present")
 sp_i = html.find('id="setpop"')
 sp = html[sp_i:sp_i + 1600] if sp_i >= 0 else ""
-ok('id="key"' in sp and 'id="save"' in sp, "K7b API key input+save inside popover")
+ok('id="key"' in bar and 'id="save"' in bar and 'id="key"' not in sp,
+   "K7b API key input+save live on the bar, not in the popover")
 ok('id="pet-toggle"' in sp, "K7c desktop-pet toggle in popover")
 ok('id="pet-size"' in sp and 'min="80"' in sp and 'max="220"' in sp,
    "K7d pet size slider 80-220 in popover")
@@ -119,6 +120,14 @@ ok('collectSampling' in js and 'collectConfig' in js and '已保存' in js,
    "K18e one save for both zones + saved toast")
 ok('.cback' in css and 'rotateY(180deg)' in css and 'backface-visibility' in css,
    "K18f flip css present")
+
+# ---- K19 (ux v7): api key pinned to the control bar; monitor guides the missing key ----
+ok('class="keybox"' in html and html.index('class="keybox"') < html.index("</header>"),
+   "K19a key box inside the sticky control bar")
+ok('id="mon-keycta"' in html and 'mon.keycta' in i18njs, "K19b monitor key CTA + i18n key")
+ok('"页脚' not in js and "footer api key" not in js, "K19c stale footer-key wording gone")
+ok('mon-keycta' in js and js.count("pollMetrics()")>=3, "K19d CTA wired + key save re-polls")
+ok(".keybox" in css and "flash" in css, "K19e keybox css with focus flash")
 
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")

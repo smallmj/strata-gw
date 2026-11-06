@@ -28,11 +28,10 @@
   <button class="cbtn" id="vid-sound" data-i18n-title="ui.soundtit" title="开=视频带原声（浏览器要求先点过页面才会出声）；关=静音">声音: 关</button>
   <div id="gpuhold"><span class="gh-name" data-i18n="gpu.name">外部显存</span><span class="bar"><i></i></span><b>检测中…</b><button class="cbtn" id="gfree" data-i18n-title="gpu.freetit" title="发 /free 并确证显存读数下降；不打断正在跑的任务" data-i18n="gpu.free">让卡</button><button class="cbtn danger" id="gforce" data-i18n-title="gpu.forcetit" title="先打断任务、清空队列，再释放显存并等到让卡" data-i18n="gpu.forcet">强制让卡</button></div>
   <button class="verchip" id="gwver" data-i18n-title="ui.builtdtit" title="点开看引擎构建信息">v__VERSION__</button>
+  <div class="keybox"><input id="key" type="password" size="14" autocomplete="off" placeholder="sk-..." data-i18n-title="set.keynote" title="与 web UI About&gt;Settings 同一把，只存本浏览器。"><button class="cbtn" id="save" data-i18n="ui.save">保存</button></div>
   <a class="ghico" href="__GITHUB_URL__" target="_blank" rel="noopener" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg></a>
-  <button class="gearbtn" id="setgear" data-i18n-title="ui.setstit" title="设置：API key · 桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5c0 .5-.05 1-.13 1.47l1.66 1.2-1.7 2.94-1.9-.66a8 8 0 0 1-2 1.16l-.29 2.03h-3.4l-.29-2.03a8 8 0 0 1-2-1.16l-1.9.66-1.7-2.94 1.66-1.2A8 8 0 0 1 3.87 12c0-.5.05-1 .13-1.47l-1.66-1.2 1.7-2.94 1.9.66a8 8 0 0 1 2-1.16l.29-2.03h3.4l.29 2.03a8 8 0 0 1 2 1.16l1.9-.66 1.7 2.94-1.66 1.2c.08.47.13.97.13 1.47Z"/></svg></button>
+  <button class="gearbtn" id="setgear" data-i18n-title="ui.setstit" title="设置：桌宠" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5c0 .5-.05 1-.13 1.47l1.66 1.2-1.7 2.94-1.9-.66a8 8 0 0 1-2 1.16l-.29 2.03h-3.4l-.29-2.03a8 8 0 0 1-2-1.16l-1.9.66-1.7-2.94 1.66-1.2A8 8 0 0 1 3.87 12c0-.5.05-1 .13-1.47l-1.66-1.2 1.7-2.94 1.9.66a8 8 0 0 1 2-1.16l.29-2.03h3.4l.29 2.03a8 8 0 0 1 2 1.16l1.9-.66 1.7 2.94-1.66 1.2c.08.47.13.97.13 1.47Z"/></svg></button>
   <div id="setpop" style="display:none">
-    <div class="popsec"><b>API key</b><span class="pnote" data-i18n="set.keynote">与 web UI About&gt;Settings 同一把，只存本浏览器。</span></div>
-    <div class="poprow"><input id="key" type="password" size="22" autocomplete="off" placeholder="sk-..."><button id="save" data-i18n="ui.save">保存</button></div>
     <div class="popsec"><b data-i18n="set.pet">桌宠</b><em>DESKTOP PET</em></div>
     <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab" data-i18n="set.petshow">显示桌宠</span></div>
     <div class="poprow"><span class="plab" data-i18n="set.petsize">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
@@ -64,6 +63,7 @@
 <div class="monstate" id="mon-bar" style="--ac:var(--q)">
   <span id="mon-chip">—</span><span id="mon-who"></span><span id="mon-detail"></span>
   <span id="mon-prog"><i></i></span>
+  <button class="cbtn" id="mon-keycta" data-i18n="mon.keycta" style="display:none">填 API key</button>
 </div>
 <div id="mon"></div>
 <p id="mon-strip"></p>
