@@ -927,11 +927,12 @@ function renderArch(backends){
   var cl=archBox(16,Math.round((H-clP.h)/2),"cl",tt("客户端","Clients"),["/v1/chat/completions",tt("任意 OpenAI 兼容端","any OpenAI-compatible"),tt("Hermes · 酒馆 · 脚本","Hermes · tavern · scripts")]);
   var gw=archBox(232,Math.round((H-gwP.h)/2),"gw","STRATA GW",gwS);
   var ms=[],y=44;
-  cards.forEach(function(c){
-    if(c.card){var subs=[(c.quant||"?")+" · "+(c.max_context?Math.round(c.max_context/1024)+"K":"?"),
-      tt("状态","state")+": "+(c.loaded?tt("在位","live"):(c.alive?tt("待命","standby"):tt("离线","offline")))];
+  cards.forEach(function(entry){
+    if(entry.card){var c=entry.card;
+      var subs=[(c.quant||"?")+" · "+(c.max_context?Math.round(c.max_context/1024)+"K":"?"),
+        tt("状态","state")+": "+(c.loaded?tt("在位","on post"):(c.alive?tt("待命","standby"):tt("失联","dark")))];
       ms.push(archBox(474,y,"be",c.nick,subs));y+=90;}
-    else if(c.more)ms.push({x:474,y:y,w:80,h:20,svg:'<text class="as" x="474" y="'+(y+8)+'">'+dgEsc(tt("还有","+"))+c.more+" …</text>"});
+    else if(entry.more)ms.push({x:474,y:y,w:80,h:20,svg:'<text class="as" x="474" y="'+(y+8)+'">'+dgEsc(tt("arch.more","plus"))+" "+entry.more+" …</text>"});
   });
   var ext=archBox(232,Math.min(H-84,gw.y+gw.h+26),"ext",tt("外部显存占用者","external VRAM holder"),
     LASTGPU?[gbf(LASTGPU.free*1048576,1)+" GB "+tt("空闲","free"),tt("出图服务在场","holder online")]

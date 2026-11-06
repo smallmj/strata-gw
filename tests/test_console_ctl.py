@@ -188,6 +188,12 @@ ok('cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default"' in js,
    "K25c unset reasoning renders as 'default', never a dash")
 ok('position:sticky;bottom:8px;align-self:flex-end' in css and 'back-close' in css,
    "K25d the resume button sits at the sheet bottom, clear of the drawers")
+ok('setGwConn' in js and 'id="gwbanner"' in html and 'e instanceof TypeError' in js,
+   "K25e dead gateway shows a retrying banner, never a raw 'Failed to fetch'")
+ok('if(entry.card){var c=entry.card;' in js and 'archBox(474,y,"be",c.nick,subs)' in js,
+   "K25f renderArch unpacks dgBackends {card:...} wrapper — titles never 'undefined'")
+ok('"STRATA_ROUTER_PORT", "18075"' in open(os.path.join(ROOT,"gw","config.py"),encoding="utf-8").read(),
+   "K25g open-source default port is 18075 — legacy 18080 untouched (master iron rule)")
 ok("grid-template-columns:1fr 1fr" in css, "K17h two-column rows on wide screens")
 
 # ---- K24 (ux v8): training page = drawers for every section + tag/bio edit
