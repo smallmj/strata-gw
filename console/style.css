@@ -148,8 +148,8 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
 .cback [data-r=back-close]{float:right;margin:0 0 6px 10px}
 #train-form{width:100%}
 .dhead{margin:0 0 12px}
-.dtitle{display:block;font-size:.82rem;font-weight:800;letter-spacing:.42em;color:var(--ac)}
-.dnick{margin:6px 0 0;font-size:1.3rem;line-height:1.25;font-weight:700;overflow-wrap:anywhere}
+.dtitle{display:block;font-size:1.05rem;font-weight:800;letter-spacing:.4em;color:var(--ac)}
+.dnick{margin:6px 0 0;font-size:1.45rem;line-height:1.45;font-weight:700;overflow-wrap:anywhere}
 .dsub{color:var(--muted);font-size:.7rem;margin-top:3px;overflow-wrap:anywhere}
 /* badge removed: state lives in the toggle button + state chip */
 @keyframes pulse{0%,100%{box-shadow:0 0 14px -2px var(--ok)}50%{box-shadow:0 0 26px 2px var(--ok)}}
@@ -458,8 +458,8 @@ details.drawer .dbody .ptitle{display:none}
 #ctlbar .cbtn,#ctlbar .tbtn,#ctlbar .verchip,#ctlbar .seg button,#ctlbar .gearbtn,#ctlbar .ghico,#ctlbar #theme{
   height:28px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;
   white-space:nowrap;font-size:.72rem;line-height:1;padding:0 .72rem}
-#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar #theme{width:28px;padding:0}
-#ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:16px;height:16px}
+#ctlbar .ghico,#ctlbar .gearbtn,#ctlbar #theme{width:30px;padding:0}
+#ctlbar .ghico svg,#ctlbar .gearbtn svg,#ctlbar #theme svg{width:18px;height:18px}
 #ctlbar .seg{height:36px;padding:4px}
 #ctlbar #gpuhold{height:28px;padding:.1rem .6rem;box-sizing:border-box;align-items:center;white-space:nowrap}
 #ctlbar #gpuhold .bar{height:4px;width:84px}
@@ -474,14 +474,27 @@ details.drawer .dbody .ptitle{display:none}
 #cards .page{position:absolute;top:0;left:0;width:100%;
   transform:translateX(130%) scale(.94);opacity:0;pointer-events:none;
   transition:transform .5s cubic-bezier(.22,.75,.25,1),opacity .4s}
-#cards .page.on{transform:none;opacity:1;z-index:3;pointer-events:auto}
-#cards .page.pr{transform:translateX(calc(100% - 44px)) scale(.975);opacity:.5;
+#cards .page.on{transform:none;opacity:1;z-index:3;pointer-events:none}
+#cards .page.on .card{margin:0 52px;pointer-events:auto}
+#cards .page.pr{transform:translateX(calc(100% - 44px)) scale(.975);opacity:.68;
   z-index:2;pointer-events:auto;cursor:pointer}
-#cards .page.pl{transform:translateX(calc(-100% + 44px)) scale(.975);opacity:.5;
+#cards .page.pl{transform:translateX(calc(-100% + 44px)) scale(.975);opacity:.68;
   z-index:2;pointer-events:auto;cursor:pointer}
-#cards .page.pr:hover,#cards .page.pl:hover{opacity:.72}
+#cards .page.pr:hover,#cards .page.pl:hover{opacity:.9}
+#cards .page.pr .card,#cards .page.pl .card{border-color:color-mix(in srgb,var(--q) 38%,var(--line));
+  background-color:var(--cardbg)}
 #cards .page.on .card{background-color:var(--cardbg)}
 .swrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #ed-swatches{display:flex;gap:6px;flex-wrap:wrap}
 #ed-swatches .sw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line);cursor:pointer}
 #ed-swatches .sw.sel{outline:2px solid var(--fg);outline-offset:1px}
+
+/* ── responsive (ux v7 audit: at ~1280 the gear clipped at the bar's right end) ── */
+@media (max-width:1400px){#ctlbar{gap:8px 10px}#ctlbar .keybox input{width:104px}}
+@media (max-width:1240px){#ctlbar{flex-wrap:wrap}}
+@media (max-width:700px){
+  .hero h1{font-size:1.5rem}
+  #cards{padding-top:6px}
+  #cards .page.on .card{margin:0 18px}
+  #cards .art{width:100%;min-height:120px}
+}

@@ -106,6 +106,8 @@ ok('"page pr"' in js and '"page pl"' in js and '"page p1"' not in js,
    "K15b setPage uses pr/pl")
 ok("translateX(calc(100% - 44px))" in css and "translateX(calc(-100% + 44px))" in css,
    "K15c slide geometry peeks 44px")
+ok("margin:0 52px" in css and "pointer-events:none}" in css and "pointer-events:auto}" in css,
+   "K15i on-card inset leaves strips clickable")
 ok(".pagesw" not in css and 'class="pagesw"' not in html, "K15d ghost-page stacking retired")
 ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background token")
 ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
@@ -134,6 +136,10 @@ ok(".keybox" in css and "flash" in css, "K19e keybox css with focus flash")
 # ---- K20 (ux v7): the desk pet shows by default (opt out via its menu or the gear) ----
 ok('_p===null?true' in js, "K20a pet defaults ON when never toggled")
 ok('catch(e){petOn=true}' in js, "K20b pet defaults ON even when storage is blocked")
+
+# ---- K21 (ux v7): cardHTML must close its page div — pages that nest inside each
+# other inherit ancestor transforms and the peek strips land off-screen ----
+ok("</div></div></div>';" in js, "K21 cardHTML closes page div (no page nesting)")
 
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")

@@ -123,7 +123,7 @@ function cardHTML(name){
     '</div>'+
     '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("调教","train")+'</h4>'+
     '<button class="ghostbtn" data-r="back-close">'+tt("返回","back")+'</button></div>'+
-    '</div></div>';
+    '</div></div></div>';
   return h;
 }
 var pageIdx=0,cardNames=[];
@@ -145,6 +145,16 @@ function openTrain(name){
   if(t)t.textContent=tt("调教 · ","train · ")+(cardNick(name)||name);
   selectModel(name);loadSettings();loadConfig();
 }
+/* delegated safety net: train / back-close on cards rebuilt by build() */
+cardsEl.addEventListener("click",function(e){
+  var b=e.target;
+  while(b&&b!==cardsEl&&!(b.dataset&&b.dataset.r))b=b.parentNode;
+  if(!b||b===cardsEl)return;
+  var card=b.closest?b.closest("[data-model]"):null;if(!card)return;
+  var n=card.getAttribute("data-model");
+  if(b.dataset.r==="train"){openTrain(n)}
+  else if(b.dataset.r==="back-close"){closeTrain()}
+});
 function build(names){
   cardNames=names.slice();
   var remember=null;try{remember=localStorage.getItem("stratagw.cardidx")}catch(e){}
@@ -158,8 +168,6 @@ function build(names){
       act(card.dataset.st==="loaded"?"unload":"load",n);
     };
     card.querySelector('[data-r=editdossier]').onclick=function(){openEdit(n)};
-    card.querySelector('[data-r=train]').onclick=function(){openTrain(n)};
-    card.querySelector('[data-r=back-close]').onclick=function(){closeTrain()};
     var ua=card.querySelector('[data-r=uploadart]');
     if(ua)ua.onclick=function(){artTarget=n;artInput.click()};
     var rm=card.querySelector('[data-r=rmart]');
@@ -185,9 +193,7 @@ function setPage(i){
   pageIdx=((i%cardNames.length)+cardNames.length)%cardNames.length;
   var pages=cardsEl.querySelectorAll(".page");var np=pages.length;
   for(var j=0;j<np;j++){var rel=(j-pageIdx+np)%np;
-    pages[j].className=rel===0?"page on":rel===1?"page pr":rel===np-1?"page pl":"page";
-    if(np>1&&(rel===1||rel===np-1))pages[j].onclick=(function(k){return function(){setPage(k)}})(j);
-    else if(rel!==0)pages[j].onclick=null;}
+    pages[j].className=rel===0?"page on":rel===1?"page pr":rel===np-1?"page pl":"page";}
   deckHeight();
   try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
   paintDots();
@@ -197,6 +203,16 @@ function deckHeight(){
   for(var i=0;i<ps.length;i++){var h=ps[i].offsetHeight;if(h>mx)mx=h}
   if(mx)cardsEl.style.height=mx+"px";
 }
+/* delegated safety net: strip clicks work even if per-page handlers get lost */
+cardsEl.addEventListener("click",function(e){
+  var pg=e.target;
+  while(pg&&pg!==cardsEl&&!(pg.classList&&pg.classList.contains("page")))pg=pg.parentNode;
+  if(!pg||pg===cardsEl)return;
+  if(pg.classList.contains("pr")||pg.classList.contains("pl")){
+    var ps=cardsEl.querySelectorAll(".page");
+    for(var i=0;i<ps.length;i++){if(ps[i]===pg){setPage(i);return}}
+  }
+});
 function paintDots(){
   var pd=document.getElementById("pdots");if(!pd)return;
   pd.innerHTML=cardNames.map(function(n,i){return '<button class="dot'+(i===pageIdx?" on":"")+'" data-i="'+i+'" title="'+esc(n)+'"></button>'}).join("");
