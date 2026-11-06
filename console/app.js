@@ -95,7 +95,8 @@ function artHtml(name){
   var tools='<div class="art-tools"><button data-r="uploadart">'+tt("上传立绘","upload art")+'</button>'+
     '<button data-r="rmart" style="display:none">'+tt("移除","remove")+'</button></div>';
   if(!art)return '<div class="art">'+ph+tools+'</div>';
-  return '<div class="art"><img alt="'+esc(nick)+tt("立绘","portrait")+'" src="'+esc(art)+'" '+
+  return '<div class="art"><div class="artfill" style="background-image:url(&quot;'+esc(art)+'&quot;)"></div>'+
+    '<img alt="'+esc(nick)+tt("立绘","portrait")+'" src="'+esc(art)+'" '+
     'onerror="this.remove()" onload="this.classList.add(&quot;landed&quot;);var p=this.parentNode&&this.parentNode.querySelector(&quot;.art-ph&quot;);if(p)p.remove()">'+ph+tools+'</div>';
 }
 function cardHTML(name){

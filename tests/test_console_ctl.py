@@ -141,6 +141,14 @@ ok('catch(e){petOn=true}' in js, "K20b pet defaults ON even when storage is bloc
 # other inherit ancestor transforms and the peek strips land off-screen ----
 ok("</div></div></div>';" in js, "K21 cardHTML closes page div (no page nesting)")
 
+# ---- K22 (master review v7): taller cards so full portraits show, comfortable back
+# face: min-height floor, wider art column, contain + blurred fill backdrop, acts pinned ----
+ok("min-height:640px" in css, "K22a card height floor 640px")
+ok("grid-template-columns:280px minmax(0,1fr)" in css, "K22b art column widened to 280px")
+ok("object-fit:contain" in css, "K22c portrait fully visible (contain, not cover)")
+ok('class="artfill"' in js and ".artfill" in css, "K22d blurred backdrop fills letterbox area")
+ok(".acts{margin-top:auto" in css or "margin-top:auto" in css, "K22e action row pinned to card bottom")
+
 # ---- K16: accent is a free color (hex passthrough), not just q/s ----
 ok("#[0-9a-fA-F]" in js, "K16a hex accent detection in app.js")
 

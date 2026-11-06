@@ -99,7 +99,7 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
 .card{position:relative;border:1px solid var(--line);border-radius:20px;background:var(--card);
   backdrop-filter:blur(12px);box-shadow:var(--shadow);padding:20px 22px 18px;overflow:hidden;
   transition:transform .35s cubic-bezier(.2,.7,.3,1),box-shadow .35s,border-color .35s;
-  animation:rise .65s both;display:grid;grid-template-columns:214px minmax(0,1fr);gap:20px}
+  animation:rise .65s both;display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;min-height:640px}
 .card:nth-child(1){animation-delay:.30s}
 .card:nth-child(2){animation-delay:.42s}
 .card:nth-child(3){animation-delay:.54s}
@@ -115,12 +115,10 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
 .card:hover{border-color:var(--ac);box-shadow:0 24px 55px -18px var(--ac),var(--shadow)}
 .card{background-image:radial-gradient(135% 80% at 9% 34%,color-mix(in srgb,var(--ac) 15%,transparent),color-mix(in srgb,var(--ac) 4%,transparent) 34%,transparent 58%)}
 .art{position:relative;align-self:stretch;margin:-20px 2px -18px -22px;background:transparent}
-.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 6%;display:block;opacity:0;
-  transition:opacity .8s,transform .5s cubic-bezier(.2,.7,.3,1);filter:drop-shadow(0 16px 30px rgba(0,0,0,.45));
-  -webkit-mask-image:linear-gradient(180deg,#000 74%,transparent 99%),linear-gradient(90deg,#000 84%,transparent 100%);
-  -webkit-mask-composite:source-in;
-          mask-image:linear-gradient(180deg,#000 74%,transparent 99%),linear-gradient(90deg,#000 84%,transparent 100%);
-          mask-composite:intersect}
+.artfill{position:absolute;inset:-36px;z-index:0;background:center/cover no-repeat;
+  filter:blur(30px) saturate(1.2) brightness(.72);opacity:.55;border-radius:14px}
+.art img{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:contain;object-position:50% 50%;display:block;opacity:0;
+  transition:opacity .8s,transform .5s cubic-bezier(.2,.7,.3,1);filter:drop-shadow(0 16px 30px rgba(0,0,0,.45))}
 .art img.landed{opacity:1}
 .card:hover .art img.landed{transform:translateY(-5px)}
 .art::before{content:"";position:absolute;left:15%;right:15%;bottom:-26px;height:70px;border-radius:50%;
@@ -139,7 +137,7 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
 .card.flipped .cbody{transform:rotateY(180deg)}
 .card.flipped{grid-template-columns:minmax(0,1fr)}
 .card.flipped .art{display:none}
-.cfront{backface-visibility:hidden}
+.cfront{backface-visibility:hidden;display:flex;flex-direction:column}
 .cback{position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);
   overflow-y:auto;display:none;padding:2px 6px 2px 2px}
 .card.flipped .cback{display:block}
@@ -167,7 +165,7 @@ h4.mod::before{content:"";display:inline-block;width:14px;height:1px;background:
 .notes{margin:.35rem 0 0;padding:0 0 0 1.05rem;list-style:none}
 .notes li{font-size:.76rem;color:var(--muted);line-height:1.6;position:relative;padding-left:.25rem}
 .notes li::before{content:"·";position:absolute;left:0;color:var(--ac);font-weight:700}
-.acts{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);
+.acts{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
   min-height:56px;box-sizing:content-box;flex-wrap:wrap}
 .acts button,.acts .statechip{height:38px;box-sizing:border-box;white-space:nowrap}
 .acts button{padding:.5rem 1.15rem;border-radius:11px;border:1px solid var(--line);cursor:pointer;
@@ -498,3 +496,7 @@ details.drawer .dbody .ptitle{display:none}
   #cards .page.on .card{margin:0 18px}
   #cards .art{width:100%;min-height:120px}
 }
+
+/* tagline must not break mid-word under the logo (ux v7 polish) */
+#ctlbar h1{white-space:nowrap}
+#ctlbar h1 small{white-space:nowrap;word-break:keep-all;margin-left:8px}
