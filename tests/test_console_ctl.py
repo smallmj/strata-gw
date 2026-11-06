@@ -86,8 +86,8 @@ ok('"pg.title": "Strata 网关"' in i18njs and '"pg.title": "Strata gateway"' in
 
 # ---- K12 (ux v7): control scale 28px chips CJK-safe + a REAL settings gear ----
 ok("height:24px" not in css, "K12a the 24px cages are gone")
-ok("height:28px" in css and "white-space:nowrap" in css and "min-height:56px" in css,
-   "K12b 28px chip scale + nowrap + flowing acts row")
+ok("height:28px" in css and "white-space:nowrap" in css and "height:64px" in css,
+   "K12b 28px chip scale + nowrap + fixed 64px acts row")
 ok("M19.14,12.94" in html, "K12c proper settings gear (notched teeth path)")
 ok("M12 8.5a3.5 3.5" not in html, "K12d the old blob gear is gone")
 
@@ -120,8 +120,8 @@ ok('"page on"' in js and '"page n1"' in js and '"page n2"' in js
    "K15b setPage uses the cascade classes")
 ok("translateX(40px)" in css and "translateX(98px)" in css,
    "K15c each deeper layer steps out one more strip")
-ok("margin:0 150px 0 30px" in css and "pointer-events:none}" in css and "pointer-events:auto;" in css,
-   "K15i inset leaves the right strips clickable")
+ok("margin:0 70px" in css and "pointer-events:none}" in css and "pointer-events:auto;" in css,
+   "K15i symmetric peek gutters keep the side strips clickable")
 ok(".pagesw" not in css and 'class="pagesw"' not in html, "K15d ghost-page stacking retired")
 ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background token")
 ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
@@ -133,7 +133,7 @@ ok('data-r="train"' in js and 'id="train-src"' in html and 'id="t-save"' in html
 ok('id="sec-settings"' not in html and 'seg-models' not in html and 'buildSeg' not in js,
    "K18b standalone tuning desk retired")
 ok('openTrain' in js and 'closeTrain' in js and 'flipped' in js, "K18c flip plumbing")
-ok('data-r="back"' in js and 'back-close' in js, "K18d card back exists")
+ok('data-r="back"' in js and 'id="t-close"' in html, "K18d card back + resume button in the bottom row")
 ok('collectSampling' in js and 'collectConfig' in js and '已保存' in js,
    "K18e one save for both zones + saved toast")
 ok('.cback' in css and 'rotateY(180deg)' in css and 'backface-visibility' in css,
@@ -159,8 +159,8 @@ ok("</div></div></div>';" in js, "K21 cardHTML closes page div (no page nesting)
 
 # ---- K22 (master review v7): taller cards so full portraits show, comfortable back
 # face: min-height floor, wider art column, contain + blurred fill backdrop, acts pinned ----
-ok("min-height:640px" in css, "K22a card height floor 640px")
-ok("grid-template-columns:280px minmax(0,1fr)" in css, "K22b art column widened to 280px")
+ok("min-height:660px" in css, "K22a card height floor 660px")
+ok("grid-template-columns:330px minmax(0,1fr)" in css, "K22b art column widened to 330px")
 ok("object-fit:contain" in css, "K22c portrait fully visible (contain, not cover)")
 ok('class="artfill"' in js and ".artfill" in css, "K22d blurred backdrop fills letterbox area")
 ok(".acts{margin-top:auto" in css or "margin-top:auto" in css, "K22e action row pinned to card bottom")
@@ -182,12 +182,12 @@ ok("height:3.32em" not in css and "-webkit-line-clamp:3" in css, "K17f prose flo
 ok('.notes' not in css and 'class="notes"' not in js,
    "K17g card note micro-list retired in v9 (merged into the operative bio)")
 ok('tt("开工"' in js and 'tt("下班"' in js and 'tt("特训"' in js and
-   'tt("销卡"' in js and 'tt("回岗"' in js,
+   'tt("销卡"' in js and '"set.closebtn": "回岗"' in i18njs,
    "K25a buttons speak like operatives (开工/下班/特训/销卡/回岗)")
 ok('cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default"' in js,
    "K25c unset reasoning renders as 'default', never a dash")
-ok('position:sticky;bottom:8px;align-self:flex-end' in css and 'back-close' in css,
-   "K25d the resume button sits at the sheet bottom, clear of the drawers")
+ok('#t-close{margin-left:auto' in css and 'getElementById("t-close")' in js,
+   "K25d resume button sinks into the drill action row, bottom right")
 ok('setGwConn' in js and 'id="gwbanner"' in html and 'e instanceof TypeError' in js,
    "K25e dead gateway shows a retrying banner, never a raw 'Failed to fetch'")
 ok('if(entry.card){var c=entry.card;' in js and 'archBox(474,y,"be",c.nick,subs)' in js,
@@ -207,5 +207,34 @@ ok("populateTrain" in js and "refreshGenGate" in js and '"router/gendossier"' in
 ok("details.drw" in css and "[open]" in css, "K24d drawers collapse/expand via css")
 ok('data-r="train"' in js and 'id="uploadart"' not in js,
    "K24e portrait tools left the card front — they live in the drawer now")
+
+# ---- K26 (master review ux v10): action strip rebuilt — drill + clock-in on the
+# left as one style family, status chip + timer ring on the right; fixed height;
+# every card equalized so the rows never float up; save renamed; burn confirms;
+# events above about; deck centered with symmetric peeks ----
+_a = js.find('<div class="acts">'); _tr = js.find('data-r="train"')
+_tg = js.find('data-r="toggle"'); _gr = js.find('class="actr"')
+ok(_a > 0 and _a < _tr < _tg < _gr,
+   "K26a acts order: drill+clock-in group left, status+ring group right")
+ok('.actr{margin-left:auto' in css and '.ring{display:none' in css,
+   "K26b right group pinned by .actr; ring no longer self-margined")
+ok("height:64px" in css and "height:40px" in css and "min-height:56px" not in css,
+   "K26c fixed 64px action strip with unified 40px controls")
+ok('ps[j].style.height=mx+"px"' in js, "K26d cards equalized to deck max height")
+ok('id="t-close"' in html and 'getElementById("t-close")' in js,
+   "K26e resume wired in the drill page bottom row")
+ok("back-close" not in js and "back-close" not in css and "back-close" not in html,
+   "K26f the floating sticky resume button is gone entirely")
+ok('"set.saveall": "保存"' in i18njs and '"set.saveall": "Save"' in i18njs
+   and 'id="t-save" data-i18n="set.saveall">保存<' in html,
+   "K26g file-it renamed to plain 保存/Save (it is a save, not a risk action)")
+ok('confirm(tt("销卡' in js and "再点一次确认" not in js,
+   "K26h burn card confirms through a dialog spelling out the consequence")
+ok(html.find('id="sec-monitor"') < html.find('id="sec-dyn"') < html.find('id="sec-about"'),
+   "K26i events moved up, about sits at the bottom")
+ok("max-width:76ch" not in css and "max-width:74ch" not in css,
+   "K26j hero/lead no longer width-capped below the other sections")
+ok("margin:0 70px" in css and "translateX(40px)" in css and "translateX(98px)" in css,
+   "K26k deck centered: symmetric 70px gutters, layered peeks kept")
 
 sys.exit(0 if not F else 1)

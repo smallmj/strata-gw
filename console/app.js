@@ -126,15 +126,14 @@ function cardHTML(name){
     +'<div class="tags" data-r="tagrow">'+(tags.length?tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join(""):'<span class="none">'+tt("尚无标签 · 到特训页添加或自动生成","no tags yet · add or auto-generate on the drill page")+'</span>')+'</div>'
     +'<h4 class="cg">'+tt("档案","BIO")+'</h4>'
     +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到特训页填写或自动生成","no bio yet · write or auto-generate on the drill page")+'</span>')+'</p>';
-  h+='<div class="acts"><button class="load" data-r="toggle">'+tt("开工","Clock in")+'</button>'+
-    '<span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
-    '<button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
+  h+='<div class="acts"><button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
+    '<button class="load" data-r="toggle">'+tt("开工","Clock in")+'</button>'+
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("销卡","burn card")+'</button>'+
+    '<span class="actr"><span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
     '<span class="ring" data-r="ring"><svg viewBox="0 0 36 36"><circle class="trk" cx="18" cy="18" r="14.5"/>'+
-    '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></div>'+
+    '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></span></div>'+
     '</div>'+
-    '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("特训","drill")+'</h4>'+
-    '<button class="ghostbtn" data-r="back-close">'+tt("回岗","resume")+'</button></div>'+
+    '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("特训","drill")+'</h4></div>'+
     '</div></div></div>';
   return h;
 }
@@ -157,7 +156,7 @@ function openTrain(name){
   if(t)t.textContent=tt("特训 · ","drill · ")+(cardNick(name)||name);
   selectModel(name);loadSettings();loadConfig();populateTrain(name);
 }
-/* delegated safety net: train / back-close on cards rebuilt by build() */
+/* delegated handler: the train button on cards rebuilt by build() */
 cardsEl.addEventListener("click",function(e){
   var b=e.target;
   while(b&&b!==cardsEl&&!(b.dataset&&b.dataset.r))b=b.parentNode;
@@ -165,7 +164,6 @@ cardsEl.addEventListener("click",function(e){
   var card=b.closest?b.closest("[data-model]"):null;if(!card)return;
   var n=card.getAttribute("data-model");
   if(b.dataset.r==="train"){openTrain(n)}
-  else if(b.dataset.r==="back-close"){closeTrain()}
 });
 function build(names){
   cardNames=names.slice();
@@ -181,9 +179,7 @@ function build(names){
     };
     var del=card.querySelector('[data-r=delcard]');
     del.onclick=function(){
-      if(del.dataset.armed==="1"){delCard(n);return}
-      del.dataset.armed="1";del.textContent=tt("再点一次确认","tap again to confirm");
-      setTimeout(function(){if(del.isConnected){del.dataset.armed="";del.textContent=tt("销卡","burn card")}},4000);
+      if(confirm(tt("销卡会永久删除这个模型的档案卡：档案写回 cards.json，重启也不会回来；后端程序本身不受影响。确认销卡？","Burn card: this permanently deletes the model's dossier — persisted into cards.json, it stays gone across restarts. The backend program itself is untouched. Burn it?")))delCard(n);
     };
   });
   setPage(pageIdx);
@@ -200,10 +196,14 @@ function setPage(i){
   try{localStorage.setItem("stratagw.cardidx",cardNames[pageIdx])}catch(e){}
   paintDots();
 }
+var deckDirty=false;
+function touchDeck(){deckDirty=true}
 function deckHeight(){
-  var mx=0,ps=cardsEl.querySelectorAll(".page .card");
-  for(var i=0;i<ps.length;i++){var h=ps[i].offsetHeight;if(h>mx)mx=h}
-  if(mx)cardsEl.style.height=mx+"px";
+  var mx=0,ps=cardsEl.querySelectorAll(".page .card"),i;
+  for(i=0;i<ps.length;i++){ps[i].style.height="auto";var h=ps[i].offsetHeight;if(h>mx)mx=h}
+  if(!mx)return;
+  for(var j=0;j<ps.length;j++)ps[j].style.height=mx+"px";
+  if(cardsEl.dataset.h!==String(mx)){cardsEl.dataset.h=String(mx);cardsEl.style.height=mx+"px"}
 }
 /* delegated safety net: strip clicks work even if per-page handlers get lost */
 cardsEl.addEventListener("click",function(e){
@@ -356,7 +356,8 @@ function paintSpecials(){
   });
 }
 function updateLiveAll(){cardNames.forEach(function(n){
-  var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c)updateLive(c,n)});deckHeight()}
+  var c=cardsEl.querySelector('[data-model="'+n+'"]');if(c&&updateLive(c,n))touchDeck()});
+  if(deckDirty){deckDirty=false;deckHeight()}}
 function updateLive(card,name){
   var dl=card.querySelector('[data-r=liverows]');if(!dl)return;
   var b=backendOf(name),info=INFO[name]||{},cfg=info.cfg||{},rows=[];
@@ -803,6 +804,7 @@ document.getElementById("t-clear").onclick=function(){
     loadSettings();
   });
 };
+document.getElementById("t-close").onclick=function(){closeTrain()};
 var cfgKeys=[];
 var CFGNOTE=tt("后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。","Whitelisted /config keys. Saving auto-backs-up the engine config json; changes apply at the model's next boot. Blank = remove the key (back to default).");
 function loadConfig(){
