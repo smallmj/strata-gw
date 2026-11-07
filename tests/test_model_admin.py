@@ -474,4 +474,53 @@ finally:
     gwF.close()
     shutil.rmtree(shomeC, ignore_errors=True)
 
+# ---- K-SIM: the sim-strata kit defends itself (T14) ------------------------
+import subprocess
+import urllib.request
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KIT = os.path.join(REPO, "tools", "sim-strata")
+_r = subprocess.run([sys.executable, os.path.join(KIT, "setup.py"), "--check"],
+                    capture_output=True, text=True)
+_lines = (_r.stdout or "").strip().splitlines()
+ok(_r.returncode == 0 and _lines and _lines[-1].startswith("SIM PC check"),
+   "K-SIM1 kit setup --check exits 0 with the SIM PC check line")
+
+
+def _kget(url, data=None):
+    req = urllib.request.Request(url, data=data) if data is not None else url
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return r.status, r.read().decode()
+
+
+_ps = subprocess.Popen([sys.executable, os.path.join(KIT, "serve", "server.py"),
+                        "--engine", "strata", "--config", "/nonexistent.json",
+                        "--host", "127.0.0.1", "--port", "18097",
+                        "--api-key", "x", "--lazy"])
+_ph = subprocess.Popen([sys.executable, os.path.join(KIT, "holder.py"), "18098"])
+try:
+    kup = False
+    for _ in range(30):
+        try:
+            s, h = _kget("http://127.0.0.1:18097/health")
+            kup = s == 200
+            if kup:
+                break
+        except OSError:
+            time.sleep(0.2)
+    ok(kup and json.loads(h).get("service") == "strata" and not json.loads(h).get("loaded"),
+       "K-SIM2 kit serve answers /health like the Stub protocol (idle first)")
+    _kget("http://127.0.0.1:18097/load", b"{}")
+    ok(json.loads(_kget("http://127.0.0.1:18097/health")[1]).get("loaded"),
+       "K-SIM3 kit serve goes loaded after POST /load")
+    s, h = _kget("http://127.0.0.1:18098/system_stats")
+    v1 = json.loads(h)["devices"][0]["vram_free"]
+    _kget("http://127.0.0.1:18098/free", b"{}")
+    s, h = _kget("http://127.0.0.1:18098/system_stats")
+    v2 = json.loads(h)["devices"][0]["vram_free"]
+    ok(s == 200 and v2 > v1,
+       "K-SIM4 kit holder frees pretend VRAM after /free (gpu_free shape)")
+finally:
+    _ps.terminate()
+    _ph.terminate()
+
 print("ALL PASS")
