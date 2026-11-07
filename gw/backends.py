@@ -365,6 +365,20 @@ def scan_configs() -> dict[str, Backend]:
 
 BACKENDS: dict[str, Backend] = {}
 
+
+def rescan() -> int:
+    """Re-read configs, keeping live process/spawn state for configs that stayed."""
+    found = scan_configs()
+    with _lock:
+        for path, b in found.items():
+            old = BACKENDS.get(path)
+            if old is not None:
+                b.last_spawn, b.proc = old.last_spawn, old.proc
+        BACKENDS.clear()
+        BACKENDS.update(found)
+    invalidate_resident()
+    return len(BACKENDS)
+
 _resident_cache: dict[str, tuple[float, bool | None]] = {}
 
 
