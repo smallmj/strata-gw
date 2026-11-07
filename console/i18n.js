@@ -104,7 +104,9 @@ window.__I18N__ = {
 "dg.give": "外部显存让卡",
 "dg.givesm": "对接任意 /free 出图服务",
 "add_op": "+ 招募特工",
-"wiz.run": "特工入册中…"
+"wiz.run": "特工入册中…",
+"set.disksec": "磁盘占用",
+"set.diskhint": "打开抽屉时读一次 · 只画图，不搬家、不删除"
 },
 "en": {
 "pg.title": "Strata gateway",
@@ -211,6 +213,8 @@ window.__I18N__ = {
 "dg.give": "external VRAM give-card",
 "dg.givesm": "any generator exposing /free",
 "add_op": "+ recruit operative",
-"wiz.run": "operative enrolling…"
+"wiz.run": "operative enrolling…",
+"set.disksec": "disk in use",
+"set.diskhint": "read once when this drawer opens - it only draws the map, moves nothing, deletes nothing"
 }
 };

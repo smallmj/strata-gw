@@ -150,6 +150,23 @@ h2.sec em{font-style:normal;font-size:.66rem;letter-spacing:.28em;color:var(--di
 .cback{position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);
   overflow-y:auto;display:none;padding:2px 6px 2px 2px;
   scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ac,var(--q)) 55%,transparent) transparent}
+.card.facedown .cbody{transform:rotateY(180deg)}
+.cfback{position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);display:none;
+  border-radius:14px;border:1px dashed var(--ac);
+  background:repeating-linear-gradient(135deg,transparent 0 12px,rgba(255,255,255,.035) 12px 24px),
+             linear-gradient(135deg,#0a0e16,#141c2c)}
+.card.facedown .cfback{display:block}
+.cfback b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  color:var(--ac);letter-spacing:.35em;font-size:.78rem;opacity:.85}
+.dkm{margin:8px 0 2px;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.dkm>b{font-size:.82rem}
+.dkt{float:right;color:var(--ac);font-size:.8rem}
+.dkf{display:flex;gap:8px;align-items:baseline;font-size:.74rem;color:var(--muted);
+  margin-top:5px;border-top:1px dashed var(--line);padding-top:5px}
+.dkf span{flex:1;min-width:0;word-break:break-all}
+.dkf em{font-style:normal;white-space:nowrap}
+.dkf.miss em{color:var(--err)}
+.dks{font-style:normal;color:var(--ac);white-space:nowrap}
 .cback::-webkit-scrollbar{width:9px}
 .cback::-webkit-scrollbar-track{background:transparent}
 .cback::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ac,var(--q)) 45%,transparent);border-radius:8px}

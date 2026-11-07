@@ -57,10 +57,30 @@ var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
 function openSettings(focusKey){
   setpop.style.display="block";
+  if(!window._dsk1){window._dsk1=1;   // 磁盘地图惰性只读一次（只画图，不搬不删）
+    fetch("router/disk",{headers:hdrs(false)}).then(function(r){return r.json()}).then(renderDisk)
+      .catch(function(){var el=document.getElementById("dsk");
+        if(el)el.innerHTML='<span class="plab">'+tt("磁盘地图这次没读到，关掉重开一次试试","the disk map could not be read - close and reopen once")+"</span>"})}
   if(focusKey){keyEl.focus();
     var kb=document.querySelector("#setpop .keyrow");
     if(kb){kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
       setTimeout(function(){kb.classList.remove("flash")},1600)}}
+}
+function renderDisk(d){
+  var el=document.getElementById("dsk");if(!el)return;
+  function gb(b){if(b==null||isNaN(b))return "—";return fnum(b/1e9,2)+" GB"}   // 10^9 网站口径
+  var h="";
+  (d.models||[]).forEach(function(m){
+    h+='<div class="dkm"><b>'+esc(cardNick(m.model)||m.model)+'</b><span class="dkt">'+gb(m.total_bytes)+"</span>";
+    (m.files||[]).forEach(function(f){
+      h+='<div class="dkf'+(f.missing?" miss":"")+'"><span>'+esc(f.path)+"</span>"+
+        "<em>"+(f.missing?tt("路径找不到","path not found"):gb(f.bytes))+"</em>"+
+        ((f.used_by||[]).length>1?'<i class="dks">'+tt("共享","shared")+" ×"+f.used_by.length+"</i>":"")+
+        "</div>";});
+    h+="</div>";});
+  if(d.data_dir)h+='<div class="dkm"><b>'+tt("数据目录","data dir")+'</b><span class="dkt">'+
+    gb(d.data_total_bytes)+'</span><div class="dkf"><span>'+esc(d.data_dir)+"</span></div></div>";
+  el.innerHTML=h||'<span class="plab">'+tt("还没有入册特工可盘","nothing enrolled to map yet")+"</span>";
 }
 function paintKeyChip(){var c=document.getElementById("keychip");if(!c)return;
   var okv=!!keyEl.value.trim();
@@ -115,7 +135,7 @@ function cardHTML(name){
   var m=cardMeta(name);
   var tags=m?pickarr(m.tags):[];
   var lore=m?pick(m.lore)||pick(m.style):"";
-  var h='<div class="page"><div class="card" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
+  var h='<div class="page"><div class="card'+(forgeNow.has(name)?" facedown":"")+'" style="--ac:'+accentFor(name)+'" data-model="'+esc(name)+'">';
   h+=artHtml(name);
   h+='<div class="cbody"><div class="cfront">'+
     '<div class="dhead"><span class="dtitle">'+tt("特工信息","DOSSIER")+'</span>'
@@ -139,6 +159,7 @@ function cardHTML(name){
     '<circle class="arc" cx="18" cy="18" r="14.5"/></svg><span data-r="elapsed">0s</span></span></span></div>'+
     '</div>'+
     '<div class="cback" data-r="back"><h4 class="mod" data-r="back-title">'+tt("特训","drill")+'</h4></div>'+
+    '<div class="cfback"><b>FORGING</b></div>'+
     '</div></div></div>';
   return h;
 }
@@ -491,6 +512,13 @@ function build(names){
   cardsEl.innerHTML=names.map(cardHTML).join("");
   names.forEach(function(n){
     var card=cardsEl.querySelector('[data-model="'+n+'"]');if(!card)return;
+    if(card.classList.contains("facedown")){
+      // 新入册的卡先面朝下压两秒，再走 .cbody 现成的 3D 机制翻正——只演一次
+      (function(c,nm){
+        setTimeout(function(){c.classList.remove("facedown")},2000);
+        setTimeout(function(){forgeNow.delete(nm)},2800);
+      })(card,n);
+    }
     card.querySelector('[data-r=toggle]').onclick=function(){
       if(!backendOf(n))return;
       act(card.dataset.st==="loaded"?"unload":"load",n);
