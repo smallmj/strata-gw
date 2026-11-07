@@ -379,6 +379,34 @@ def rescan() -> int:
     invalidate_resident()
     return len(BACKENDS)
 
+
+_FP: dict = {"sig": None}
+
+
+def fingerprint() -> str:
+    parts = []
+    for d in scan_dirs():
+        try:
+            for p in sorted(glob.glob(os.path.join(d, "strata-*.json"))):
+                parts.append(f"{p}\x00{os.path.getmtime(p)}")
+        except OSError:
+            pass
+    return "\n".join(parts)
+
+
+def watch_scan() -> None:
+    """Daemon thread: a hand-edited config lands or vanishes without a restart."""
+    while True:
+        time.sleep(float(os.environ.get("GW_SCAN_WATCH_S", "20")))
+        try:
+            fp = fingerprint()
+        except Exception:
+            continue
+        if _FP["sig"] is not None and fp != _FP["sig"]:
+            n = rescan()
+            events.revent("backend", f"config change picked up: {n} model(s)")
+        _FP["sig"] = fp
+
 _resident_cache: dict[str, tuple[float, bool | None]] = {}
 
 
