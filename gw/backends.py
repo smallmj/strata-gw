@@ -406,6 +406,11 @@ def watch_scan() -> None:
             n = rescan()
             events.revent("backend", f"config change picked up: {n} model(s)")
         _FP["sig"] = fp
+        try:                                # the recruit timeout tripwire
+            from . import setup_wizard
+            setup_wizard.timeout_check()
+        except Exception:
+            pass
 
 _resident_cache: dict[str, tuple[float, bool | None]] = {}
 

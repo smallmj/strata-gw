@@ -213,6 +213,7 @@ class Gateway:
             env["GW_GPU_URLS"] = f"http://127.0.0.1:{holder_port}"
         if extra_env:
             env.update(extra_env)
+        self.env = env
         self.proc = subprocess.Popen([sys.executable, os.path.join(self.root, "strata-router.py")], env=env)
 
     def req_bin(self, method, path):
@@ -280,6 +281,19 @@ class Gateway:
 
     def cards_file(self):
         return os.path.join(self.root, "cards", "cards.json")
+
+    def restart(self):
+        """Restart the gateway on the SAME temp ROOT: runtime state files
+        (router-setup.json history, cards, ports) survive the process - this
+        is how the 'badge still shows after a gateway restart' pins run."""
+        self.proc.terminate()
+        try:
+            self.proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
+        self.proc = subprocess.Popen([sys.executable,
+                                      os.path.join(self.root, "strata-router.py")],
+                                     env=self.env)
 
     def close(self):
         self.proc.terminate()

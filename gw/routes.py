@@ -286,6 +286,19 @@ class Handler(BaseHTTPRequestHandler):
             from . import setup_wizard
             st, obj = setup_wizard.catalog()
             return self._json(st, obj)
+        if method == "GET" and path == "/router/setup/status":
+            from . import setup_wizard
+            m3 = re.search(r"(?:^|&)since=([0-9]+)", qs)
+            st, obj = setup_wizard.status(int(m3.group(1)) if m3 else 0)
+            return self._json(st, obj)
+        if method == "POST" and path == "/router/setup/run":
+            from . import setup_wizard
+            try:
+                body = json.loads(self._read_body() or b"{}")
+            except ValueError:
+                body = None
+            st, obj = setup_wizard.start(body)
+            return self._json(st, obj)
         if method == "POST" and path == "/router/scan":
             return self._json(200, {"ok": True, "models": backends.rescan()})
         if method == "DELETE" and path.startswith("/router/cards/"):
