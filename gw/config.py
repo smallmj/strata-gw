@@ -10,7 +10,7 @@ from urllib import request as urlrequest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ROUTER_PORT = int(os.environ.get("STRATA_ROUTER_PORT", "18075"))
-FIRST_BACKEND_PORT = 18101
+FIRST_BACKEND_PORT = int(os.environ.get("STRATA_FIRST_BACKEND_PORT", "18101"))
 PORTS_FILE = os.path.join(ROOT, "router-ports.json")
 SPAWN_COOLDOWN_S = 60.0
 LOAD_WAIT_S = 180.0           # a lazy backend's API comes up well inside this

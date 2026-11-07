@@ -34,8 +34,8 @@ def main() -> None:
     backends.BACKENDS.clear()
     backends.BACKENDS.update(found)
     if not backends.BACKENDS:
-        print(f"[router] no strata-*.json in {config.ROOT}; nothing to serve", flush=True)
-        sys.exit(1)
+        print(f"[router] no strata-*.json found in {backends.scan_dirs()} - console "
+              "will guide the first recruit (控制台将引导招募第一位特工)", flush=True)
 
     def on_close(signum, frame):                # the console window's X button
         cleanup()
@@ -54,8 +54,10 @@ def main() -> None:
     httpd = ThreadingHTTPServer(("0.0.0.0", config.ROUTER_PORT), routes.Handler)
     httpd.daemon_threads = True
     names = ", ".join(f"{b.name}(:{b.port})" for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name))
-    print(f"[router] ready on :{config.ROUTER_PORT}  models: {names}", flush=True)
-    print(f"[router] default model: {backends.default_backend().name}", flush=True)
+    print(f"[router] ready on :{config.ROUTER_PORT}  models: {names or '(none yet)'}", flush=True)
+    db = backends.default_backend()
+    if db is not None:
+        print(f"[router] default model: {db.name}", flush=True)
     print("[router] Ctrl+C or close this window to stop the gateway and the engines", flush=True)
     try:
         httpd.serve_forever()
