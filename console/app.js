@@ -127,7 +127,12 @@ function cardHTML(name){
     +'<div class="tags" data-r="tagrow">'+(tags.length?tags.map(function(x){return '<span>'+esc(x)+'</span>'}).join(""):'<span class="none">'+tt("尚无标签 · 到特训页添加或自动生成","no tags yet · add or auto-generate on the drill page")+'</span>')+'</div>'
     +'<h4 class="cg">'+tt("档案","BIO")+'</h4>'
     +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到特训页填写或自动生成","no bio yet · write or auto-generate on the drill page")+'</span>')+'</p>';
-  h+='<div class="acts"><button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
+  h+=(backendOf(name)?"":
+      '<div class="orphanguide" data-r=orphanguide>'+
+      tt("本机暂无此特工：可「招募特工」入册，或把配置文件放回原位",
+         "no such operative on this machine: recruit one, or put its config file back")+
+      '</div>')+
+    '<div class="acts"><button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
     '<button class="load" data-r="toggle">'+tt("开工","Clock in")+'</button>'+
     '<button class="warnbtn" data-r="delcard" style="display:none">'+tt("销卡","burn card")+'</button>'+
     '<span class="actr"><span class="statechip" data-r="live">'+tt("待加载","idle")+'</span>'+
@@ -358,7 +363,7 @@ function paintSpecials(){
     if(rm2)rm2.style.display=(m&&String(m.art||""))?"":"none";
     if(!b){card.dataset.st="orphan";card.classList.add("orphan");
       if(tg){tg.disabled=true}
-      if(live)live.textContent=tt("未安装","not installed")}
+      if(live)live.textContent=tt("未入册","not enrolled")}
   });
 }
 function updateLiveAll(){cardNames.forEach(function(n){
@@ -371,7 +376,7 @@ function updateLive(card,name){
   var DASH=tt("—","–");
   var lv=(name===selName&&mon.data&&mon.data.live)?mon.data.live:null;
   var hw=(name===selName&&mon.data&&mon.data.hardware)?mon.data.hardware:null;
-  row(tt("进程","process"),b?(b.alive?tt("在线","up"):tt("待冷启动","cold pending")):tt("未安装","not installed"));
+  row(tt("进程","process"),b?(b.alive?tt("在线","up"):tt("待冷启动","cold pending")):tt("未入册","not enrolled"));
   row(tt("驻留","resident"),b?(b.loaded?tt("在位","on GPU"):tt("待载入","standby")):DASH);
   row(tt("速度","speed"),lv&&lv.state==="generating"&&lv.tok_s!=null?fnum(lv.tok_s,1)+" tok/s":DASH);
   row(tt("端口","port"),b?":"+b.port:DASH);
