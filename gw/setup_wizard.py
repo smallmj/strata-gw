@@ -336,3 +336,47 @@ def timeout_check() -> None:
             r["state"], r["code"] = "failed", None
             r["lines"].append("[gw] setup exceeded GW_SETUP_TIMEOUT_S (%.0fs)" % lim)
             _append_history(r)
+
+
+# ---- onboarding checklist: engine / one-sentence PC check / model count -----
+
+_CHECK: dict = {"state": "idle"}
+
+
+def onboard(want_check: bool) -> dict:
+    home = config.strata_home()
+    py = config.resolve_python()
+    setup_py = os.path.join(home, "setup.py")
+    build = None
+    for cand in ("engine/BUILD.json", "BUILD.json"):
+        p = os.path.join(home, cand)
+        if os.path.isfile(p):
+            try:
+                with open(p, encoding="utf-8-sig") as f:
+                    build = json.load(f)
+            except (OSError, ValueError):
+                pass
+            break
+    out = {"engine": {"found": bool(py and os.path.isfile(setup_py)),
+                      "home": home, "python": bool(py),
+                      "version": (build or {}).get("version")},
+           "models": len(backends.BACKENDS)}
+    if want_check and _CHECK["state"] == "idle" and out["engine"]["found"]:
+        _CHECK.update(state="running")
+
+        def run_check():
+            try:
+                r = subprocess.run([py, setup_py, "--check"], cwd=home,
+                                   capture_output=True, text=True, timeout=180,
+                                   stdin=subprocess.DEVNULL)
+                lines = [x for x in (r.stdout or "").splitlines() if x.strip()]
+                _CHECK.update(state="done", ok=r.returncode == 0,
+                              summary=(lines[-1] if lines else "")[:200])
+            except (OSError, subprocess.TimeoutExpired) as e:
+                _CHECK.update(state="failed", ok=False, summary=str(e)[:200])
+        threading.Thread(target=run_check, daemon=True).start()
+        out["check"] = {"state": "running"}
+    else:
+        out["check"] = {k: v for k, v in _CHECK.items()
+                        if k in ("state", "ok", "summary")}
+    return out

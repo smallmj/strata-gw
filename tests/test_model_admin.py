@@ -371,4 +371,52 @@ finally:
     shutil.rmtree(shome8, ignore_errors=True)
     shutil.rmtree(shome9, ignore_errors=True)
 
+# --- T6: the onboarding checklist line - engine presence + BUILD.json version,
+# the model count, and the one-sentence PC check from setup.py --check.
+shomeA = tempfile.mkdtemp(prefix="gw-shomeA-")   # no setup.py: engine missing
+gwD = Gateway([], [], extra_env={"STRATA_HOME": shomeA, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwD), "T6 pre: gateway up")
+    s, h = gwD.get("/router/onboard")
+    ob = json.loads(h) if s == 200 else {}
+    ok(s == 200 and (ob.get("engine") or {}).get("found") is False,
+       "T6a no setup.py -> engine not found on the checklist")
+    ok(ob.get("models") == 0, "T6b model count line answers")
+finally:
+    gwD.close()
+
+shomeB = tempfile.mkdtemp(prefix="gw-shomeB-")
+with open(os.path.join(shomeB, "setup.py"), "w", encoding="utf-8") as f:
+    f.write(FAKE_SETUP)
+os.makedirs(os.path.join(shomeB, "engine"))
+with open(os.path.join(shomeB, "engine", "BUILD.json"), "w") as f:
+    json.dump({"version": "9.9.9"}, f)
+gwE = Gateway([], [], extra_env={"STRATA_HOME": shomeB, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwE), "T6 pre2: fake-install gateway up")
+    s, h = gwE.get("/router/onboard")
+    ob = json.loads(h)
+    ok(ob["engine"]["found"] is True and ob["engine"].get("version") == "9.9.9",
+       "T6c engine found, version straight from BUILD.json under the home")
+    s, h = gwE.get("/router/onboard?check=1")
+    ob1 = json.loads(h)
+    ok(s == 200 and (ob1.get("check") or {}).get("state") == "running",
+       "T6d ?check=1 kicks the PC check off (running)")
+    ob2 = None
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        s, h = gwE.get("/router/onboard")
+        ob2 = json.loads(h)
+        if (ob2.get("check") or {}).get("state") in ("done", "failed"):
+            break
+        time.sleep(0.4)
+    ck = (ob2 or {}).get("check") or {}
+    ok(ck.get("state") == "done" and ck.get("ok") is True
+       and "fake pc check" in (ck.get("summary") or ""),
+       "T6e check done: summary = last non-empty line of setup --check")
+finally:
+    gwE.close()
+    shutil.rmtree(shomeA, ignore_errors=True)
+    shutil.rmtree(shomeB, ignore_errors=True)
+
 print("ALL PASS")
