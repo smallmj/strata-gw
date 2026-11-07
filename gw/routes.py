@@ -286,6 +286,9 @@ class Handler(BaseHTTPRequestHandler):
             from . import setup_wizard
             want = bool(re.search(r"(?:^|&)check=1", qs))
             return self._json(200, setup_wizard.onboard(want))
+        if method == "GET" and path == "/router/disk":
+            from . import setup_wizard
+            return self._json(200, setup_wizard.disk_report())
         if method == "GET" and path == "/router/setup/models":
             from . import setup_wizard
             st, obj = setup_wizard.catalog()
