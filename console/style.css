@@ -179,6 +179,35 @@ h4.mod::before{content:"";display:inline-block;width:14px;height:1px;background:
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .orphanguide{margin:12px 0 0;padding:8px 10px;border:1px dashed var(--line);
   border-radius:8px;color:var(--muted);font-size:.78rem}
+.addrow{text-align:center;margin:10px 0}
+.addrow #gw-add{padding:.5rem 1.4rem;border-radius:12px;border:1px dashed var(--line);
+  background:none;color:var(--ac);cursor:pointer;font-size:.95rem}
+.addrow #gw-add:hover{border-style:solid;background:color-mix(in srgb,var(--ac) 8%,transparent)}
+.addrow .rebadge{position:relative}
+.addrow .rebadge::after{content:"";position:absolute;top:-4px;right:-4px;width:10px;height:10px;
+  border-radius:50%;background:var(--err);box-shadow:0 0 0 2px var(--card)}
+#onboard{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,8,12,.86);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.onb-box{position:relative;max-width:600px;width:min(92vw,600px);padding:22px 24px;border-radius:14px;
+  border:1px solid var(--line);background:var(--card)}
+.onb-box::before{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;opacity:.045;
+  background:repeating-linear-gradient(90deg,var(--ac) 0 1px,transparent 1px 30px),
+             repeating-linear-gradient(0deg,var(--ac) 0 1px,transparent 1px 30px)}
+.onb-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.onb-head b{font-size:1.05rem}
+.onb-head button{border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+.onb-row{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;margin:8px 0;font-size:.9rem}
+.onb-row svg{width:20px;height:20px;flex:0 0 20px;fill:var(--ac);margin-top:2px}
+.onb-row em{display:block;color:var(--muted);font-style:normal;font-size:.8rem;margin-top:3px}
+.onb-row .obpill{display:inline-block;padding:.15rem .6rem;border-radius:999px;font-size:.8rem;
+  border:1px solid var(--line);color:var(--muted)}
+.onb-row .obpill.ok{color:#7fd694}
+.onb-row .obpill.bad{color:var(--err)}
+.onb-cta{margin-top:16px;display:flex;align-items:center;gap:10px}
+.onb-cta .primary{background:linear-gradient(135deg,var(--ac,var(--q)),var(--fg));border:none;color:#05121f;
+  padding:.6rem 1.4rem;border-radius:12px;cursor:pointer;font-size:1rem}
+html[data-theme=light] .onb-cta .primary{color:#fff}
 .acts{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
   height:64px;box-sizing:content-box;flex-wrap:nowrap}
 .acts button,.acts .statechip{height:40px;box-sizing:border-box;white-space:nowrap}

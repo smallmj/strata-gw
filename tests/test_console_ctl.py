@@ -356,4 +356,13 @@ ok('del.style.display=(!b&&m)?' in js, "T7c burn-card keeps its orphan-only visi
 ok('del.style.display=m?' not in js, "T7d negative pin: delete never reaches normal cards")
 ok('data-r=orphanguide' in js, "T7e orphan cards carry the 未入册 guide line in cardHTML")
 
+# ---- T9 (v0.2): the recruit entry + first-run onboarding checklist ---------
+ok('id="addrow"' in html and 'id="gw-add"' in html, "T9a the recruit entry row lives under the deck")
+ok('data-i18n="add_op"' in html, "T9b the entry button goes through the i18n word source")
+ok('function openOnboard(' in js, "T9c the onboarding checklist renderer exists")
+ok('openOnboard()' in js, "T9d zero-card users land on the checklist instead of a blank deck")
+ok('qs("router/onboard' in js and 'router/onboard?check=1' in js,
+   "T9e the checklist pulls /router/onboard and fires ?check=1 on demand")
+ok('function openWiz(' in js, "T9f the recruit wizard entry exists (shell until T10, page must run)")
+
 sys.exit(0 if not F else 1)

@@ -102,7 +102,8 @@ window.__I18N__ = {
 "dg.mutex": "互斥驻留",
 "dg.switch": "换机即让位",
 "dg.give": "外部显存让卡",
-"dg.givesm": "对接任意 /free 出图服务"
+"dg.givesm": "对接任意 /free 出图服务",
+"add_op": "+ 招募特工"
 },
 "en": {
 "pg.title": "Strata gateway",
@@ -207,6 +208,7 @@ window.__I18N__ = {
 "dg.mutex": "exclusive residency",
 "dg.switch": "handover on switch",
 "dg.give": "external VRAM give-card",
-"dg.givesm": "any generator exposing /free"
+"dg.givesm": "any generator exposing /free",
+"add_op": "+ recruit operative"
 }
 };

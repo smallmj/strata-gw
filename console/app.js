@@ -129,8 +129,7 @@ function cardHTML(name){
     +'<p class="prose" data-r="dossierrow">'+(lore?esc(lore):'<span class="none">'+tt("尚无档案 · 到特训页填写或自动生成","no bio yet · write or auto-generate on the drill page")+'</span>')+'</p>';
   h+=(backendOf(name)?"":
       '<div class="orphanguide" data-r=orphanguide>'+
-      tt("本机暂无此特工：可「招募特工」入册，或把配置文件放回原位",
-         "no such operative on this machine: recruit one, or put its config file back")+
+      tt("本机暂无此特工：可「招募特工」入册，或把配置文件放回原位","no such operative on this machine: recruit one, or put its config file back")+
       '</div>')+
     '<div class="acts"><button class="ghostbtn" data-r="train">'+tt("特训","drill")+'</button>'+
     '<button class="load" data-r="toggle">'+tt("开工","Clock in")+'</button>'+
@@ -172,8 +171,73 @@ cardsEl.addEventListener("click",function(e){
   var n=card.getAttribute("data-model");
   if(b.dataset.r==="train"){openTrain(n)}
 });
+function closeOnboard(){var o=document.getElementById("onboard");if(o)o.remove()}
+function openWiz(step){/* T10 builds the three-step recruit wizard; this shell keeps the entry runnable now */}
+function onbIco(d){return '<svg viewBox="0 0 24 24"><path d="'+d+'"/></svg>'}
+var ONB={timer:0,sig:""};
+function renderOnb(d){
+  var e=(d&&d.engine)||{};
+  var eng=document.getElementById("onb-eng");if(!eng)return;
+  if(e.found)eng.innerHTML=onbIco("M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z")+
+    "<span><b>"+tt("Strata 引擎已就位","Strata engine found")+"</b>"+
+    (e.version?" · v"+esc(String(e.version)):"")+"</span>";
+  else eng.innerHTML=onbIco("M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4z")+
+    "<span><b>"+tt("未找到 Strata 引擎","Strata engine not found")+"</b><em>"+
+    tt("装好 Strata 引擎（自带 SETUP.bat），或把 gateway.json 的 strata_home 指到它","install Strata (it ships SETUP.bat), or point gateway.json strata_home at it")+
+    "</em></span>";
+  var cnt=document.getElementById("onb-cnt");
+  if(cnt)cnt.innerHTML=onbIco("M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z")+
+    "<span>"+tt("盘上特工","operatives on disk")+": <b>"+((d&&d.models!=null)?d.models:0)+"</b></span>";
+  drawOnbCheck((d&&d.check)||{state:"idle"},!!e.found);
+}
+function drawOnbCheck(c,engineFound){
+  var chk=document.getElementById("onb-chk");if(!chk)return;
+  var sig=JSON.stringify([c.state,c.ok,c.summary,engineFound]);
+  if(sig===ONB.sig)return;ONB.sig=sig;   // K27: repaint only on change, never on every poll tick
+  var st=c.state,pill="";
+  if(st==="done")pill='<span class="obpill '+(c.ok?"ok":"bad")+'">'+esc(String(c.summary||""))+"</span>";
+  else if(st==="failed")pill='<span class="obpill bad">'+esc(String(c.summary||""))+"</span>";
+  else if(st==="running")pill='<span class="obpill">'+tt("体检中…","checking…")+"</span>";
+  if(!engineFound){chk.innerHTML=onbIco("M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v6h-2V7zm0 8h2v2h-2v-2z")+
+    "<span><em>"+tt("引擎未就位，体检暂不可用","the PC check unlocks once the engine is found")+"</em></span>";return}
+  chk.innerHTML=onbIco("M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v6h-2V7zm0 8h2v2h-2v-2z")+
+    "<span><b>"+tt("本机体检","PC check")+"</b> "+pill+
+    (st==="idle"||st==="done"||st==="failed"?' <button class="ghostbtn" data-r=onb-check>'+
+      (st==="idle"?tt("跑一次","run check"):tt("再跑一次","check again"))+"</button>":"")+"</span>";
+  var b=chk.querySelector("[data-r=onb-check]");
+  if(b)b.onclick=function(){
+    qs("router/onboard?check=1",function(d2){
+      drawOnbCheck((d2&&d2.check)||{state:"running"},true);
+      if(ONB.timer)clearInterval(ONB.timer);
+      ONB.timer=setInterval(function(){
+        qs("router/onboard",function(d3){
+          var c3=(d3&&d3.check)||{};
+          drawOnbCheck(c3,true);
+          if((c3.state==="done"||c3.state==="failed")&&ONB.timer){clearInterval(ONB.timer);ONB.timer=0}
+        });
+      },1500);
+    });
+  };
+}
+function openOnboard(){
+  if(document.getElementById("onboard"))return;
+  var ov=document.createElement("div");ov.id="onboard";
+  ov.innerHTML='<div class="onb-box">'+
+    '<div class="onb-head"><b>'+tt("特工台 · 入职清单","Operative console · onboarding")+"</b>"+
+    '<button id="onb-x" title="'+tt("关闭","close")+'">×</button></div>'+
+    '<div class="onb-row" id="onb-eng"></div>'+
+    '<div class="onb-row" id="onb-chk"></div>'+
+    '<div class="onb-row" id="onb-cnt"></div>'+
+    '<div class="onb-cta"><button class="primary" id="onb-add">'+tt("+ 招募特工","+ recruit operative")+"</button></div>"+
+    "</div>";
+  document.body.appendChild(ov);
+  document.getElementById("onb-x").onclick=closeOnboard;
+  document.getElementById("onb-add").onclick=function(){openWiz(1)};
+  qs("router/onboard",function(d){renderOnb(d)});
+}
 function build(names){
   cardNames=names.slice();
+  if(names.length)closeOnboard();else openOnboard();
   var remember=null;try{remember=localStorage.getItem("stratagw.cardidx")}catch(e){}
   if(remember){var k=names.indexOf(remember);if(k>=0)pageIdx=k}
   if(pageIdx>=names.length)pageIdx=Math.max(0,names.length-1);
