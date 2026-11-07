@@ -40,7 +40,7 @@ try:
     ok("zzz-absent" in json.dumps(json.loads(h)), "C3 orphan card served even without a backend")
 
     html = gw.get_text("/gateway")
-    ok("orphan" in html.lower() and "未安装" in html, "C4 console markup knows the orphan state")
+    ok("orphan" in html.lower() and "未入册" in html, "C4 console markup knows the orphan state (v0.2 wording: 未入册)")
     ok('id="pdots"' in html and 'class="deck"' in html, "C5 paged carousel markup (dots + deck)")
     ok("META={" not in html, "C6 no hardcoded dossier META baked into the page")
     ok('data-r="delcard"' in html or "delcard" in html, "C7 orphan card offers delete")

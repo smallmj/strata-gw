@@ -348,4 +348,12 @@ ok('tt("中文标签："' in js and 'tt("英文档案：","English bio: ")' in j
 ok("rj[1].tags?{zh:{tags:rj[1].tags" in js,
    "K33e a half-updated pairing (new page, old backend) still renders the legacy single-tongue reply instead of blanks")
 
+# ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
+# button's orphan-only visibility is load-bearing (master's zero-delete rule) --
+ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")
+ok("未安装" not in js and "未安装" not in html, "T7b the old 未安装 wording is gone from the console")
+ok('del.style.display=(!b&&m)?' in js, "T7c burn-card keeps its orphan-only visibility logic")
+ok('del.style.display=m?' not in js, "T7d negative pin: delete never reaches normal cards")
+ok('data-r=orphanguide' in js, "T7e orphan cards carry the 未入册 guide line in cardHTML")
+
 sys.exit(0 if not F else 1)
