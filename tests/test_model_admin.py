@@ -30,6 +30,19 @@ def names(g):
     return sorted(b["model"] for b in json.loads(h).get("backends", []))
 
 
+def up(g, timeout=12):
+    """Zero-config gateways answer with an EMPTY backends list, so
+    wait_ready() (which demands a non-empty one) is useless there: poll the
+    endpoint for liveness only."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        s, _ = g.get("/router/backends")
+        if s == 200:
+            return True
+        time.sleep(0.4)
+    return False
+
+
 A = Stub("qwen", 18095)
 gw = Gateway(["qwen"], [18095], extra_env={"STRATA_HOME": shome})
 try:
@@ -134,5 +147,47 @@ try:
 finally:
     gw4.close()
     shutil.rmtree(shome4, ignore_errors=True)
+
+# --- T4: the recruit list is read live from the installed setup.py's own
+# constants (probe runs with the install's python; fixtures point STRATA_PYTHON
+# at this interpreter since the fake setup.py is constants-only).
+shome5 = tempfile.mkdtemp(prefix="gw-shome5-")
+with open(os.path.join(shome5, "setup.py"), "w", encoding="utf-8") as f:
+    f.write(
+        "FAMILIES = {'famx': {'title': 'Fam X One', 'by': 'tst', 'about': 'a demo family', "
+        "'name': 'famx-one', 'tag': '', 'vision': True}}\n"
+        "PREVIEW_FAMILIES = {'fampv': {'title': 'Fam PV', 'by': 'tst', 'about': 'preview', "
+        "'name': 'fampv', 'tag': 'pv'}}\n"
+        "MULTI_FILE_FAMILIES = {'mfx': {'title': 'Multi X', 'by': 'tst', 'about': 'multi', "
+        "'name': 'mfx', 'models': {'BIG': {'about': 'big tier', 'ram_gb': 32, 'label': 'BIG'}}}}\n"
+        "MODELS = {'T9_A': {'about': 'tier a', 'download_gb': 4.0, 'ram_gb': 8, "
+        "'arena_gb': 2, 'families': ['famx']}}\n")
+gw5 = Gateway([], [], extra_env={"STRATA_HOME": shome5, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gw5), "T4 pre: zero-config gateway with setup.py up")
+    s, h = gw5.get("/router/setup/models")
+    cat = json.loads(h) if s == 200 else {}
+    ok(s == 200 and cat.get("families", {}).get("famx", {}).get("title") == "Fam X One"
+       and cat.get("tiers", {}).get("T9_A", {}).get("download_gb") == 4.0,
+       "T4a GET /router/setup/models reads the installed list")
+    tiers = (cat.get("families", {}).get("mfx") or {}).get("tiers") or {}
+    ok(tiers.get("BIG", {}).get("ram_gb") == 32,
+       "T4b multi-file family carries its own tiers")
+finally:
+    gw5.close()
+
+# T4c: no setup.py under the home -> 503 with a guide message.
+shome6 = tempfile.mkdtemp(prefix="gw-shome6-")
+gw6 = Gateway([], [], extra_env={"STRATA_HOME": shome6, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gw6), "T4c pre: zero-config gateway without setup.py up")
+    s, h = gw6.get("/router/setup/models")
+    msg = (json.loads(h).get("error") or {}).get("message", "") if s else ""
+    ok(s == 503 and "setup" in msg.lower(),
+       "T4c missing setup.py -> 503, message points at it")
+finally:
+    gw6.close()
+    shutil.rmtree(shome5, ignore_errors=True)
+    shutil.rmtree(shome6, ignore_errors=True)
 
 print("ALL PASS")

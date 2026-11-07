@@ -282,6 +282,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, backends.router_info())
         if method == "GET" and path == "/router/cards":
             return self._json(200, cards.load_cards())
+        if method == "GET" and path == "/router/setup/models":
+            from . import setup_wizard
+            st, obj = setup_wizard.catalog()
+            return self._json(st, obj)
         if method == "POST" and path == "/router/scan":
             return self._json(200, {"ok": True, "models": backends.rescan()})
         if method == "DELETE" and path.startswith("/router/cards/"):
