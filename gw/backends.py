@@ -288,10 +288,28 @@ class Backend:
         events.note_intentional(self.name)
 
 
+def scan_dirs() -> list[str]:
+    """Config homes in trust order: the Strata install first (where setup.py
+    writes), then the gateway ROOT (embedded installs, legacy copies)."""
+    out, seen = [], set()
+    for d in (config.strata_home(), config.ROOT):
+        try:
+            rp = os.path.realpath(d)
+        except OSError:
+            continue
+        if rp not in seen:
+            seen.add(rp)
+            out.append(rp)
+    return out
+
+
 def scan_configs() -> dict[str, Backend]:
-    """strata-*.json next to the entry -> backends. Ports: a config's own port
-    (when it is not the router's) wins, else the saved mapping, else the next
-    free 1808x. The mapping is persisted so restarts keep the same ports."""
+    """strata-*.json under the config homes (scan_dirs trust order) ->
+    backends. Same model_name in two homes: the first-scanned (higher-trust)
+    config wins, the other is skipped with a shadow notice. Ports: a config's
+    own port (when it is not the router's) wins, else the saved mapping, else
+    the next free backend port. The mapping is persisted so restarts keep the
+    same ports."""
     saved: dict[str, int] = {}
     try:
         with open(config.PORTS_FILE, encoding="utf-8") as f:
@@ -301,19 +319,27 @@ def scan_configs() -> dict[str, Backend]:
     taken = {config.ROUTER_PORT}
     backends: dict[str, Backend] = {}
     entries = []
-    for path in sorted(glob.glob(os.path.join(config.ROOT, "strata-*.json"))):
-        base = os.path.basename(path)
-        if re.search(r"\.bak|\.tmp|\.log", base):
-            continue
-        try:
-            with open(path, encoding="utf-8-sig") as f:
-                cfg = json.load(f)
-            if not isinstance(cfg, dict) or not cfg.get("model_name"):
+    claimed: set[str] = set()
+    for d in scan_dirs():
+        for path in sorted(glob.glob(os.path.join(d, "strata-*.json"))):
+            base = os.path.basename(path)
+            if re.search(r"\.bak|\.tmp|\.log", base):
                 continue
-        except (OSError, ValueError) as e:
-            print(f"[router] skipping {base}: {e}", flush=True)
-            continue
-        entries.append((path, cfg))
+            try:
+                with open(path, encoding="utf-8-sig") as f:
+                    cfg = json.load(f)
+                if not isinstance(cfg, dict) or not cfg.get("model_name"):
+                    continue
+            except (OSError, ValueError) as e:
+                print(f"[router] skipping {base}: {e}", flush=True)
+                continue
+            name = cfg["model_name"]
+            if name in claimed:
+                print(f"[router] {base}: shadowed by a higher-trust config, "
+                      f"skipped", flush=True)
+                continue
+            claimed.add(name)
+            entries.append((path, cfg))
     for path, cfg in sorted(entries, key=lambda x: x[1]["model_name"]):
         name = cfg["model_name"]
         port = saved.get(name)
