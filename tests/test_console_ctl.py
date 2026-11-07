@@ -365,4 +365,16 @@ ok('qs("router/onboard' in js and 'router/onboard?check=1' in js,
    "T9e the checklist pulls /router/onboard and fires ?check=1 on demand")
 ok('function openWiz(' in js, "T9f the recruit wizard entry exists (shell until T10, page must run)")
 
+# ---- T10 (v0.2): the three-step full-screen recruit wizard ------------------
+ok('ov.id="wiz"' in js and "wiz-steps" in js, "T10a full-screen wizard layer with a three-step bar")
+ok("router/setup/models" in js, "T10b the wizard reads the live catalog (setup/models)")
+ok("famcard" in js and "tiercard" in js, "T10c split columns: family cards left, tier cards right")
+ok('tt("尝鲜","experimental")' in js, "T10d preview families carry the experimental badge")
+ok('"32768"' in js and '"1048576"' in js and "k8v4" in js and '"fp16"' in js,
+   "T10e step2 params: context presets + the full kv set (no raw args)")
+ok('tt("本地 GGUF 目录","local GGUF dir")' in js and 'tt("数据目录","data dir")' in js,
+   "T10f local gguf/data dir inputs live in step2")
+ok(not re.search(r"退役|卸载模型|uninstall", js + html + css, re.I),
+   "T10g zero-delete vocabulary guard (the feature does not exist)")
+
 sys.exit(0 if not F else 1)

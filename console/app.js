@@ -172,7 +172,6 @@ cardsEl.addEventListener("click",function(e){
   if(b.dataset.r==="train"){openTrain(n)}
 });
 function closeOnboard(){var o=document.getElementById("onboard");if(o)o.remove()}
-function openWiz(step){/* T10 builds the three-step recruit wizard; this shell keeps the entry runnable now */}
 function onbIco(d){return '<svg viewBox="0 0 24 24"><path d="'+d+'"/></svg>'}
 var ONB={timer:0,sig:""};
 function renderOnb(d){
@@ -235,6 +234,168 @@ function openOnboard(){
   document.getElementById("onb-add").onclick=function(){openWiz(1)};
   qs("router/onboard",function(d){renderOnb(d)});
 }
+// ---- 招募向导（三段全屏）: 1 选特工(左右分栏) / 2 调教 / 3 入册直播 --------
+var WIZ={cat:null,step:1,fam:null,tier:null,err:"",
+         p:{context:"131072",ctxother:"",kv:"auto",vision:"auto",gguf:"",data:""}};
+function closeWiz(){var o=document.getElementById("wiz");if(o)o.remove()}
+function openWiz(step){
+  if(document.getElementById("wiz")){goWiz(step||WIZ.step);return}
+  var ov=document.createElement("div");ov.id="wiz";
+  ov.innerHTML='<div class="wiz-box">'+
+    '<div class="onb-head"><b>'+tt("招募特工 · 入职向导","Recruit an operative · wizard")+"</b>"+
+    '<button id="wiz-x" title="'+tt("关闭","close")+'">×</button></div>'+
+    '<div class="wiz-steps" id="wiz-steps"></div>'+
+    '<div id="wiz-body" class="wiz-body"></div>'+
+    '<div class="prow" id="wiz-nav"></div>'+
+    "</div>";
+  document.body.appendChild(ov);
+  closeOnboard();
+  document.getElementById("wiz-x").onclick=closeWiz;
+  if(WIZ.cat&&!WIZ.err)goWiz(step||1);else wizLoad(step||1);
+}
+function wizLoad(step){
+  fetch("router/setup/models",{headers:hdrs(false)})
+    .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})})
+    .then(function(r){
+      if(r[0]===200){WIZ.cat=r[1];WIZ.err=""}
+      else{WIZ.err=String((((r[1]||{}).error)||{}).message||("HTTP "+r[0]))}
+      goWiz(step||1);
+    })
+    .catch(function(e){WIZ.err=String(e);goWiz(step||1)});
+}
+function goWiz(n){
+  WIZ.step=n;
+  var st=document.getElementById("wiz-steps");if(!st)return;
+  var names=[tt("选特工","pick"),tt("调教","tune"),tt("入册","enroll")];
+  st.innerHTML=names.map(function(x,i){
+    return '<span class="wstep'+(i+1===n?" on":"")+(i+1<n?" done":"")+'">'+(i+1)+" · "+x+"</span>"}).join("");
+  var body=document.getElementById("wiz-body"),nav=document.getElementById("wiz-nav");
+  nav.innerHTML="";
+  if(WIZ.err&&n===1){body.innerHTML='<div class="wiz-err">'+esc(WIZ.err)+"</div>";
+    var b=document.createElement("button");b.className="ghost";b.textContent=tt("重试","retry");
+    b.onclick=function(){wizLoad(1)};nav.appendChild(b);return}
+  if(n===1){body.innerHTML=wizFamsHtml();wireFams();wizNav1(nav)}
+  else if(n===2){body.innerHTML=wizParamsHtml();wireParams();wizNav2(nav)}
+  else{body.innerHTML='<pre id="wiz-log" class="wiz-log"></pre>';wizLive(body,nav)}
+}
+function wizFamsHtml(){
+  var f=(WIZ.cat&&WIZ.cat.families)||{},L="",R="";
+  var ks=Object.keys(f).sort();
+  for(var i=0;i<ks.length;i++){
+    var k=ks[i],x=f[k]||{};
+    L+='<button class="famcard'+(WIZ.fam===k?" on":"")+'" data-fam="'+esc(k)+'">'+
+      (x.tag?'<span class="expbadge">'+tt("尝鲜","experimental")+"</span>":"")+
+      "<b>"+esc(x.title||k)+"</b>"+
+      (x.by?'<em class="fby">'+esc(x.by)+"</em>":"")+
+      (x.about?'<p class="fab">'+esc(x.about)+"</p>":"")+
+      "</button>";
+  }
+  if(!ks.length)L='<div class="wiz-err">'+tt("清单是空的","the family list is empty")+"</div>";
+  var fam=WIZ.fam&&f[WIZ.fam]?f[WIZ.fam]:null;
+  if(!fam){R='<div class="wiz-hint">'+tt("先选一位特工的家族，右边挑档位","pick a family on the left, then a tier on the right")+"</div>"}
+  else{
+    var tiers=[];
+    if(fam.tiers&&Object.keys(fam.tiers).length){
+      Object.keys(fam.tiers).sort().forEach(function(t){tiers.push([t,fam.tiers[t]||{}])});
+    }else{
+      var g=(WIZ.cat.tiers)||{};
+      Object.keys(g).sort().forEach(function(t){var x=g[t]||{};
+        if(!x.families||x.families.indexOf(WIZ.fam)>=0)tiers.push([t,x])});
+    }
+    for(var j=0;j<tiers.length;j++){
+      var t=tiers[j][0],x2=tiers[j][1];
+      R+='<button class="tiercard'+(WIZ.tier===t?" on":"")+'" data-tier="'+esc(t)+'">'+
+        "<b>"+esc(x2.label||t)+"</b>"+
+        (x2.about?"<p>"+esc(x2.about)+"</p>":"")+
+        '<div class="tmeta"><span>'+(x2.download_gb!=null?esc(String(x2.download_gb))+" GB":"—")+"</span>"+
+        "<span>RAM "+(x2.ram_gb!=null?esc(String(x2.ram_gb))+" GB":"—")+"</span>"+
+        (x2.arena_gb!=null?"<span>Arena "+esc(String(x2.arena_gb))+" GB</span>":"")+
+        "</div></button>";
+    }
+    if(!tiers.length)R='<div class="wiz-err">'+tt("这个家族没有可点的档位","this family has no selectable tiers")+"</div>";
+  }
+  return '<div class="wiz-cols"><div class="wiz-famcol">'+L+'</div><div class="wiz-tiercol">'+R+"</div></div>";
+}
+function wireFams(){
+  var el=document.getElementById("wiz-body");if(!el)return;
+  var fs=el.querySelectorAll("[data-fam]");
+  for(var i=0;i<fs.length;i++)(function(b){b.onclick=function(){WIZ.fam=b.dataset.fam;WIZ.tier=null;goWiz(1)}})(fs[i]);
+  var ts=el.querySelectorAll("[data-tier]");
+  for(var j=0;j<ts.length;j++)(function(b){b.onclick=function(){WIZ.tier=b.dataset.tier;goWiz(1)}})(ts[j]);
+}
+function wizNav1(nav){
+  var go=document.createElement("button");go.className="primary";
+  go.textContent=tt("下一步：调教","Next: tuning");
+  go.disabled=!(WIZ.fam&&WIZ.tier);
+  go.onclick=function(){goWiz(2)};
+  nav.appendChild(go);
+}
+function wizSel(id,opts,cur){
+  var h='<select id="'+id+'">';
+  for(var i=0;i<opts.length;i++){var o=opts[i];
+    h+='<option value="'+esc(o[0])+'"'+(cur===o[0]?" selected":"")+">"+esc(o[1])+"</option>"}
+  return h+"</select>";
+}
+function wizParamsHtml(){
+  var p=WIZ.p;
+  return '<div class="wiz-params">'+
+   '<div class="prm"><label>'+tt("上下文长度","context length")+"</label>"+
+   wizSel("w-context",[["32768","32K"],["131072","128K"],["262144","262K"],["524288","512k"],["1048576","1M"],["other",tt("其他（自填）","other (type your own)")]],p.context)+
+   ' <input id="w-ctxother" type="number" min="1024" max="2097152" step="1024" placeholder="'+tt("token 数","tokens")+'" value="'+esc(p.ctxother)+'"'+(p.context==="other"?"":' style="display:none"')+">"+
+   "<em>"+tt("模型能记住的对话长度，越大越吃内存","how much conversation the model can hold - bigger costs more memory")+"</em></div>"+
+   '<div class="prm"><label>'+tt("KV 量化","KV quant")+"</label>"+
+   wizSel("w-kv",[["auto",tt("自动（安装工具推荐）","auto (installer recommends)")],["k8v4","k8v4"],["int8","int8"],["q4_0","q4_0"],["fp16","fp16"]],p.kv)+
+   "<em>"+tt("缓存精度档，auto 跟随档位推荐","cache precision - auto follows the tier recommendation")+"</em></div>"+
+   '<div class="prm"><label>'+tt("视觉能力","vision")+"</label>"+
+   wizSel("w-vision",[["auto",tt("自动","auto")],["yes",tt("开","yes")],["no",tt("关","no")]],p.vision)+
+   "<em>"+tt("能否看图，auto 跟随档位默认","can it see images - auto follows the tier default")+"</em></div>"+
+   '<div class="prm"><label>'+tt("本地 GGUF 目录","local GGUF dir")+'</label><input id="w-gguf" type="text" placeholder="'+
+   tt("留空=安装工具自动判定","leave empty = the installer decides")+'" value="'+esc(p.gguf)+'">'+
+   "<em>"+tt("本机已有 GGUF 分片时指到这里，跳过下载","point at your own GGUF shards to skip the download")+"</em></div>"+
+   '<div class="prm"><label>'+tt("数据目录","data dir")+'</label><input id="w-data" type="text" placeholder="'+
+   tt("留空=默认位置","leave empty = default place")+'" value="'+esc(p.data)+'">'+
+   "<em>"+tt("模型文件的存放位置","where the model files will live")+"</em></div>"+
+   '<div class="prm"><b>'+esc((WIZ.fam||"")+" · "+(WIZ.tier||""))+"</b></div>"+
+   "</div>";
+}
+function wireParams(){
+  var g=function(id){return document.getElementById(id)};
+  g("w-context").onchange=function(){WIZ.p.context=this.value;g("w-ctxother").style.display=this.value==="other"?"":"none"};
+  g("w-ctxother").oninput=function(){WIZ.p.ctxother=this.value};
+  g("w-kv").onchange=function(){WIZ.p.kv=this.value};
+  g("w-vision").onchange=function(){WIZ.p.vision=this.value};
+  g("w-gguf").oninput=function(){WIZ.p.gguf=this.value};
+  g("w-data").oninput=function(){WIZ.p.data=this.value};
+}
+function wizParamsBody(){
+  var b={family:WIZ.fam,tier:WIZ.tier},p=WIZ.p;
+  if(p.context==="other"){if(p.ctxother)b.context=parseInt(p.ctxother,10)}
+  else b.context=parseInt(p.context,10);
+  if(p.kv!=="auto")b.kv=p.kv;
+  if(p.vision!=="auto")b.vision=p.vision;
+  if(p.gguf)b.gguf_dir=p.gguf;
+  if(p.data)b.data_dir=p.data;
+  return b;
+}
+function wizNav2(nav){
+  var back=document.createElement("button");back.className="ghost";
+  back.textContent=tt("上一步","Back");back.onclick=function(){goWiz(1)};
+  var go=document.createElement("button");go.className="primary";
+  go.textContent=tt("确认招募","Recruit");
+  go.onclick=function(){
+    askDlg(tt("确认招募特工","Recruit this operative"),
+      tt("入册期间请勿关闭网关窗口——关闭=入册中断，之后可一键重新入册；下载视体积可能需要几十分钟。","Do not close the gateway window while the operative enrolls - closing interrupts it (one-click 重新入册 afterwards); downloads can take a while."),
+      [{cls:"ghost",label:tt("取消","Cancel")},
+       {cls:"primary",label:tt("开跑","start"),fn:function(){
+         postj("router/setup/run",wizParamsBody(),function(st,j){
+           if(st===200&&j&&j.started){goWiz(3)}
+           else{say(String((((j||{}).error)||{}).message||tt("入册启动失败","the enroll could not start")),"err")}
+         });
+       }}]);
+  };
+  nav.appendChild(back);nav.appendChild(go);
+}
+function wizLive(body,nav){/* T11 replaces this empty shell with the live enroll view */}
 function build(names){
   cardNames=names.slice();
   if(names.length)closeOnboard();else openOnboard();
