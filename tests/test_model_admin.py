@@ -419,4 +419,59 @@ finally:
     shutil.rmtree(shomeA, ignore_errors=True)
     shutil.rmtree(shomeB, ignore_errors=True)
 
+# --- T8: read-only disk map (网关零删除: the gateway shows the way, it never
+# deletes). Fixture: two models share one pack dir, one model has a private
+# file, one model dangles a removed path.
+shomeC = tempfile.mkdtemp(prefix="gw-shomeC-")
+pack = os.path.join(shomeC, "packs", "shared")
+os.makedirs(os.path.join(pack, "sub"))
+with open(os.path.join(pack, "a.bin"), "w") as f:
+    f.write("x" * 1024)
+with open(os.path.join(pack, "sub", "b.bin"), "w") as f:
+    f.write("y" * 2048)
+solo = os.path.join(shomeC, "solo.bin")
+with open(solo, "w") as f:
+    f.write("z" * 4096)
+for nm, args in (("disk-a", ["--pack", pack]),
+                 ("disk-b", ["--pack", pack, "--model-path", solo]),
+                 ("disk-c", ["--pack", os.path.join(shomeC, "gone")])):
+    with open(os.path.join(shomeC, "strata-" + nm + ".json"), "w") as f:
+        json.dump({"model_name": nm, "api_key": "", "args": args}, f)
+gwF = Gateway([], [], extra_env={"STRATA_HOME": shomeC, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwF), "T8 pre: disk fixture gateway up")
+    s, h = gwF.get("/router/disk")
+    d = json.loads(h) if s == 200 else {}
+    ma = {m["model"]: m for m in d.get("models") or []}
+    ok(s == 200 and sorted(ma) == ["disk-a", "disk-b", "disk-c"],
+       "T8a GET /router/disk answers read-only per model")
+    fa = (ma.get("disk-a", {}).get("files") or [{}])[0]
+    ok(fa.get("path") == os.path.realpath(pack) and fa.get("dir") is True
+       and fa.get("bytes") == 3072 and sorted(fa.get("used_by") or []) == ["disk-a", "disk-b"],
+       "T8b shared pack dir: recursive size + used_by names both models")
+    fbs = [x for x in ma.get("disk-b", {}).get("files") or []
+           if x.get("path") == os.path.realpath(solo)]
+    ok(len(fbs) == 1 and fbs[0].get("bytes") == 4096
+       and fbs[0].get("used_by") == ["disk-b"],
+       "T8c exclusive file: owner only")
+    fc = (ma.get("disk-c", {}).get("files") or [{}])[0]
+    ok(fc.get("missing") is True and fc.get("path") == os.path.realpath(os.path.join(shomeC, "gone")),
+       "T8d dangling reference path still listed, marked missing")
+    ok(ma.get("disk-a", {}).get("total_bytes") == 3072, "T8e per-model totals sum the files")
+    ok(d.get("data_dir") is None and d.get("data_total_bytes") is None,
+       "T8f no data dir in sight -> nulls, no globbing")
+    ddir = os.path.join(shomeC, "datahome")
+    os.makedirs(ddir)
+    with open(os.path.join(ddir, "f.bin"), "w") as f:
+        f.write("q" * 512)
+    with open(os.path.join(gwF.root, "gateway.json"), "w") as f:
+        json.dump({"strata_data_dir": ddir}, f)
+    s, h = gwF.get("/router/disk")
+    d2 = json.loads(h)
+    ok(d2.get("data_dir") == os.path.realpath(ddir) and d2.get("data_total_bytes") == 512,
+       "T8g gateway.json strata_data_dir overrides, total reads hot")
+finally:
+    gwF.close()
+    shutil.rmtree(shomeC, ignore_errors=True)
+
 print("ALL PASS")

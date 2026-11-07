@@ -380,3 +380,79 @@ def onboard(want_check: bool) -> dict:
         out["check"] = {k: v for k, v in _CHECK.items()
                         if k in ("state", "ok", "summary")}
     return out
+
+
+# ---- read-only disk map (GET /router/disk) ---------------------------------
+# 网关零删除 (master's permanent rule): the gateway never deletes a model file
+# and offers no delete button - it makes "see it, find it" perfect with this
+# read-only map, and the user handles removal through their own channels.
+# Zero globbing, zero guessing: only paths literally present in each config's
+# args / top-level string values are listed.
+
+def _cfg_paths(cfg: dict) -> list:
+    out = []
+    for v in (cfg or {}).values():
+        if isinstance(v, str):
+            if os.path.isabs(v):
+                out.append(v)
+        elif isinstance(v, list):
+            for x in v:
+                if isinstance(x, str) and os.path.isabs(x):
+                    out.append(x)
+    return out
+
+
+def _path_bytes(p: str):
+    """(bytes, is_dir) for a file or a whole directory tree; OSError = gone."""
+    if os.path.isdir(p):
+        total = 0
+        for dirpath, _dirs, files in os.walk(p):
+            for fn in files:
+                try:
+                    total += os.path.getsize(os.path.join(dirpath, fn))
+                except OSError:
+                    pass
+        return total, True
+    return os.path.getsize(p), False
+
+
+def disk_report() -> dict:
+    refmap: dict[str, list] = {}
+    rows = []
+    for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
+        try:
+            with open(b.cfg_path, encoding="utf-8-sig") as f:
+                cfg = json.load(f)
+        except (OSError, ValueError):
+            cfg = {}
+        paths = []
+        for p in _cfg_paths(cfg if isinstance(cfg, dict) else {}):
+            rp = os.path.realpath(p)
+            if rp not in paths:
+                paths.append(rp)
+                if b.name not in refmap.setdefault(rp, []):
+                    refmap[rp].append(b.name)
+        rows.append((b.name, os.path.realpath(b.cfg_path), paths))
+    models = []
+    for name, cfgp, paths in rows:
+        files, total = [], 0
+        for rp in paths:
+            try:
+                size, is_dir = _path_bytes(rp)
+                missing = False
+            except OSError:
+                size, is_dir, missing = None, os.path.isdir(rp), True
+            files.append({"path": rp, "bytes": size, "dir": is_dir,
+                          "used_by": refmap.get(rp, [name]), "missing": missing})
+            if size:
+                total += size
+        models.append({"model": name, "config": cfgp, "files": files,
+                       "total_bytes": total})
+    dd = str(config.gateway_cfg().get("strata_data_dir") or "") \
+        or os.path.join(os.path.dirname(config.strata_home()), "Strata-data")
+    dd = os.path.realpath(dd)
+    if os.path.isdir(dd):
+        data_dir, data_total = dd, _path_bytes(dd)[0]
+    else:
+        data_dir, data_total = None, None
+    return {"models": models, "data_dir": data_dir, "data_total_bytes": data_total}
