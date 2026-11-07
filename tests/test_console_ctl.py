@@ -377,4 +377,12 @@ ok('tt("本地 GGUF 目录","local GGUF dir")' in js and 'tt("数据目录","dat
 ok(not re.search(r"退役|卸载模型|uninstall", js + html + css, re.I),
    "T10g zero-delete vocabulary guard (the feature does not exist)")
 
+# ---- T11 (v0.2): live enroll view + top chip + the 重新入册 badge ----------
+ok('id="wizchip"' in html and "router/setup/status" in js,
+   "T11a the top bar chip exists and status polling is wired")
+ok("rebadge" in js and 'tt("重新入册","recruit again")' in js,
+   "T11b failed history raises the retry badge with the 重新入册 label")
+ok("forgeNow" in js, "T11c done feeds forgeNow - the T12 flip animation data source")
+ok('id="wiz-log"' in js and "wizpill" in js, "T11d step3 renders the terminal-style live log with a status pill")
+
 sys.exit(0 if not F else 1)

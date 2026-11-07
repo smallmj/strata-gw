@@ -103,7 +103,8 @@ window.__I18N__ = {
 "dg.switch": "换机即让位",
 "dg.give": "外部显存让卡",
 "dg.givesm": "对接任意 /free 出图服务",
-"add_op": "+ 招募特工"
+"add_op": "+ 招募特工",
+"wiz.run": "特工入册中…"
 },
 "en": {
 "pg.title": "Strata gateway",
@@ -209,6 +210,7 @@ window.__I18N__ = {
 "dg.switch": "handover on switch",
 "dg.give": "external VRAM give-card",
 "dg.givesm": "any generator exposing /free",
-"add_op": "+ recruit operative"
+"add_op": "+ recruit operative",
+"wiz.run": "operative enrolling…"
 }
 };
