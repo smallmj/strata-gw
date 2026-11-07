@@ -190,4 +190,185 @@ finally:
     shutil.rmtree(shome5, ignore_errors=True)
     shutil.rmtree(shome6, ignore_errors=True)
 
+# --- T5: the recruit run drives the installed setup.py non-interactively,
+# streams its stdout into the status log ring, keeps run history for
+# 重新入册, lands the one-key policy and creates the placeholder card.
+# FAKE_SETUP mirrors the real install tool in the one way the gateway relies
+# on: constants live at import time, the CLI only runs under __main__ (the
+# real setup.py is side-effect-free to import - probed on the live box).
+FAKE_SETUP = r'''
+import argparse, json, os, sys, time
+FAMILIES = {"faux": {"title": "Faux One", "by": "tst", "about": "fake family",
+                     "name": "faux-one", "tag": "", "vision": True}}
+PREVIEW_FAMILIES = {}
+MULTI_FILE_FAMILIES = {}
+MODELS = {"T9_X": {"about": "x tier", "download_gb": 1.0, "ram_gb": 4, "arena_gb": 1,
+                   "families": ["faux"]},
+          "T9_Z": {"about": "z tier", "download_gb": 2.0, "ram_gb": 4, "arena_gb": 1,
+                   "families": ["faux"]},
+          "T9_Y": {"about": "other-fam tier", "download_gb": 1.0, "ram_gb": 4, "arena_gb": 1,
+                   "families": ["otherfam"]},
+          "TFAIL": {"about": "mid-run failure demo", "download_gb": 1.0, "ram_gb": 4,
+                    "arena_gb": 1, "families": ["faux"]}}
+
+
+def _main():
+    ap = argparse.ArgumentParser(prog="fake setup")
+    ap.add_argument("--setup", action="store_true")
+    ap.add_argument("--family"); ap.add_argument("--model")
+    ap.add_argument("--context", type=int)
+    ap.add_argument("--kv"); ap.add_argument("--vision")
+    ap.add_argument("--gguf-dir", dest="gguf_dir"); ap.add_argument("--data-dir", dest="data_dir")
+    ap.add_argument("--no-start", action="store_true"); ap.add_argument("--yes", action="store_true")
+    ap.add_argument("--check", action="store_true")
+    a = ap.parse_args()
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "args_dump.json"), "w") as f:
+        json.dump(sys.argv[1:], f)
+    if a.check:
+        print("fake pc check: ok", flush=True); sys.exit(0)
+    if not a.setup or not a.family or not a.model:
+        sys.exit(2)
+    for i in range(3):
+        print("faux: fetching %s %d/3" % (a.model, i + 1), flush=True)
+        time.sleep(0.2)
+    if a.model == "TFAIL":
+        print("faux: link flapped, giving up", flush=True)
+        sys.exit(3)
+    fname = FAMILIES[a.family]["name"]
+    tier = a.model.lower()
+    cfg = {"model_name": fname + "-" + tier,
+           "args": ["--pack", os.path.join(here, "packs", tier),
+                    "--max-context", str(a.context or 131072)]}
+    with open(os.path.join(here, "strata-" + fname + "-" + tier + ".json"), "w") as f:
+        json.dump(cfg, f)
+    print("faux: config written", flush=True)
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    _main()
+'''
+
+
+def wait_done(g, timeout=25):
+    st = None
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        s, h = g.get("/router/setup/status?since=0")
+        st = json.loads(h)
+        if st.get("state") in ("done", "failed"):
+            return st
+        time.sleep(0.3)
+    return st
+
+
+shome7 = tempfile.mkdtemp(prefix="gw-shome7-")
+with open(os.path.join(shome7, "setup.py"), "w", encoding="utf-8") as f:
+    f.write(FAKE_SETUP)
+gwA = Gateway([], [], extra_env={"STRATA_HOME": shome7, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwA), "T5 pre: fake-install gateway up")
+    s, h = gwA.post("/router/setup/run",
+                    {"family": "faux", "tier": "T9_X", "context": 131072})
+    ok(s == 200 and json.loads(h).get("started") is True, "T5a run accepted {started:true}")
+    s2, _ = gwA.post("/router/setup/run", {"family": "faux", "tier": "T9_Z"})
+    ok(s2 == 409, "T5a2 concurrent run while running -> 409")
+    st = wait_done(gwA)
+    ok(st and st.get("state") == "done" and st.get("code") == 0
+       and any("faux: fetching" in x for x in (st.get("lines") or [])),
+       "T5a3 status streams fake progress; done code=0")
+    ok((st.get("result") or {}).get("new") == ["faux-one-t9_x"],
+       "T5a4 result.new feeds the card-flip animation")
+    ok("faux-one-t9_x" in names(gwA), "T5a5 done forces rescan: model in backends")
+    s4, h4 = gwA.get("/router/cards")
+    ok("faux-one-t9_x" in json.dumps(json.loads(h4)),
+       "T5a6 placeholder card created, nick=model name")
+
+    # T5b: one-key policy. Nothing was installed before -> a fresh 32-hex
+    # token lands in the new config AND in gateway.json default_api_key;
+    # the next run reuses it.
+    cfgj = json.load(open(os.path.join(shome7, "strata-faux-one-t9_x.json")))
+    tok = cfgj.get("api_key") or ""
+    ok(len(tok) == 32 and all(c in "0123456789abcdef" for c in tok),
+       "T5b1 fresh recruit without prior key -> 32-hex token")
+    gj = json.load(open(os.path.join(gwA.root, "gateway.json")))
+    ok(gj.get("default_api_key") == tok, "T5b2 gateway.json keeps the shared default")
+    s5, _ = gwA.post("/router/setup/run", {"family": "faux", "tier": "T9_Z"})
+    ok(s5 == 200, "T5b3 second run starts")
+    st2 = wait_done(gwA)
+    cfgz = json.load(open(os.path.join(shome7, "strata-faux-one-t9_z.json")))
+    ok(st2 and st2.get("state") == "done" and cfgz.get("api_key") == tok,
+       "T5b4 second run reuses the default key (one key per gateway)")
+finally:
+    gwA.close()
+
+# T5b-pre: an installed config with a key -> the new recruit shares it.
+shome8 = tempfile.mkdtemp(prefix="gw-shome8-")
+with open(os.path.join(shome8, "setup.py"), "w", encoding="utf-8") as f:
+    f.write(FAKE_SETUP)
+with open(os.path.join(shome8, "strata-installed-x.json"), "w") as f:
+    json.dump({"model_name": "installed-x", "api_key": "SAMEKEY"}, f)
+gwB = Gateway([], [], extra_env={"STRATA_HOME": shome8, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwB), "T5b pre: gateway with a pre-installed keyed config up")
+    s, _ = gwB.post("/router/setup/run", {"family": "faux", "tier": "T9_X"})
+    st = wait_done(gwB)
+    cfgb = json.load(open(os.path.join(shome8, "strata-faux-one-t9_x.json")))
+    ok(s == 200 and st and st.get("state") == "done" and cfgb.get("api_key") == "SAMEKEY",
+       "T5b5 installed model's key is reused for the recruit")
+finally:
+    gwB.close()
+
+# T5c: parameter pass-through + input validation (400s start no subprocess).
+shome9 = tempfile.mkdtemp(prefix="gw-shome9-")
+with open(os.path.join(shome9, "setup.py"), "w", encoding="utf-8") as f:
+    f.write(FAKE_SETUP)
+gwC = Gateway([], [], extra_env={"STRATA_HOME": shome9, "STRATA_PYTHON": sys.executable})
+try:
+    ok(up(gwC), "T5c pre: gateway up")
+    s, _ = gwC.post("/router/setup/run",
+                    {"family": "faux", "tier": "T9_X", "gguf_dir": "/nonexistent-zz-dir"})
+    ok(s == 400, "T5c1 missing gguf_dir -> 400 (gateway checks existence)")
+    s, _ = gwC.post("/router/setup/run", {"family": "faux", "tier": "T9_Y"})
+    ok(s == 400, "T5c2 tier from another family -> 400")
+    s, _ = gwC.post("/router/setup/run", {"family": "bad fam!", "tier": "T9_X"})
+    ok(s == 400, "T5c3 illegal family slug -> 400")
+    s, _ = gwC.post("/router/setup/run",
+                    {"family": "faux", "tier": "T9_X", "vision": "no",
+                     "gguf_dir": shome9, "data_dir": shome9 + "/data", "kv": "int8"})
+    st = wait_done(gwC)
+    dump = json.load(open(os.path.join(shome9, "args_dump.json")))
+
+    def has(flag, val):
+        return flag in dump and dump[dump.index(flag) + 1] == str(val)
+
+    ok(s == 200 and st and st.get("state") == "done"
+       and has("--vision", "no") and has("--gguf-dir", shome9)
+       and has("--data-dir", shome9 + "/data") and has("--kv", "int8")
+       and "--no-start" in dump and "--yes" in dump,
+       "T5c4 full params reach setup.py (--no-start --yes always)")
+
+    # T5d: history persists; failed run recorded; after a gateway restart the
+    # status endpoint answers from history (badge survives restarts).
+    hist = json.load(open(os.path.join(gwC.root, "router-setup.json")))
+    ok(hist[-1]["state"] == "done" and hist[-1]["params"]["tier"] == "T9_X",
+       "T5d1 ROOT/router-setup.json keeps the finished run")
+    s, _ = gwC.post("/router/setup/run", {"family": "faux", "tier": "TFAIL"})
+    stf = wait_done(gwC)
+    ok(stf and stf.get("state") == "failed" and stf.get("code") == 3,
+       "T5d2 failing setup -> state failed, exit code kept")
+    gwC.restart()
+    ok(up(gwC), "T5d3 gateway restarted on the same root")
+    s, h = gwC.get("/router/setup/status?since=999999")
+    hj = json.loads(h)
+    ok(s == 200 and hj.get("from_history") is True and hj.get("state") == "failed"
+       and (hj.get("params") or {}).get("tier") == "TFAIL",
+       "T5d4 status after restart reads history: 重新入册 badge data survives")
+finally:
+    gwC.close()
+    shutil.rmtree(shome7, ignore_errors=True)
+    shutil.rmtree(shome8, ignore_errors=True)
+    shutil.rmtree(shome9, ignore_errors=True)
+
 print("ALL PASS")
