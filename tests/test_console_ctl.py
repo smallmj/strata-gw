@@ -398,4 +398,17 @@ ok("1e9" in _db and "1073741824" not in _db and "1024" not in _db,
 ok('tt("共享"' in js and "used_by" in js and 'tt("路径找不到"' in js,
    "T12e shared packs get the 共享 annotation and dangling paths get flagged")
 
+# ---- T13 (v0.2): i18n full-pair + whole-repo self-check guards -------------
+import json as _json
+try:
+    _m = _json.loads(i18njs[i18njs.index("{"):i18njs.rindex("}") + 1])
+except Exception:
+    _m = {}
+ok(_m.get("zh") and set(_m.get("zh", {})) == set(_m.get("en", {})),
+   "T13a i18n zh/en key sets are exactly equal - every string ships as a pair")
+ok(not re.search(r"[^.a-zA-Z]confirm\s*\(", js + html),
+   "T13b zero native confirm() in the console - askDlg owns every verdict")
+ok(not re.search(r"com" + r"fy", js + html + css + i18njs, re.I),
+   "T13c zero legacy brand word anywhere in the console trio+table")
+
 sys.exit(0 if not F else 1)
