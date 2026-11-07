@@ -51,7 +51,7 @@ function renderHero(){
     else if(chips.length){els[i].style.display="none"}
   }
 }
-function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(window.PETUI)window.PETUI.art();renderHero();if(cb)cb()})}
+function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="object")?d:{};if(window.PETUI)window.PETUI.art();renderHero();checkEnrollBadge();if(cb)cb()})}
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
@@ -235,11 +235,44 @@ function openOnboard(){
   qs("router/onboard",function(d){renderOnb(d)});
 }
 // ---- 招募向导（三段全屏）: 1 选特工(左右分栏) / 2 调教 / 3 入册直播 --------
-var WIZ={cat:null,step:1,fam:null,tier:null,err:"",
+var WIZ={cat:null,step:1,fam:null,tier:null,err:"",retry:false,
          p:{context:"131072",ctxother:"",kv:"auto",vision:"auto",gguf:"",data:""}};
+var WIZRUN={cursor:0,timer:0,state:"",failParams:null,follow:true};
+var forgeNow=new Set();   // 本次会话刚入册的模型（T12 翻卡登场；刷新即散，不落任何后端状态）
+function setChip(on){var c=document.getElementById("wizchip");if(!c)return;
+  var want=on?"":"none";if(c.style.display!==want)c.style.display=want}
+function checkEnrollBadge(){
+  fetch("router/setup/status?since=999999",{headers:hdrs(false)})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      setChip(d.state==="running"||WIZRUN.state==="running");
+      var b=document.getElementById("gw-add");if(!b)return;
+      if(d.from_history&&d.state==="failed"){
+        WIZRUN.failParams=d.params||null;
+        if(!b.classList.contains("rebadge"))b.classList.add("rebadge");
+        b.title=tt("上次入册未完成：点开一键重新入册（参数已保留）","the last enroll was interrupted - click to retry with the same params");
+      }else if(d.state!=="running"){
+        if(d.from_history&&d.state==="done")WIZ.retry=false;
+        WIZRUN.failParams=null;
+        b.classList.remove("rebadge");b.title="";
+      }
+    }).catch(function(){});
+}
+function applyEnroll(p){
+  if(!p)return;
+  if(p.family)WIZ.fam=p.family;
+  if(p.tier)WIZ.tier=p.tier;
+  WIZ.retry=true;
+  if(p.context!=null){var s=String(p.context);
+    WIZ.p.context=(["32768","131072","262144","524288","1048576"].indexOf(s)>=0)?s:"other";
+    if(WIZ.p.context==="other")WIZ.p.ctxother=s}
+  WIZ.p.kv=p.kv||"auto";WIZ.p.vision=p.vision||"auto";
+  WIZ.p.gguf=p.gguf_dir||"";WIZ.p.data=p.data_dir||"";
+}
 function closeWiz(){var o=document.getElementById("wiz");if(o)o.remove()}
 function openWiz(step){
   if(document.getElementById("wiz")){goWiz(step||WIZ.step);return}
+  if(!step&&WIZRUN.failParams){applyEnroll(WIZRUN.failParams);step=2}
   var ov=document.createElement("div");ov.id="wiz";
   ov.innerHTML='<div class="wiz-box">'+
     '<div class="onb-head"><b>'+tt("招募特工 · 入职向导","Recruit an operative · wizard")+"</b>"+
@@ -381,7 +414,7 @@ function wizNav2(nav){
   var back=document.createElement("button");back.className="ghost";
   back.textContent=tt("上一步","Back");back.onclick=function(){goWiz(1)};
   var go=document.createElement("button");go.className="primary";
-  go.textContent=tt("确认招募","Recruit");
+  go.textContent=WIZ.retry?tt("重新入册","recruit again"):tt("确认招募","Recruit");
   go.onclick=function(){
     askDlg(tt("确认招募特工","Recruit this operative"),
       tt("入册期间请勿关闭网关窗口——关闭=入册中断，之后可一键重新入册；下载视体积可能需要几十分钟。","Do not close the gateway window while the operative enrolls - closing interrupts it (one-click 重新入册 afterwards); downloads can take a while."),
@@ -395,7 +428,60 @@ function wizNav2(nav){
   };
   nav.appendChild(back);nav.appendChild(go);
 }
-function wizLive(body,nav){/* T11 replaces this empty shell with the live enroll view */}
+function wizLive(body,nav){
+  var pre=document.getElementById("wiz-log");if(!pre)return;
+  if(!document.getElementById("wizpill")){
+    var pill=document.createElement("div");pill.id="wizpill";pill.className="wizpill";
+    body.insertBefore(pill,pre);
+  }
+  WIZRUN.cursor=0;WIZRUN.follow=true;pre.textContent="";
+  pre.onscroll=function(){WIZRUN.follow=pre.scrollHeight-pre.scrollTop-pre.clientHeight<80};
+  var tick=function(){
+    fetch("router/setup/status?since="+WIZRUN.cursor,{headers:hdrs(false)})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        WIZRUN.state=d.state;setChip(d.state==="running");
+        if((d.lines||[]).length){
+          pre.textContent+=d.lines.join("\n")+"\n";
+          if(WIZRUN.follow)pre.scrollTop=pre.scrollHeight;
+        }
+        if(typeof d.next==="number")WIZRUN.cursor=d.next;
+        var p=document.getElementById("wizpill");
+        if(p){
+          var sg=d.state+"|"+(d.code==null?"":d.code);
+          if(p.dataset.sig!==sg){p.dataset.sig=sg;    // K27: pill repaint only on change
+            p.innerHTML='<span class="obpill '+(d.state==="done"?"ok":(d.state==="failed"?"bad":""))+'">'+
+              (d.state==="running"?tt("入册进行中…","enrolling…"):"")+
+              (d.state==="done"?tt("入册完成","enrolled"):"")+
+              (d.state==="failed"?tt("入册失败","enroll failed"):"")+"</span>";
+          }
+        }
+        if(d.state==="done"||d.state==="failed"){
+          if(WIZRUN.timer){clearInterval(WIZRUN.timer);WIZRUN.timer=0}
+          if(d.state==="done"){
+            WIZ.retry=false;
+            ((d.result&&d.result.new)||[]).forEach(function(n){forgeNow.add(n)});
+            say(tt("特工已入册","the operative has been enrolled"));
+            closeWiz();fetchCards();
+          }else{
+            nav.innerHTML="";
+            var ag=document.createElement("button");ag.className="primary";
+            ag.textContent=tt("回上一步重跑（参数已保留）","back and rerun (params kept)");
+            ag.onclick=function(){applyEnroll(d.params||{});goWiz(2)};
+            nav.appendChild(ag);
+          }
+        }
+      }).catch(function(){});
+  };
+  if(WIZRUN.timer)clearInterval(WIZRUN.timer);
+  tick();WIZRUN.timer=setInterval(tick,1000);
+}
+(function(){
+  var ga=document.getElementById("gw-add");
+  if(ga)ga.onclick=function(){openWiz(WIZRUN.state==="running"?3:(WIZRUN.failParams?0:1))};
+  var c=document.getElementById("wizchip");
+  if(c)c.onclick=function(){openWiz(3)};
+})();
 function build(names){
   cardNames=names.slice();
   if(names.length)closeOnboard();else openOnboard();
