@@ -55,6 +55,8 @@ MODELS = {
 def _data_dir(a):
     if a.data_dir:
         return os.path.abspath(a.data_dir)
+    if os.environ.get("SIM_STRATA_DATA"):
+        return os.path.abspath(os.environ["SIM_STRATA_DATA"])
     home = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(os.path.dirname(home), "Strata-data")
 
@@ -78,6 +80,10 @@ def _setup(a):
     fams = dict(FAMILIES)
     fams.update(PREVIEW_FAMILIES)
     fams.update(MULTI_FILE_FAMILIES)
+    if os.environ.get("SIM_ARGS_DUMP") == "1":   # tests assert param pass-through
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "args_dump.json"), "w") as f:
+            json.dump(sys.argv[1:], f)
     if a.family not in fams:
         print("sim: unknown family %r" % a.family, flush=True)
         return 2

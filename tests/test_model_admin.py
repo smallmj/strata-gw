@@ -7,13 +7,32 @@ Usage: python3 tests/test_model_admin.py   -> every assert prints PASS, ends ALL
 """
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stub_common import Gateway, Stub, ok  # noqa: E402
+from stub_common import Gateway, Stub, ok, REPO  # noqa: E402
+
+# T15 (v0.2): the fake installer is no longer inlined - tools/sim-strata is
+# the single source (DRY closure). plant_kit_setup copies the kit into the
+# fake install dir; K-SIM5 pins that the in-test Stub and the kit engine
+# cover one identical endpoint set, so the two can never drift apart.
+def plant_kit_setup(home):
+    shutil.copyfile(os.path.join(REPO, "tools", "sim-strata", "setup.py"),
+                    os.path.join(home, "setup.py"))
+
+
+def KIT_ENV(home):
+    return {"STRATA_HOME": home, "STRATA_PYTHON": sys.executable,
+            "SIM_STRATA_TOTAL_S": "1.5", "SIM_ARGS_DUMP": "1",
+            "SIM_STRATA_PACK_MB_PER_GB": "0.05",
+            "SIM_STRATA_DATA": os.path.join(home, "data")}
+
+
+
 
 # --- T1a: a config living in the Strata home (where setup.py writes) must be
 # discovered even when the gateway ROOT has no copy of it.
@@ -152,33 +171,24 @@ finally:
 # constants (probe runs with the install's python; fixtures point STRATA_PYTHON
 # at this interpreter since the fake setup.py is constants-only).
 shome5 = tempfile.mkdtemp(prefix="gw-shome5-")
-with open(os.path.join(shome5, "setup.py"), "w", encoding="utf-8") as f:
-    f.write(
-        "FAMILIES = {'famx': {'title': 'Fam X One', 'by': 'tst', 'about': 'a demo family', "
-        "'name': 'famx-one', 'tag': '', 'vision': True}}\n"
-        "PREVIEW_FAMILIES = {'fampv': {'title': 'Fam PV', 'by': 'tst', 'about': 'preview', "
-        "'name': 'fampv', 'tag': 'pv'}}\n"
-        "MULTI_FILE_FAMILIES = {'mfx': {'title': 'Multi X', 'by': 'tst', 'about': 'multi', "
-        "'name': 'mfx', 'models': {'BIG': {'about': 'big tier', 'ram_gb': 32, 'label': 'BIG'}}}}\n"
-        "MODELS = {'T9_A': {'about': 'tier a', 'download_gb': 4.0, 'ram_gb': 8, "
-        "'arena_gb': 2, 'families': ['famx']}}\n")
-gw5 = Gateway([], [], extra_env={"STRATA_HOME": shome5, "STRATA_PYTHON": sys.executable})
+plant_kit_setup(shome5)
+gw5 = Gateway([], [], extra_env=KIT_ENV(shome5))
 try:
     ok(up(gw5), "T4 pre: zero-config gateway with setup.py up")
     s, h = gw5.get("/router/setup/models")
     cat = json.loads(h) if s == 200 else {}
-    ok(s == 200 and cat.get("families", {}).get("famx", {}).get("title") == "Fam X One"
-       and cat.get("tiers", {}).get("T9_A", {}).get("download_gb") == 4.0,
+    ok(s == 200 and cat.get("families", {}).get("simcore", {}).get("title") == "SimCore One"
+       and cat.get("tiers", {}).get("Q4SIM", {}).get("download_gb") == 4.0,
        "T4a GET /router/setup/models reads the installed list")
-    tiers = (cat.get("families", {}).get("mfx") or {}).get("tiers") or {}
-    ok(tiers.get("BIG", {}).get("ram_gb") == 32,
+    tiers = (cat.get("families", {}).get("simmulti") or {}).get("tiers") or {}
+    ok(tiers.get("V2", {}).get("ram_gb") == 16,
        "T4b multi-file family carries its own tiers")
 finally:
     gw5.close()
 
 # T4c: no setup.py under the home -> 503 with a guide message.
 shome6 = tempfile.mkdtemp(prefix="gw-shome6-")
-gw6 = Gateway([], [], extra_env={"STRATA_HOME": shome6, "STRATA_PYTHON": sys.executable})
+gw6 = Gateway([], [], extra_env=KIT_ENV(shome6))
 try:
     ok(up(gw6), "T4c pre: zero-config gateway without setup.py up")
     s, h = gw6.get("/router/setup/models")
@@ -193,64 +203,6 @@ finally:
 # --- T5: the recruit run drives the installed setup.py non-interactively,
 # streams its stdout into the status log ring, keeps run history for
 # 重新入册, lands the one-key policy and creates the placeholder card.
-# FAKE_SETUP mirrors the real install tool in the one way the gateway relies
-# on: constants live at import time, the CLI only runs under __main__ (the
-# real setup.py is side-effect-free to import - probed on the live box).
-FAKE_SETUP = r'''
-import argparse, json, os, sys, time
-FAMILIES = {"faux": {"title": "Faux One", "by": "tst", "about": "fake family",
-                     "name": "faux-one", "tag": "", "vision": True}}
-PREVIEW_FAMILIES = {}
-MULTI_FILE_FAMILIES = {}
-MODELS = {"T9_X": {"about": "x tier", "download_gb": 1.0, "ram_gb": 4, "arena_gb": 1,
-                   "families": ["faux"]},
-          "T9_Z": {"about": "z tier", "download_gb": 2.0, "ram_gb": 4, "arena_gb": 1,
-                   "families": ["faux"]},
-          "T9_Y": {"about": "other-fam tier", "download_gb": 1.0, "ram_gb": 4, "arena_gb": 1,
-                   "families": ["otherfam"]},
-          "TFAIL": {"about": "mid-run failure demo", "download_gb": 1.0, "ram_gb": 4,
-                    "arena_gb": 1, "families": ["faux"]}}
-
-
-def _main():
-    ap = argparse.ArgumentParser(prog="fake setup")
-    ap.add_argument("--setup", action="store_true")
-    ap.add_argument("--family"); ap.add_argument("--model")
-    ap.add_argument("--context", type=int)
-    ap.add_argument("--kv"); ap.add_argument("--vision")
-    ap.add_argument("--gguf-dir", dest="gguf_dir"); ap.add_argument("--data-dir", dest="data_dir")
-    ap.add_argument("--no-start", action="store_true"); ap.add_argument("--yes", action="store_true")
-    ap.add_argument("--check", action="store_true")
-    a = ap.parse_args()
-    here = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(here, "args_dump.json"), "w") as f:
-        json.dump(sys.argv[1:], f)
-    if a.check:
-        print("fake pc check: ok", flush=True); sys.exit(0)
-    if not a.setup or not a.family or not a.model:
-        sys.exit(2)
-    for i in range(3):
-        print("faux: fetching %s %d/3" % (a.model, i + 1), flush=True)
-        time.sleep(0.2)
-    if a.model == "TFAIL":
-        print("faux: link flapped, giving up", flush=True)
-        sys.exit(3)
-    fname = FAMILIES[a.family]["name"]
-    tier = a.model.lower()
-    cfg = {"model_name": fname + "-" + tier,
-           "args": ["--pack", os.path.join(here, "packs", tier),
-                    "--max-context", str(a.context or 131072)]}
-    with open(os.path.join(here, "strata-" + fname + "-" + tier + ".json"), "w") as f:
-        json.dump(cfg, f)
-    print("faux: config written", flush=True)
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    _main()
-'''
-
-
 def wait_done(g, timeout=25):
     st = None
     deadline = time.time() + timeout
@@ -264,40 +216,39 @@ def wait_done(g, timeout=25):
 
 
 shome7 = tempfile.mkdtemp(prefix="gw-shome7-")
-with open(os.path.join(shome7, "setup.py"), "w", encoding="utf-8") as f:
-    f.write(FAKE_SETUP)
-gwA = Gateway([], [], extra_env={"STRATA_HOME": shome7, "STRATA_PYTHON": sys.executable})
+plant_kit_setup(shome7)
+gwA = Gateway([], [], extra_env=KIT_ENV(shome7))
 try:
     ok(up(gwA), "T5 pre: fake-install gateway up")
     s, h = gwA.post("/router/setup/run",
-                    {"family": "faux", "tier": "T9_X", "context": 131072})
+                    {"family": "simcore", "tier": "Q4SIM", "context": 131072})
     ok(s == 200 and json.loads(h).get("started") is True, "T5a run accepted {started:true}")
-    s2, _ = gwA.post("/router/setup/run", {"family": "faux", "tier": "T9_Z"})
+    s2, _ = gwA.post("/router/setup/run", {"family": "simcore", "tier": "Q8SIM"})
     ok(s2 == 409, "T5a2 concurrent run while running -> 409")
     st = wait_done(gwA)
     ok(st and st.get("state") == "done" and st.get("code") == 0
-       and any("faux: fetching" in x for x in (st.get("lines") or [])),
+       and any("sim: fetching" in x for x in (st.get("lines") or [])),
        "T5a3 status streams fake progress; done code=0")
-    ok((st.get("result") or {}).get("new") == ["faux-one-t9_x"],
+    ok((st.get("result") or {}).get("new") == ["simcore-one-q4sim"],
        "T5a4 result.new feeds the card-flip animation")
-    ok("faux-one-t9_x" in names(gwA), "T5a5 done forces rescan: model in backends")
+    ok("simcore-one-q4sim" in names(gwA), "T5a5 done forces rescan: model in backends")
     s4, h4 = gwA.get("/router/cards")
-    ok("faux-one-t9_x" in json.dumps(json.loads(h4)),
+    ok("simcore-one-q4sim" in json.dumps(json.loads(h4)),
        "T5a6 placeholder card created, nick=model name")
 
     # T5b: one-key policy. Nothing was installed before -> a fresh 32-hex
     # token lands in the new config AND in gateway.json default_api_key;
     # the next run reuses it.
-    cfgj = json.load(open(os.path.join(shome7, "strata-faux-one-t9_x.json")))
+    cfgj = json.load(open(os.path.join(shome7, "strata-simcore-one-q4sim.json")))
     tok = cfgj.get("api_key") or ""
     ok(len(tok) == 32 and all(c in "0123456789abcdef" for c in tok),
        "T5b1 fresh recruit without prior key -> 32-hex token")
     gj = json.load(open(os.path.join(gwA.root, "gateway.json")))
     ok(gj.get("default_api_key") == tok, "T5b2 gateway.json keeps the shared default")
-    s5, _ = gwA.post("/router/setup/run", {"family": "faux", "tier": "T9_Z"})
+    s5, _ = gwA.post("/router/setup/run", {"family": "simcore", "tier": "Q8SIM"})
     ok(s5 == 200, "T5b3 second run starts")
     st2 = wait_done(gwA)
-    cfgz = json.load(open(os.path.join(shome7, "strata-faux-one-t9_z.json")))
+    cfgz = json.load(open(os.path.join(shome7, "strata-simcore-one-q8sim.json")))
     ok(st2 and st2.get("state") == "done" and cfgz.get("api_key") == tok,
        "T5b4 second run reuses the default key (one key per gateway)")
 finally:
@@ -305,16 +256,15 @@ finally:
 
 # T5b-pre: an installed config with a key -> the new recruit shares it.
 shome8 = tempfile.mkdtemp(prefix="gw-shome8-")
-with open(os.path.join(shome8, "setup.py"), "w", encoding="utf-8") as f:
-    f.write(FAKE_SETUP)
+plant_kit_setup(shome8)
 with open(os.path.join(shome8, "strata-installed-x.json"), "w") as f:
     json.dump({"model_name": "installed-x", "api_key": "SAMEKEY"}, f)
-gwB = Gateway([], [], extra_env={"STRATA_HOME": shome8, "STRATA_PYTHON": sys.executable})
+gwB = Gateway([], [], extra_env=KIT_ENV(shome8))
 try:
     ok(up(gwB), "T5b pre: gateway with a pre-installed keyed config up")
-    s, _ = gwB.post("/router/setup/run", {"family": "faux", "tier": "T9_X"})
+    s, _ = gwB.post("/router/setup/run", {"family": "simcore", "tier": "Q4SIM"})
     st = wait_done(gwB)
-    cfgb = json.load(open(os.path.join(shome8, "strata-faux-one-t9_x.json")))
+    cfgb = json.load(open(os.path.join(shome8, "strata-simcore-one-q4sim.json")))
     ok(s == 200 and st and st.get("state") == "done" and cfgb.get("api_key") == "SAMEKEY",
        "T5b5 installed model's key is reused for the recruit")
 finally:
@@ -322,20 +272,19 @@ finally:
 
 # T5c: parameter pass-through + input validation (400s start no subprocess).
 shome9 = tempfile.mkdtemp(prefix="gw-shome9-")
-with open(os.path.join(shome9, "setup.py"), "w", encoding="utf-8") as f:
-    f.write(FAKE_SETUP)
-gwC = Gateway([], [], extra_env={"STRATA_HOME": shome9, "STRATA_PYTHON": sys.executable})
+plant_kit_setup(shome9)
+gwC = Gateway([], [], extra_env=KIT_ENV(shome9))
 try:
     ok(up(gwC), "T5c pre: gateway up")
     s, _ = gwC.post("/router/setup/run",
-                    {"family": "faux", "tier": "T9_X", "gguf_dir": "/nonexistent-zz-dir"})
+                    {"family": "simcore", "tier": "Q4SIM", "gguf_dir": "/nonexistent-zz-dir"})
     ok(s == 400, "T5c1 missing gguf_dir -> 400 (gateway checks existence)")
-    s, _ = gwC.post("/router/setup/run", {"family": "faux", "tier": "T9_Y"})
+    s, _ = gwC.post("/router/setup/run", {"family": "simforge", "tier": "Q8SIM"})
     ok(s == 400, "T5c2 tier from another family -> 400")
-    s, _ = gwC.post("/router/setup/run", {"family": "bad fam!", "tier": "T9_X"})
+    s, _ = gwC.post("/router/setup/run", {"family": "bad fam!", "tier": "Q4SIM"})
     ok(s == 400, "T5c3 illegal family slug -> 400")
     s, _ = gwC.post("/router/setup/run",
-                    {"family": "faux", "tier": "T9_X", "vision": "no",
+                    {"family": "simcore", "tier": "Q4SIM", "vision": "no",
                      "gguf_dir": shome9, "data_dir": shome9 + "/data", "kv": "int8"})
     st = wait_done(gwC)
     dump = json.load(open(os.path.join(shome9, "args_dump.json")))
@@ -352,9 +301,9 @@ try:
     # T5d: history persists; failed run recorded; after a gateway restart the
     # status endpoint answers from history (badge survives restarts).
     hist = json.load(open(os.path.join(gwC.root, "router-setup.json")))
-    ok(hist[-1]["state"] == "done" and hist[-1]["params"]["tier"] == "T9_X",
+    ok(hist[-1]["state"] == "done" and hist[-1]["params"]["tier"] == "Q4SIM",
        "T5d1 ROOT/router-setup.json keeps the finished run")
-    s, _ = gwC.post("/router/setup/run", {"family": "faux", "tier": "TFAIL"})
+    s, _ = gwC.post("/router/setup/run", {"family": "simcore", "tier": "FAILSIM"})
     stf = wait_done(gwC)
     ok(stf and stf.get("state") == "failed" and stf.get("code") == 3,
        "T5d2 failing setup -> state failed, exit code kept")
@@ -363,7 +312,7 @@ try:
     s, h = gwC.get("/router/setup/status?since=999999")
     hj = json.loads(h)
     ok(s == 200 and hj.get("from_history") is True and hj.get("state") == "failed"
-       and (hj.get("params") or {}).get("tier") == "TFAIL",
+       and (hj.get("params") or {}).get("tier") == "FAILSIM",
        "T5d4 status after restart reads history: 重新入册 badge data survives")
 finally:
     gwC.close()
@@ -374,7 +323,7 @@ finally:
 # --- T6: the onboarding checklist line - engine presence + BUILD.json version,
 # the model count, and the one-sentence PC check from setup.py --check.
 shomeA = tempfile.mkdtemp(prefix="gw-shomeA-")   # no setup.py: engine missing
-gwD = Gateway([], [], extra_env={"STRATA_HOME": shomeA, "STRATA_PYTHON": sys.executable})
+gwD = Gateway([], [], extra_env=KIT_ENV(shomeA))
 try:
     ok(up(gwD), "T6 pre: gateway up")
     s, h = gwD.get("/router/onboard")
@@ -386,12 +335,11 @@ finally:
     gwD.close()
 
 shomeB = tempfile.mkdtemp(prefix="gw-shomeB-")
-with open(os.path.join(shomeB, "setup.py"), "w", encoding="utf-8") as f:
-    f.write(FAKE_SETUP)
+plant_kit_setup(shomeB)
 os.makedirs(os.path.join(shomeB, "engine"))
 with open(os.path.join(shomeB, "engine", "BUILD.json"), "w") as f:
     json.dump({"version": "9.9.9"}, f)
-gwE = Gateway([], [], extra_env={"STRATA_HOME": shomeB, "STRATA_PYTHON": sys.executable})
+gwE = Gateway([], [], extra_env=KIT_ENV(shomeB))
 try:
     ok(up(gwE), "T6 pre2: fake-install gateway up")
     s, h = gwE.get("/router/onboard")
@@ -412,7 +360,7 @@ try:
         time.sleep(0.4)
     ck = (ob2 or {}).get("check") or {}
     ok(ck.get("state") == "done" and ck.get("ok") is True
-       and "fake pc check" in (ck.get("summary") or ""),
+       and "SIM PC check" in (ck.get("summary") or ""),
        "T6e check done: summary = last non-empty line of setup --check")
 finally:
     gwE.close()
@@ -437,7 +385,7 @@ for nm, args in (("disk-a", ["--pack", pack]),
                  ("disk-c", ["--pack", os.path.join(shomeC, "gone")])):
     with open(os.path.join(shomeC, "strata-" + nm + ".json"), "w") as f:
         json.dump({"model_name": nm, "api_key": "", "args": args}, f)
-gwF = Gateway([], [], extra_env={"STRATA_HOME": shomeC, "STRATA_PYTHON": sys.executable})
+gwF = Gateway([], [], extra_env=KIT_ENV(shomeC))
 try:
     ok(up(gwF), "T8 pre: disk fixture gateway up")
     s, h = gwF.get("/router/disk")
@@ -477,7 +425,6 @@ finally:
 # ---- K-SIM: the sim-strata kit defends itself (T14) ------------------------
 import subprocess
 import urllib.request
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = os.path.join(REPO, "tools", "sim-strata")
 _r = subprocess.run([sys.executable, os.path.join(KIT, "setup.py"), "--check"],
                     capture_output=True, text=True)
@@ -522,5 +469,19 @@ try:
 finally:
     _ps.terminate()
     _ph.terminate()
+
+# K-SIM5 (T15 protocol-drift tripwire): the in-test Stub and the kit engine
+# must speak the exact same endpoint set - fix one side, the other goes red.
+def _endpoints(src):
+    out = set(re.findall(r'p == "(/[a-z0-9/_]*)"', src))
+    for tup in re.findall(r'p in \(([^)]*)\)', src):
+        out |= set(re.findall(r'"(/[a-z0-9/_]*)"', tup))
+    return out
+_st = open(os.path.join(REPO, "tests", "stub_common.py"), encoding="utf-8").read()
+_stub_src = _st[_st.index("class Stub:"): _st.index("class StubHolder")]
+_kit_src = open(os.path.join(KIT, "serve", "server.py"), encoding="utf-8").read()
+_kit_src = _kit_src[_kit_src.index("class H("): _kit_src.index("def main")]
+ok(_endpoints(_stub_src) == _endpoints(_kit_src),
+   "K-SIM5 Stub and kit serve cover one identical endpoint set (no drift)")
 
 print("ALL PASS")

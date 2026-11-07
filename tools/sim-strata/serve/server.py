@@ -72,6 +72,8 @@ class H(BaseHTTPRequestHandler):
                                     "note": "sim engine: no tunables"})
         if p == "/status":
             return self._send(200, {"busy": False, "who": STATE["name"]})
+        if p == "/mcp":
+            return self._send(200, {"servers": [], "tools": 0})
         if p == "/metrics":
             t = time.time() % 600.0
             wave = (math.sin(t / 60.0 * 2 * math.pi) + 1) / 2
@@ -108,6 +110,8 @@ class H(BaseHTTPRequestHandler):
         if p in ("/", "/monitor"):
             return self._send(200, "<html><body>sim engine on :%d</body></html>"
                               % STATE["port"], "text/html; charset=utf-8")
+        if p in ("/props", "/slots"):
+            return self._send(404, {"error": "endpoint not in this engine build"})
         return self._send(200, "sim engine", "text/plain")
 
     def do_POST(self):
