@@ -503,6 +503,14 @@ function wizLive(body,nav){
   var c=document.getElementById("wizchip");
   if(c)c.onclick=function(){openWiz(3)};
 })();
+function paintSim(d){
+  var c=document.getElementById("demochip");if(!c)return;
+  var v=String(((d&&d.engine)||{}).version||"");
+  var want=v.indexOf("-sim")>=0?"":"none";           // diff 门控：只在变化时写
+  if(c.style.display!==want)c.style.display=want;
+  if(want==="")c.title=tt("引擎是演示模拟套件，无真实推理——如非有意，请在设置里核对引擎目录指向真实 Strata","engine is the demo simulation kit - no real inference; if unintended, check the engine folder setting");
+}
+qs("router/onboard",paintSim);   // boot 一次：黄标上顶栏（引擎版本串为签名）
 function build(names){
   cardNames=names.slice();
   if(names.length)closeOnboard();else openOnboard();

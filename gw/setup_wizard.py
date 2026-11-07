@@ -359,7 +359,10 @@ def onboard(want_check: bool) -> dict:
             break
     out = {"engine": {"found": bool(py and os.path.isfile(setup_py)),
                       "home": home, "python": bool(py),
-                      "version": (build or {}).get("version")},
+                      "version": (build or {}).get("version"),
+                      # P5 (T15b): a -sim version = the demo kit is mounted -
+                      # the console paints a demo-mode watermark off this flag.
+                      "sim": str((build or {}).get("version") or "").endswith("-sim")},
            "models": len(backends.BACKENDS)}
     if want_check and _CHECK["state"] == "idle" and out["engine"]["found"]:
         _CHECK.update(state="running")
