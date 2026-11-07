@@ -385,4 +385,17 @@ ok("rebadge" in js and 'tt("重新入册","recruit again")' in js,
 ok("forgeNow" in js, "T11c done feeds forgeNow - the T12 flip animation data source")
 ok('id="wiz-log"' in js and "wizpill" in js, "T11d step3 renders the terminal-style live log with a status pill")
 
+# ---- T12 (v0.2): new-card flip + the disk map inside the gear -------------
+ok("facedown" in js and "forgeNow.has" in js,
+   "T12a freshly enrolled cards spawn face-down driven by forgeNow")
+ok(".card.facedown .cbody" in css and "cfback" in css,
+   "T12b the face-down spawn reuses the cback 3D mechanism with a forging watermark")
+ok('id="dsk"' in html and "renderDisk" in js and "router/disk" in js,
+   "T12c the gear drawer carries the read-only disk map, loaded lazily on open")
+_db=js.split("function renderDisk",1)[1].split("\n}",1)[0] if "function renderDisk" in js else ""
+ok("1e9" in _db and "1073741824" not in _db and "1024" not in _db,
+   "T12d disk-map sizes use the 10^9 website GB convention (the legacy VRAM gbf stays binary - different industry, out of scope)")
+ok('tt("共享"' in js and "used_by" in js and 'tt("路径找不到"' in js,
+   "T12e shared packs get the 共享 annotation and dangling paths get flagged")
+
 sys.exit(0 if not F else 1)
