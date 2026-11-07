@@ -33,6 +33,7 @@ def main() -> None:
     found = backends.scan_configs()
     backends.BACKENDS.clear()
     backends.BACKENDS.update(found)
+    backends._FP["sig"] = backends.fingerprint()
     if not backends.BACKENDS:
         print(f"[router] no strata-*.json found in {backends.scan_dirs()} - console "
               "will guide the first recruit (控制台将引导招募第一位特工)", flush=True)
@@ -51,6 +52,7 @@ def main() -> None:
         if not b.alive():
             b.spawn()
     threading.Thread(target=events._watchdog, daemon=True).start()
+    threading.Thread(target=backends.watch_scan, daemon=True).start()
     httpd = ThreadingHTTPServer(("0.0.0.0", config.ROUTER_PORT), routes.Handler)
     httpd.daemon_threads = True
     names = ", ".join(f"{b.name}(:{b.port})" for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name))

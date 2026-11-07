@@ -107,4 +107,32 @@ finally:
     gw3.close()
     shutil.rmtree(shome3, ignore_errors=True)
 
+# --- T3: a hand-edited config lands or vanishes on its own - the watch picks
+# it up without any restart and without hitting POST /router/scan.
+shome4 = tempfile.mkdtemp(prefix="gw-shome4-")
+gw4 = Gateway([], [], extra_env={"STRATA_HOME": shome4, "GW_SCAN_WATCH_S": "2"})
+try:
+    deadline = time.time() + 12
+    s = 0
+    while time.time() < deadline:
+        s, _ = gw4.get("/router/backends")
+        if s == 200:
+            break
+        time.sleep(0.4)
+    ok(s == 200, "T3a zero-config gateway up for the watch test")
+    with open(os.path.join(shome4, "strata-watch.json"), "w") as f:
+        json.dump({"model_name": "watch-t3", "api_key": ""}, f)
+    deadline = time.time() + 6
+    while time.time() < deadline and "watch-t3" not in names(gw4):
+        time.sleep(0.4)
+    ok("watch-t3" in names(gw4), "T3b new config auto-picked without a restart")
+    os.remove(os.path.join(shome4, "strata-watch.json"))
+    deadline = time.time() + 6
+    while time.time() < deadline and "watch-t3" in names(gw4):
+        time.sleep(0.4)
+    ok("watch-t3" not in names(gw4), "T3c removed config auto-dropped without a restart")
+finally:
+    gw4.close()
+    shutil.rmtree(shome4, ignore_errors=True)
+
 print("ALL PASS")
