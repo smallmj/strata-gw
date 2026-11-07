@@ -282,6 +282,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, backends.router_info())
         if method == "GET" and path == "/router/cards":
             return self._json(200, cards.load_cards())
+        if method == "GET" and path == "/router/onboard":
+            from . import setup_wizard
+            want = bool(re.search(r"(?:^|&)check=1", qs))
+            return self._json(200, setup_wizard.onboard(want))
         if method == "GET" and path == "/router/setup/models":
             from . import setup_wizard
             st, obj = setup_wizard.catalog()
