@@ -266,6 +266,8 @@ html[data-theme=light] .wstep.on{color:#fff}
 .wizchip{margin-left:10px;font-size:.75rem;color:var(--muted);border:1px solid var(--line);
   border-radius:999px;padding:.15rem .7rem;cursor:pointer;white-space:nowrap}
 .wizchip:hover{color:var(--ac);border-color:var(--ac)}
+.demochip{margin-left:8px;font-size:.72rem;color:#e8b93c;border:1px solid #e8b93c66;
+  border-radius:999px;padding:.14rem .6rem;white-space:nowrap;cursor:help;letter-spacing:.08em}
 .wizpill{margin:0 0 8px}
 .acts{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
   height:64px;box-sizing:content-box;flex-wrap:nowrap}

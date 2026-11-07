@@ -1,6 +1,13 @@
 # real local configs (may contain api_key) — never commit
 strata-*.json
 !config-examples/strata-*.json
+gateway.json
+router-setup.json
+
+# kit runtime residue (the sim-strata kit is a generator; what it makes is
+# disposable test state and must never reach git from inside the repo either)
+tools/sim-strata/packs/
+tools/sim-strata/args_dump.json
 
 # user-uploaded art, local only
 gw-assets/uploads/*

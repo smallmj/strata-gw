@@ -106,7 +106,8 @@ window.__I18N__ = {
 "add_op": "+ 招募特工",
 "wiz.run": "特工入册中…",
 "set.disksec": "磁盘占用",
-"set.diskhint": "打开抽屉时读一次 · 只画图，不搬家、不删除"
+"set.diskhint": "打开抽屉时读一次 · 只画图，不搬家、不删除",
+"demo.tag": "演示模式"
 },
 "en": {
 "pg.title": "Strata gateway",
@@ -215,6 +216,7 @@ window.__I18N__ = {
 "add_op": "+ recruit operative",
 "wiz.run": "operative enrolling…",
 "set.disksec": "disk in use",
-"set.diskhint": "read once when this drawer opens - it only draws the map, moves nothing, deletes nothing"
+"set.diskhint": "read once when this drawer opens - it only draws the map, moves nothing, deletes nothing",
+"demo.tag": "demo mode"
 }
 };
