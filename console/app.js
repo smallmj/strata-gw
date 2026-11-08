@@ -76,6 +76,7 @@ function wireSetHomePort(){
       msg=document.getElementById("set-hmsg"),ps=document.getElementById("set-psave"),
       pp=document.getElementById("set-pnew"),pmsg=document.getElementById("set-pmsg");
   function sayM(t){if(msg)msg.textContent=t}
+  function sayP(t){if(pmsg)pmsg.textContent=t}
   dt.onclick=function(){dt.disabled=true;sayM(tt("在常见安装位置寻找…","searching the usual places…"));
     fetch("router/home/probe",{headers:hdrs(false)}).then(function(r){return r.json()}).then(function(pr){
       if(pr&&pr.auto){fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({auto:true})})
@@ -90,15 +91,15 @@ function wireSetHomePort(){
       .then(function(rj){if(rj[0]===200){sayM(tt("已指到这里：","pointed at: ")+String((rj[1]||{}).home||""));paintHomePort();refresh()}
         else sayM(String((rj[1]||{}).error||tt("这个目录不像 Strata 引擎","that folder does not look like a Strata engine")))})
       .catch(function(){sayM(tt("请求失败了","the request failed"))})};
-  if(ps)ps.onclick=function(){var v=(pp&&pp.value||"").trim();if(!v)return;
+  if(ps)ps.onclick=function(){var v=(pp&&pp.value||"").trim();if(!v){sayP(tt("先在框里填一个新的端口号","type a port number in the box first"));return;}
     fetch("router/port",{method:"POST",headers:hdrs(true),body:JSON.stringify({port:v})})
       .then(function(r){return r.json().then(function(j){return[r.status,j]})})
       .then(function(rj){if(rj[0]===200){
           var j=rj[1]||{};
-          sayM(tt("端口已保存；本网关继续答应在旧端口，直到主人重启——下次启动后地址就是 http://127.0.0.1:","port saved; the gateway keeps answering on the old port until a restart - next boot answers at http://127.0.0.1:")+j.saved+"/gateway"+(j.env_pinned?tt("（注意：环境变量 STRATA_ROUTER_PORT 仍会压过这里保存的值）"," (note: the STRATA_ROUTER_PORT env var still overrides this saved value)"):""));
+          sayP(tt("端口已保存。网关继续答应在旧端口，直到重启；下次启动后地址就是 http://127.0.0.1:","port saved. the gateway keeps answering on the old port until a restart; next boot answers at http://127.0.0.1:")+j.saved+"/gateway"+(j.env_pinned?tt("（注意：环境变量 STRATA_ROUTER_PORT 会压过这里保存的值）"," (note: the STRATA_ROUTER_PORT env var would still override this saved value)"):""));
           paintHomePort()}
-        else sayM(String((rj[1]||{}).error||tt("端口保存失败了","the port could not be saved")))})
-      .catch(function(){sayM(tt("请求失败了","the request failed"))})};
+        else sayP(String((rj[1]||{}).error||tt("端口保存失败了","the port could not be saved")))})
+      .catch(function(){sayP(tt("请求失败了","the request failed"))})};
 }
 function openSettings(focusKey){
   setpop.style.display="block";
@@ -277,10 +278,10 @@ function renderOnb(d){
     (e.version?" · v"+esc(String(e.version)):"")+"</span>";
   else eng.innerHTML=onbIco("M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4z")+
     "<span><b>"+tt("未找到 Strata 引擎","Strata engine not found")+"</b><em>"+
-    tt("可以让我在常见安装位置找一次，或直接指定 Strata 目录","let me search the usual install places once, or point me at the Strata folder yourself")+
-    '</em><div class="onb-act"><button class="ghostbtn" id="onb-detect">'+tt("一键寻找","search for me")+
+    tt("网关认目录形状（setup.py + serve/server.py 或 engine/），不信文件夹名。二选一：","we trust the folder shape (setup.py + serve/server.py or engine/), never the name. two ways, pick one:")+
+    '</em><div class="onb-act"><button class="ghostbtn" id="onb-detect">'+tt("在常见位置寻找","search the usual places")+
     '</button><input id="onb-hpath" type="text" placeholder="'+tt("或手填 Strata 目录路径","or type the Strata folder path")+'">'+
-    '<button class="ghostbtn" id="onb-hset">'+tt("指这里","use this")+'</button></div>'+
+    '<button class="ghostbtn" id="onb-hset">'+tt("应用","apply")+'</button></div>'+
     '<span class="onb-hmsg" id="onb-hmsg"></span></span>';
   wireHome();
   var cnt=document.getElementById("onb-cnt");

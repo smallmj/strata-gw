@@ -43,17 +43,20 @@
     <div class="poprow"><label class="sw"><input type="checkbox" id="pet-toggle"><i></i></label><span class="plab" data-i18n="set.petshow">显示桌宠</span></div>
     <div class="poprow"><span class="plab" data-i18n="set.petsize">尺寸</span><input type="range" id="pet-size" min="80" max="220" step="10" value="120"><output id="pet-size-out">120px</output></div>
     </details>
-    <details class="drw" id="set-loc">
-    <summary><span data-i18n="set.locsec">Strata 在哪</span> <span class="tag">ENGINE HOME</span></summary>
-    <div class="poprow"><span class="plab" id="set-hnow">—</span><span id="set-hpill"></span></div>
-    <div class="poprow"><button class="cbtn" id="set-detect" data-i18n="onb.detect">一键寻找</button><input id="set-hpath" type="text" data-i18n-ph="set.hph" placeholder="或手填 Strata 目录路径"><button class="cbtn" id="set-hset" data-i18n="onb.hset">指这里</button></div>
-    <span class="onb-hmsg" id="set-hmsg"></span>
+        <details class="drw" id="set-loc">
+    <summary><span data-i18n="set.locsec">Strata 引擎目录</span> <span class="tag">ENGINE HOME</span></summary>
+    <div class="lrow"><b data-i18n="set.locnow">现在</b><span class="lval" id="set-hnow">…</span><span id="set-hpill"></span></div>
+    <p class="pnote" data-i18n="set.locnote">网关认目录形状（有 setup.py，外加 serve/server.py 或 engine/），不信文件夹名。要挪位置，二选一：</p>
+    <div class="poprow"><button class="cbtn wide" id="set-detect" data-i18n="set.latauto">在常见安装位置寻找</button></div>
+    <div class="poprow"><input id="set-hpath" type="text" data-i18n-ph="set.hph" placeholder="或手填 Strata 目录路径"><button class="cbtn" id="set-hset" data-i18n="set.happly">应用</button></div>
+    <span class="setmsg" id="set-hmsg"></span>
     </details>
     <details class="drw" id="set-port">
     <summary><span data-i18n="set.portsec">网关端口</span> <span class="tag">ROUTER PORT</span></summary>
-    <p class="pnote" data-i18n="set.porthint">改端口下次启动生效 · 保存后这里提示新地址</p>
-    <div class="poprow"><span class="plab" id="set-pnow">—</span><input type="number" id="set-pnew" min="1024" max="65535"><button class="cbtn" id="set-psave" data-i18n="ui.save">保存</button></div>
-    <span class="onb-hmsg" id="set-pmsg"></span>
+    <div class="lrow"><b data-i18n="set.pnowlab">当前监听</b><span class="lval" id="set-pnow">…</span></div>
+    <div class="poprow"><input type="number" id="set-pnew" min="1024" max="65535" data-i18n-ph="set.hnewp" placeholder="改成多少？"><button class="cbtn" id="set-psave" data-i18n="ui.save">保存</button></div>
+    <p class="pnote" data-i18n="set.porthint">端口改动下次启动网关才生效；在此之前本页地址不变</p>
+    <span class="setmsg" id="set-pmsg"></span>
     </details>
     <details class="drw" id="set-git">
     <summary><span data-i18n="ui.git">项目主页 GitHub</span></summary>

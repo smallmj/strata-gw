@@ -305,6 +305,11 @@ html[data-theme=light] .itab.on{color:#fff}
 .wiz-sum .sfoot{font-size:.72rem;color:var(--muted);margin:10px 0 0;line-height:1.6}
 @media (max-width:900px){.wiz-tune{grid-template-columns:1fr}.wiz-sum{position:static}}
 #setpop::-webkit-scrollbar{width:9px}
+.lrow{display:flex;align-items:center;gap:8px;margin:7px 0;min-width:0}
+.lrow>b{font-size:.7rem;letter-spacing:.08em;color:var(--dim);white-space:nowrap}
+.lrow .lval{flex:1;min-width:0;font-size:.78rem;overflow-wrap:anywhere;color:var(--fg)}
+.cbtn.wide{width:100%;justify-content:center;display:flex;box-sizing:border-box}
+.setmsg{display:block;margin-top:6px;font-size:.74rem;color:var(--muted);line-height:1.55;min-height:1em}
 #setpop::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;border:2px solid var(--card)}
 .dkx{margin:0 0 8px}
 .dkx>summary{display:flex;align-items:center;gap:10px;overflow:hidden}
