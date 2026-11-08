@@ -480,4 +480,21 @@ ok("router/port" in js and "set-pnew" in js and "restart" in js and "set-detect"
 ok("set.locsec" in i18njs and "set.portsec" in i18njs and "set.porthint" in i18njs,
    "T23c the new drawer labels ship as zh/en pairs (parity guaranteed by T13a)")
 
+# ---- T24 (field feedback): the home/port drawers redesigned, and each control
+#      answers on ITS OWN message line - a hidden message is no reaction at all
+_m=_re2.search(r'id="set-loc".*?</details>', html, _re2.S)
+_loc=_m.group(0) if _m else ""
+_m=_re2.search(r'id="set-port".*?</details>', html, _re2.S)
+_prt=_m.group(0) if _m else ""
+ok("set-hmsg" in _loc and "set-pmsg" in _prt and "set-hmsg" not in _prt and "set-pmsg" not in _loc,
+   "T24a each drawer carries its own message slot - feedback can never hide in the other drawer")
+ok("set.latauto" in _loc and "set.happly" in _loc and "set.locnote" in _loc,
+   "T24b the home drawer is three labelled moves: status line, search button, manual apply")
+ok("set.pnowlab" in _prt and "set.porthint" in _prt,
+   "T24c the port drawer names what is live and when a new port applies")
+ok("sayP" in js and "sayP(tt" in js and js.index("sayP")<js.index("function openSettings"),
+   "T24d port feedback writes sayP - the message line inside the port drawer")
+ok('.lrow{' in css and '.cbtn.wide{' in css,
+   "T24e the status rows and the full-width search button have skins")
+
 sys.exit(0 if not F else 1)
