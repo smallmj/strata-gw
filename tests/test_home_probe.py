@@ -132,6 +132,54 @@ finally:
     shutil.rmtree(home1, ignore_errors=True)
     shutil.rmtree(home2, ignore_errors=True)
 
+# ---- H14: the full-process closed loop - a saved port with NO env override.
+# The socket genuinely moves: boot reads gateway.json and binds there.
+import subprocess
+import socket
+import urllib.request
+TREE_SKIP = {".git", "testdir", "tests", "__pycache__", "strata-router.py.orig"}
+LOOP_PORT = 18093
+root = tempfile.mkdtemp(prefix="portloop-")
+for item in sorted(os.listdir(REPO)):
+    if item in TREE_SKIP:
+        continue
+    src = os.path.join(REPO, item)
+    if os.path.isdir(src):
+        shutil.copytree(src, os.path.join(root, item), ignore=shutil.ignore_patterns("__pycache__"))
+    else:
+        shutil.copy(src, os.path.join(root, item))
+with open(os.path.join(root, "gateway.json"), "w") as f:
+    json.dump({"router_port": LOOP_PORT}, f)
+env = dict(os.environ)
+env.pop("STRATA_ROUTER_PORT", None)          # the whole point: no env, file decides
+env["STRATA_ROUTER_ANYHOST"] = "1"
+proc = None
+try:
+    proc = subprocess.Popen([sys.executable, os.path.join(root, "strata-router.py")],
+                            env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    got = None
+    for _ in range(60):
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:%d/router/port" % LOOP_PORT, timeout=1) as rr:
+                got = json.load(rr)
+                break
+        except Exception:
+            time.sleep(0.5)
+    old_dead = False
+    try:
+        urllib.request.urlopen("http://127.0.0.1:%d/router/port" % gw_port, timeout=1)
+    except Exception:
+        old_dead = True
+    ok(got is not None and got.get("current") == LOOP_PORT and got.get("saved") == LOOP_PORT
+       and got.get("env_pinned") is False,
+       "H14a saved port, no env: the gateway really binds gateway.json's port on boot")
+    ok(old_dead, "H14b and nothing is listening on the harness port - the socket moved for real")
+finally:
+    if proc:
+        proc.kill()
+        proc.wait()
+    shutil.rmtree(root, ignore_errors=True)
+
 # pure-function pin of the resolution order
 sys.path.insert(0, REPO)
 import gw.config as _cfg
