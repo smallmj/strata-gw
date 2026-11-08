@@ -57,31 +57,52 @@ var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
 function openSettings(focusKey){
   setpop.style.display="block";
-  if(!window._dsk1){window._dsk1=1;   // 磁盘地图惰性只读一次（只画图，不搬不删）
-    fetch("router/disk",{headers:hdrs(false)}).then(function(r){return r.json()}).then(renderDisk)
-      .catch(function(){var el=document.getElementById("dsk");
-        if(el)el.innerHTML='<span class="plab">'+tt("磁盘地图这次没读到，关掉重开一次试试","the disk map could not be read - close and reopen once")+"</span>"})}
-  if(focusKey){keyEl.focus();
+  if(focusKey){var _td=document.getElementById("set-tok");if(_td)_td.open=true;keyEl.focus();
     var kb=document.querySelector("#setpop .keyrow");
     if(kb){kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
       setTimeout(function(){kb.classList.remove("flash")},1600)}}
 }
-function renderDisk(d){
+var DKD=[],DKDAT={},DKPAGE=0,DKPS=4;
+function renderDisk(d){DKD=(d&&d.models)||[];DKDAT=d||{};DKPAGE=0;dkPaint()}
+function dkPaint(){
   var el=document.getElementById("dsk");if(!el)return;
   function gb(b){if(b==null||isNaN(b))return "—";return fnum(b/1e9,2)+" GB"}   // 10^9 网站口径
-  var h="";
-  (d.models||[]).forEach(function(m){
-    h+='<div class="dkm"><b>'+esc(cardNick(m.model)||m.model)+'</b><span class="dkt">'+gb(m.total_bytes)+"</span>";
+  var tot=DKD.length,pages=Math.max(1,Math.ceil(tot/DKPS));
+  if(DKPAGE<0||DKPAGE>=pages)DKPAGE=0;
+  var slice=DKD.slice(DKPAGE*DKPS,DKPAGE*DKPS+DKPS),h="";
+  slice.forEach(function(m,i){
+    var op=(DKPAGE===0&&i===0)?" open":"";
+    h+='<details class="drw dkx"'+op+'><summary><span>'+esc(cardNick(m.model)||m.model)+
+      '</span><span class="dkt">'+gb(m.total_bytes)+"</span></summary>"+
+      '<div class="dbody">';
     (m.files||[]).forEach(function(f){
       h+='<div class="dkf'+(f.missing?" miss":"")+'"><span>'+esc(f.path)+"</span>"+
         "<em>"+(f.missing?tt("路径找不到","path not found"):gb(f.bytes))+"</em>"+
         ((f.used_by||[]).length>1?'<i class="dks">'+tt("共享","shared")+" ×"+f.used_by.length+"</i>":"")+
         "</div>";});
-    h+="</div>";});
-  if(d.data_dir)h+='<div class="dkm"><b>'+tt("数据目录","data dir")+'</b><span class="dkt">'+
-    gb(d.data_total_bytes)+'</span><div class="dkf"><span>'+esc(d.data_dir)+"</span></div></div>";
+    h+="</div></details>";});
+  var dd=DKDAT.data_dir;
+  if(dd)h+='<details class="drw dkx"><summary><span>'+tt("数据目录","data dir")+
+    '</span><span class="dkt">'+gb(DKDAT.data_total_bytes)+"</span></summary>"+
+    '<div class="dbody"><div class="dkf"><span>'+esc(dd)+"</span></div></div></details>";
   el.innerHTML=h||'<span class="plab">'+tt("还没有入册特工可盘","nothing enrolled to map yet")+"</span>";
+  var nav=document.getElementById("dsk-nav");
+  if(nav){
+    if(pages>1)nav.innerHTML='<button id="dk-prev"'+(DKPAGE?"":" disabled")+'>‹</button><span>'+(DKPAGE+1)+" / "+pages+
+      " · "+tot+" "+tt("位特工有档案","mapped")+'</span><button id="dk-next"'+(DKPAGE<pages-1?"":" disabled")+'>›</button>';
+    else nav.innerHTML="";
+    var pv=document.getElementById("dk-prev"),nx=document.getElementById("dk-next");
+    if(pv)pv.onclick=function(){if(DKPAGE>0){DKPAGE--;dkPaint()}};
+    if(nx)nx.onclick=function(){if(DKPAGE<pages-1){DKPAGE++;dkPaint()}};
+  }
 }
+(function(){var _ab=document.getElementById("sec-about");if(!_ab)return;
+  try{var io=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){
+    if(es[i].isIntersecting&&!window._dsk1){window._dsk1=1;
+      fetch("router/disk",{headers:hdrs(false)}).then(function(r){return r.json()}).then(renderDisk)
+      .catch(function(){var el=document.getElementById("dsk");
+        if(el)el.innerHTML='<span class="plab">'+tt("磁盘地图这次没读到，刷新页面再试一次","the disk map could not be read - refresh and try once")+"</span>"})}}});
+    io.observe(_ab);}catch(e){}})();
 function paintKeyChip(){var c=document.getElementById("keychip");if(!c)return;
   var okv=!!keyEl.value.trim();
   c.textContent=okv?tt("🔑 Token 已设","🔑 Token set"):tt("🔑 未设 Token","🔑 No token");
@@ -387,12 +408,16 @@ function wizNav1(nav){
 function wizSel(id,opts,cur){
   var h='<select id="'+id+'">';
   for(var i=0;i<opts.length;i++){var o=opts[i];
-    h+='<option value="'+esc(o[0])+'"'+(cur===o[0]?" selected":"")+">"+esc(o[1])+"</option>"}
+    h+='<option value="'+esc(o[0])+'"'+(cur===o[0]?" selected":"")+'">'+esc(o[1])+"</option>"}
   return h+"</select>";
 }
+function wizTier(){var c=WIZ.cat||{},f=(c.families||{})[WIZ.fam]||{};
+  if(f.tiers&&f.tiers[WIZ.tier])return f.tiers[WIZ.tier];
+  return (c.tiers||{})[WIZ.tier]||{}}
 function wizParamsHtml(){
-  var p=WIZ.p;
-  return '<div class="wiz-params">'+
+  var p=WIZ.p,c=WIZ.cat||{},f=(c.families||{})[WIZ.fam]||{},t=wizTier();
+  function g3(v){return v!=null?esc(String(v))+" GB":"—"}
+  return '<div class="wiz-tune"><div class="wiz-prms">'+
    '<div class="prm"><label>'+tt("上下文长度","context length")+"</label>"+
    wizSel("w-context",[["32768","32K"],["131072","128K"],["262144","262K"],["524288","512k"],["1048576","1M"],["other",tt("其他（自填）","other (type your own)")]],p.context)+
    ' <input id="w-ctxother" type="number" min="1024" max="2097152" step="1024" placeholder="'+tt("token 数","tokens")+'" value="'+esc(p.ctxother)+'"'+(p.context==="other"?"":' style="display:none"')+">"+
@@ -409,7 +434,15 @@ function wizParamsHtml(){
    '<div class="prm"><label>'+tt("数据目录","data dir")+'</label><input id="w-data" type="text" placeholder="'+
    tt("留空=默认位置","leave empty = default place")+'" value="'+esc(p.data)+'">'+
    "<em>"+tt("模型文件的存放位置","where the model files will live")+"</em></div>"+
-   '<div class="prm"><b>'+esc((WIZ.fam||"")+" · "+(WIZ.tier||""))+"</b></div>"+
+   "</div>"+
+   '<aside class="wiz-sum"><p class="stt">'+tt("即将入册","about to enlist")+"</p>"+
+   '<b class="sname">'+esc(f.title||WIZ.fam||"?")+"</b>"+
+   '<span class="sby">'+esc(t.label||WIZ.tier||"")+(f.by?" · "+esc(f.by):"")+"</span>"+
+   '<div class="srow"><span class="slab">'+tt("下载体积","download")+'</span><i>'+g3(t.download_gb)+"</i></div>"+
+   '<div class="srow"><span class="slab">'+tt("内存门槛","RAM floor")+'</span><i>'+g3(t.ram_gb)+"</i></div>"+
+   '<div class="srow"><span class="slab">'+tt("显存预留","Arena reserve")+'</span><i>'+g3(t.arena_gb)+"</i></div>"+
+   '<div class="srow"><span class="slab">'+tt("数据去处","data lands in")+"</span><i>"+esc(p.data||tt("默认位置","the default place"))+"</i></div>"+
+   '<p class="sfoot">'+tt("下一步黑底直播整个入册过程；万一失败可回上一步改参数重跑。","next step narrates the whole enlistment live; if it fails, go back, tweak and re-run.")+"</p></aside>"+
    "</div>";
 }
 function wireParams(){

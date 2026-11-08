@@ -411,4 +411,40 @@ ok(not re.search(r"[^.a-zA-Z]confirm\s*\(", js + html),
 ok(not re.search(r"com" + r"fy", js + html + css + i18njs, re.I),
    "T13c zero legacy brand word anywhere in the console trio+table")
 
+# ---- T20 (field feedback): anti-overflow, tune grid, setpop scroll+drawers,
+#      disk map relocated to the About section with paging + per-model drawers
+import re as _re2
+def _rule(name):
+    m=_re2.search(r"\."+_re2.escape(name)+r"\{([^}]*)\}", css)
+    return m.group(1) if m else ""
+_m=_re2.search(r"#setpop\{([^}]*)\}", css)
+_setpop=_m.group(1) if _m else ""
+_m=_re2.search(r"\.famcard,\.tiercard\{([^}]*)\}", css)
+ok("line-clamp" in css and css.count("text-overflow:ellipsis")>=2 and _m and "overflow:hidden" in _m.group(1),
+   "T20a wizard cards clamp long copy - line clamps, ellipsis, hidden overflow")
+ok("white-space:nowrap" in _rule("wstep") and "text-overflow:ellipsis" in _rule("wstep"),
+   "T20b step-bar labels can never wrap out of their pills")
+ok("max-height" in _setpop and "overflow-y:auto" in _setpop,
+   "T20c the gear popover scrolls - nothing hides below the fold")
+_m=_re2.search(r'id="setpop".*?</header>', html, _re2.S)
+_sp=_m.group(0) if _m else ""
+ok("dsk" not in _sp and _sp.count('<details class="drw"')>=3,
+   "T20d the settings popover dropped the disk map and folds into drawers")
+ok(html.count('id="dsk"')==1 and 'id="dsk-nav"' in html and "sec-about" in html[:html.index('id="dsk"')],
+   "T20e the disk map now lives inside the About section, exactly once")
+_r=js[js.index("function dkPaint"):js.index("function dkPaint")+1800]
+ok("<details" in _r and "<summary" in _r,
+   "T20f every mapped model renders as its own drawer inside the disk card")
+ok("DKPAGE" in js and "dsk-nav" in js,
+   "T20g the disk card pages through models instead of one endless column")
+ok("wiz-tune" in js and "wiz-sum" in js and "wiz-prms" in js,
+   "T20h step 2 is a designed two-zone grid, not a left rail over blank space")
+ok(".wiz-tune{" in css and ".wiz-sum{" in css and ".wiz-prms{" in css,
+   "T20i the tune grid, its summary rail and the param grid all have skins")
+ok("wizTier" in js,
+   "T20j the summary rail reads real tier numbers (download/RAM/Arena), not guesses")
+_m=_re2.search(r"function dkPaint.*?\n}\n", js, _re2.S)
+ok(bool(_m) and "1e9" in _m.group(0) and "1073741824" not in _m.group(0),
+   "T20k relocated disk map keeps the 10^9 website GB convention")
+
 sys.exit(0 if not F else 1)
