@@ -1,4 +1,4 @@
-# protocol snapshot: Strata v0.2.11 / engine 0.1.57 (pinned 2026-11-07)
+# protocol snapshot: Strata v0.2.12 / engine 0.1.58 (pinned 2026-11-08)
 r"""sim-strata make_env.py - lays out the Windows TEST environment.
 
 Usage:  make-env.cmd [gw_dir] [shome_dir]

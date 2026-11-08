@@ -16,6 +16,8 @@ Output: one line per checked field ("OK face/field" or "DIFF ..."), exit 1
 on any DIFF, exit 0 when all four faces agree with tests/compat-baseline.json.
 The release-day gate (T19) runs --upstream against the newest tag first.
 """
+import tempfile
+import shutil
 import argparse
 import ast
 import json
@@ -98,7 +100,10 @@ def compare(b, cons, cli, routes, jkeys):
         say(want <= got, "constants", fam, str(sorted(want)), str(sorted(got)))
     n_want = b["constants"].get("MODELS_n")
     n_got = len(cons.get("MODELS", set()))
-    say(n_want == n_got, "constants", "MODELS_n", str(n_want), str(n_got))
+    # floor semantics: the upstream model list only ever grows - a release that
+    # ADDS a model is not drift; one that SHRINKS it (or moves structure) is
+    say(n_want is None or n_got >= n_want, "constants", "MODELS_n",
+        "floor %s" % n_want, str(n_got) + (" grew" if n_got > n_want else ""))
     want = set(b["setup_cli"])
     say(want <= cli, "setup_cli", "wizard-flags",
         str(sorted(want)), str(sorted(cli & want)) if cli else "no setup.py surface scanned")
@@ -121,13 +126,13 @@ def main():
         and b.get("constants") and b.get("engine_routes") and b.get("model_json_keys"),
         "baseline", "schema", "four faces", "loaded")
     if a.upstream:
-        import shutil
-        import tempfile
+
+
         tmp = tempfile.mkdtemp(prefix="canary-up-")
         try:
             r = subprocess.run(["git", "clone", "--quiet", "--depth", "1",
                                 "--branch", a.upstream, UPSTREAM_REPO,
-                                os.path.join(tmp, "u")], capture_output=True, text=True)
+                                os.path.join(tmp, "u")], capture_output=True, text=True, errors="ignore")
             if r.returncode != 0:
                 print("clone failed:", (r.stderr or "").strip()[:300])
                 return 2
@@ -137,36 +142,68 @@ def main():
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     elif a.live:
-        run = (lambda cmd: subprocess.run(["ssh", a.ssh, cmd],
-                                          capture_output=True, text=True).stdout) if a.ssh else \
-              (lambda cmd: subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout)
+        run = (lambda cmd: subprocess.run(["ssh", a.ssh, cmd], capture_output=True,
+                                          text=True, errors="ignore").stdout) if a.ssh else \
+              (lambda cmd: subprocess.run(cmd, shell=True, capture_output=True,
+                                          text=True, errors="ignore").stdout)
         probe = ('import json,sys; sys.path.insert(0, r"%s"); import setup as s; '
                  'print(json.dumps({"FAMILIES": sorted(s.FAMILIES), '
                  '"PREVIEW_FAMILIES": sorted(s.PREVIEW_FAMILIES), '
                  '"MULTI_FILE_FAMILIES": sorted(s.MULTI_FILE_FAMILIES), '
                  '"MODELS": sorted(s.MODELS)}))' % a.shome)
         py = os.path.join(a.shome, ".venv", "Scripts", "python.exe")
-        out = run('"%s" -c "%s"' % (py, probe.replace('"', "'")))
+        if not a.ssh and not os.path.exists(py):
+            py = os.path.join(a.shome, ".venv", "bin", "python")
         try:
-            cons = {k: set(v) for k, v in json.loads(out.strip() or "{}").items()}
+            cons = {k: set(v) for k, v in
+                    json.loads(run('"%s" -c "%s"' % (py, probe.replace('"', "'"))).strip() or "{}").items()}
         except ValueError:
             cons = {}
             print("live constants probe unreadable (engine venv missing?)")
-        setup_src = run('powershell -NoProfile -Command "Get-Content -Raw \'%s\\setup.py\'"' % a.shome)
-        cli = set(re.findall(r'add_argument\(\s*["\'](--[a-z][a-z-]*)', setup_src or ""))
-        jsrc = run('powershell -NoProfile -Command "Get-ChildItem \'%s\\strata-*.json\' '
-                   '| ForEach-Object { Get-Content $_.FullName -Raw }"' % a.shome)
-        jkeys = set(re.findall(r'"([a-z_]+)"\s*:', jsrc or ""))
-        ports = sorted({int(x) for x in re.findall(r'"port"\s*:\s*(\d{2,5})', jsrc or "")})[:3]
-        routes = set()
-        for port in ports:
-            for rt in b["engine_routes"]:
-                code = run('powershell -NoProfile -Command "try{'
-                           '(Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 '
-                           '\'http://127.0.0.1:%d%s\').StatusCode}catch{\'no\'}"' % (port, rt))
-                if (code or "").strip().startswith("2") or "{" in (code or ""):
-                    routes.add(rt)
-        compare(b, cons, cli, routes, jkeys)
+        # the three text artifacts come over as RAW FILES (scp/local copy), never
+        # through a shell pipe: PowerShell re-encodes to the OEM codepage and
+        # utf-8 decoding dies somewhere in 5000 lines of engine source
+        tmp = tempfile.mkdtemp(prefix="canary-live-")
+        try:
+            def read(rel):
+                if a.ssh:
+                    src = "%s:%s" % (a.ssh, os.path.join(a.shome.replace("\\", "/"), rel).replace("\\", "/"))
+                    subprocess.run(["scp", "-q", src, os.path.join(tmp, os.path.basename(rel))],
+                                   capture_output=True)
+                    f = os.path.join(tmp, os.path.basename(rel))
+                else:
+                    f = os.path.join(a.shome, rel)
+                try:
+                    return open(f, encoding="utf-8", errors="ignore").read()
+                except OSError:
+                    return ""
+            setup_src = read("setup.py")
+            cli = set(re.findall(r'add_argument\(\s*["\'](--[a-z][a-z-]*)', setup_src or ""))
+            jkeys = set()
+            if a.ssh:
+                names = run('powershell -NoProfile -Command "Get-ChildItem \'%s\\strata-*.json\' -Name"' % a.shome)
+                for nm in (names or "").split():
+                    subprocess.run(["scp", "-q", "%s:%s" % (a.ssh, a.shome.replace("\\", "/") + "/" + nm),
+                                    os.path.join(tmp, "j-" + nm)], capture_output=True)
+                    try:
+                        jkeys.update(re.findall(r'"([a-z_]+)"\s*:',
+                                    open(os.path.join(tmp, "j-" + nm), encoding="utf-8", errors="ignore").read()))
+                    except OSError:
+                        pass
+            else:
+                import glob as _g
+                for f in _g.glob(os.path.join(a.shome, "strata-*.json")):
+                    jkeys.update(re.findall(r'"([a-z_]+)"\s*:',
+                               open(f, encoding="utf-8", errors="ignore").read()))
+            # routes: read the engine's own source text. HTTP probing a live box
+            # false-alarms - POST endpoints answer 405 to GET and a cold engine
+            # answers little at all. The source is the contract; the socket is not.
+            srv = read(os.path.join("serve", "server.py"))
+            routes = set(re.findall(r'["\'](/health|/v1/models|/v1/chat/completions'
+                                    r'|/load|/unload|/metrics|/settings|/config|/status)["\']', srv or ""))
+            compare(b, cons, cli, routes, jkeys)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
     else:
         ap.print_usage()
         return 2
