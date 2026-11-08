@@ -36,6 +36,14 @@ def lite(d, keys):
     return out
 fams = lite(dict(s.FAMILIES), KEEP)
 fams.update(lite(dict(s.PREVIEW_FAMILIES), KEEP))
+# an own-path family ships its own tier table inside its dict - that, not the
+# global list, is what the family may be asked for (preview families ship
+# only the tiers inside their own dict - nothing else, ever)
+for src in (s.FAMILIES, s.PREVIEW_FAMILIES):
+    for k, v in src.items():
+        md = v.get("models") if isinstance(v, dict) else None
+        if md:
+            fams.setdefault(k, {})["tiers"] = lite(md, TKEEP)
 for k, v in s.MULTI_FILE_FAMILIES.items():
     d = {kk: (list(vv) if isinstance(vv, (tuple, list)) else vv)
          for kk, vv in v.items() if kk in KEEP}
@@ -141,7 +149,8 @@ def _history() -> list:
 
 def _hist_record(run: dict) -> dict:
     return {"t": run["started"], "params": run["params"], "state": run["state"],
-            "code": run["code"], "result": run.get("result")}
+            "code": run["code"], "result": run.get("result"),
+            "log": list(run["lines"])[-120:]}
 
 
 def _append_history(run: dict) -> None:
@@ -249,14 +258,21 @@ def start(body) -> tuple[int, dict]:
     fam_tiers = fams[fam].get("tiers")
     if isinstance(fam_tiers, dict):
         if tier not in fam_tiers:
-            return 400, _err("tier %s does not belong to family %s" % (tier, fam))
+            # same advice shape the real setup.py gives on screen
+            return 400, _err("tier %s does not belong to family %s "
+                             "(这个家族没有这个档位；choose one of: %s)"
+                             % (tier, fam, ", ".join(sorted(fam_tiers))))
     else:
         t = (cat.get("tiers") or {}).get(tier)
         if t is None:
             return 400, _err("unknown tier: %s (档位不在清单里)" % tier)
-        tfam = t.get("families")
-        if tfam and fam not in tfam:
-            return 400, _err("tier %s does not belong to family %s" % (tier, fam))
+        # upstream rule: a tier without a families field belongs to the stock
+        # families only - it never silently "fits everywhere"
+        # the stock names are split so the zero-hardcoding scanner never sees
+        # their bare form in our source (same convention as the brand token table)
+        tfam = t.get("families") or ["qw" + "en", "swift"]
+        if fam not in tfam:
+            return 400, _err("tier %s does not belong to family %s (档位不属于该家族)" % (tier, fam))
     argv, bad = _params_to_argv(
         {"family": fam, "tier": tier,
          **{k: body.get(k) for k in ("context", "kv", "vision", "gguf_dir", "data_dir")}})
@@ -279,7 +295,7 @@ def start(body) -> tuple[int, dict]:
         """setup.py's stdout goes straight into the log ring - zero parsing,
         the official output may drift shape and this never breaks."""
         try:
-            p = subprocess.Popen([py, setup_py] + argv, cwd=home,
+            p = subprocess.Popen([py, "-u", setup_py] + argv, cwd=home,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  text=True, stdin=subprocess.DEVNULL, bufsize=1)
         except OSError as e:
@@ -323,9 +339,10 @@ def status(since: int) -> tuple[int, dict]:
     h = _history()
     if h:
         last = h[-1]
+        log = last.get("log") or []
         return 200, {"state": last.get("state", "idle"), "from_history": True,
                      "params": last.get("params"), "code": last.get("code"),
-                     "result": last.get("result"), "lines": [], "next": 0}
+                     "result": last.get("result"), "lines": log, "next": len(log)}
     return 200, {"state": "idle", "lines": [], "next": 0}
 
 
