@@ -461,4 +461,11 @@ ok('data-ip="0"' in html and 'data-ip="1"' in html and "about.tab.eng" in i18njs
 ok(html.count('id="dsk"')==1 and "dsk-nav" in html,
    "T21e the relocated disk card keeps its single mount point and pager rail")
 
+# ---- T22: the onboarding page can find the engine itself, or be pointed at it
+ok('id="onb-detect"' in js and 'id="onb-hpath"' in js and 'id="onb-hset"' in js
+   and "router/home/probe" in js and 'router/home"' in js,
+   "T22f the not-found row carries both routes: one-click search and manual point-at-it")
+ok(".onb-act{" in css and "onb-hmsg" in css,
+   "T22g the home-finding row has its own skin and a message slot")
+
 sys.exit(0 if not F else 1)
