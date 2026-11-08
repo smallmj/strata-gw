@@ -505,10 +505,18 @@ function wizLive(body,nav){
 })();
 function paintSim(d){
   var c=document.getElementById("demochip");if(!c)return;
-  var v=String(((d&&d.engine)||{}).version||"");
-  var want=v.indexOf("-sim")>=0?"":"none";           // diff 门控：只在变化时写
-  if(c.style.display!==want)c.style.display=want;
-  if(want==="")c.title=tt("引擎是演示模拟套件，无真实推理——如非有意，请在设置里核对引擎目录指向真实 Strata","engine is the demo simulation kit - no real inference; if unintended, check the engine folder setting");
+  var e=(d&&d.engine)||{};
+  var demo=String(e.version||"").indexOf("-sim")>=0;   // 版本串签名，diff 门控
+  var want=(demo||e.warn)?"":"none";
+  if(c.style.display!==want){
+    c.style.display=want;
+    if(want!==""){
+      c.textContent=demo?tt("演示模式","demo mode"):tt("引擎比已测上限新","engine newer than tested ceiling");
+      c.title=demo
+        ?tt("引擎是演示模拟套件，无真实推理——如非有意，请在设置里核对引擎目录指向真实 Strata","engine is the demo simulation kit - no real inference; if unintended, check the engine folder setting")
+        :tt("引擎版本比随车测试上限还新——多数升级只是增量，但建议先跑一次兼容探针再放行向导","this engine is newer than the tested ceiling - most upgrades are additive, but run the compat probe before trusting the wizard");
+    }
+  }
 }
 qs("router/onboard",paintSim);   // boot 一次：黄标上顶栏（引擎版本串为签名）
 function build(names){

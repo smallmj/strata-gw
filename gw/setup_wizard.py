@@ -126,6 +126,10 @@ def _hist_file() -> str:
     return os.path.join(config.ROOT, "router-setup.json")
 
 
+def _vtuple(v):
+    return tuple(int(x) for x in re.findall(r"\d+", str(v or "")))
+
+
 def _history() -> list:
     try:
         with open(_hist_file(), encoding="utf-8") as f:
@@ -362,7 +366,12 @@ def onboard(want_check: bool) -> dict:
                       "version": (build or {}).get("version"),
                       # P5 (T15b): a -sim version = the demo kit is mounted -
                       # the console paints a demo-mode watermark off this flag.
-                      "sim": str((build or {}).get("version") or "").endswith("-sim")},
+                      "sim": str((build or {}).get("version") or "").endswith("-sim"),
+                      # T15c ceiling: engine newer than TESTED_UP_TO = advisory
+                      # yellow banner, never a block (upstream is mostly additive).
+                      "warn": bool(build) and (
+                          _vtuple((build or {}).get("version")) >
+                          _vtuple(config.TESTED_UP_TO.get("engine")))},
            "models": len(backends.BACKENDS)}
     if want_check and _CHECK["state"] == "idle" and out["engine"]["found"]:
         _CHECK.update(state="running")

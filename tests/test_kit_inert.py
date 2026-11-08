@@ -110,11 +110,30 @@ try:
     with open(build, "w") as f:
         json.dump({"version": "9.9.9"}, f)
     s, h = gwI.get("/router/onboard")
-    ok(json.loads(h)["engine"]["sim"] is False,
-       "P5b a plain version keeps the flag false (negative pin)")
+    ob2 = json.loads(h)["engine"]
+    ok(ob2["sim"] is False and ob2["warn"] is True,
+       "P5b plain 9.9.9 (above the tested ceiling) -> sim false, ceiling warn true")
+    with open(build, "w") as f:
+        json.dump({"version": "0.0.1"}, f)
+    s, h = gwI.get("/router/onboard")
+    ob3 = json.loads(h)["engine"]
+    ok(ob3["sim"] is False and ob3["warn"] is False,
+       "P5c a version under the ceiling keeps both flags false (negative pin)")
 finally:
     gwI.close()
     shutil.rmtree(shome, ignore_errors=True)
+
+# ---- P7: the compat contract file is whole ----------------------------------
+bl = json.load(open(os.path.join(REPO, "tests", "compat-baseline.json"), encoding="utf-8"))
+ok(all(k in bl for k in ("strata_tag", "engine", "setup_cli", "constants",
+                        "engine_routes", "model_json_keys"))
+   and all(f in bl["setup_cli"] for f in ("--setup", "--family", "--model",
+                                          "--context", "--kv"))
+   and all(k in bl["constants"] for k in ("FAMILIES", "PREVIEW_FAMILIES",
+                                          "MULTI_FILE_FAMILIES", "MODELS_n")),
+   "P7 compat-baseline carries all four faces incl. the wizard five flags")
+ok(len(bl["engine_routes"]) == 9 and len(bl["setup_cli"]) >= 12,
+   "P7b the nine routes and the twelve CLI flags are declared")
 
 app = _read(os.path.join(REPO, "console", "app.js"))
 html = _read(os.path.join(REPO, "console", "index.html"))

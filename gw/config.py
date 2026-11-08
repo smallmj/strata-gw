@@ -6,6 +6,13 @@ import os
 import re
 from urllib import request as urlrequest
 
+# The newest host-Strata generation this gateway was walked end-to-end on.
+# Single source in the repo: bump together with tests/compat-baseline.json and
+# the sim-kit protocol stamp in ONE release-day commit (T19), after the compat
+# canary reports the newest upstream tag diff-free. Advisory only: a newer
+# engine paints a yellow banner, it never blocks anything.
+TESTED_UP_TO = {"engine": "0.1.57", "strata": "v0.2.11"}
+
 # repo root (the directory holding strata-router.py; gw/ lives under it)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
