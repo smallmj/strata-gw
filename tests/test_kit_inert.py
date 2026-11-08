@@ -143,4 +143,12 @@ i18n = _read(os.path.join(REPO, "console", "i18n.js"))
 ok('demo.tag' in i18n and "演示模式" in i18n and "demo mode" in i18n,
    "P5d the watermark label ships as a zh/en pair")
 
+# ---- P8/P9: canary semantics learned from the v0.2.12 night drift ----------
+_can=open(os.path.join(REPO,"scripts","host_compat_canary.py"),encoding="utf-8").read()
+ok("n_got >= n_want" in _can and "say(n_want == n_got" not in _can,
+   "P8 MODELS_n is a floor test (the model list only grows upstream; an exact match false-alarms every release)")
+ok("Invoke-WebRequest" not in _can,
+   "P9 the live route check never pokes running engines over HTTP - it reads serve/server.py statically")
+
 print("ALL PASS")
+
