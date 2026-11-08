@@ -275,6 +275,16 @@ html[data-theme=light] .wstep.on{color:#fff}
 .demochip{margin-left:8px;font-size:.72rem;color:#e8b93c;border:1px solid #e8b93c66;
   border-radius:999px;padding:.14rem .6rem;white-space:nowrap;cursor:help;letter-spacing:.08em}
 .wizpill{margin:0 0 8px}
+.inf-tabs{display:flex;gap:8px;margin:0 0 14px}
+.itab{border:1px solid var(--line);background:none;color:var(--muted);border-radius:99px;
+  padding:.35rem 1.1rem;font-size:.78rem;cursor:pointer;white-space:nowrap;transition:color .25s,border-color .25s}
+.itab:hover{color:var(--fg);border-color:var(--ac,var(--q))}
+.itab.on{color:#05121f;border-color:transparent;
+  background:linear-gradient(135deg,var(--ac,var(--q)),var(--fg))}
+html[data-theme=light] .itab.on{color:#fff}
+.infpages{overflow:hidden}
+.inftrack{display:flex;transition:transform .45s cubic-bezier(.22,.9,.3,1)}
+.infpag{flex:0 0 100%;min-width:0}
 .wiz-tune{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
 .wiz-prms{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;min-width:0}
 .prm select,.prm input[type=text],.prm input[type=number]{width:100%;box-sizing:border-box;min-width:0}

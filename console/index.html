@@ -120,6 +120,12 @@
 <h2 class="sec" id="sec-about"><span data-i18n="sec.about">关于 Strata</span><em>About</em></h2>
 <div class="inf-grid">
   <div class="inf-card wide">
+    <div class="inf-tabs">
+      <button class="itab on" data-ip="0" data-i18n="about.tab.eng">发动机档案</button>
+      <button class="itab" data-ip="1" data-i18n="about.tab.disk">磁盘占用</button>
+    </div>
+    <div class="infpages"><div class="inftrack" id="inftrack">
+    <div class="infpag">
     <h3 data-i18n="about.arch">Strata 引擎与本机架构</h3>
     <div class="mechwrap">
     <svg id="archsvg" class="diagram" viewBox="0 0 760 320" role="img" aria-label="Strata GW architecture" preserveAspectRatio="xMidYMid meet"></svg>
@@ -131,12 +137,13 @@
     </ol>
     </div>
     <div class="kvbar"><h4 data-i18n="about.kv">运行档案</h4><div class="kvpills" id="eng-kv"><span class="kvchip"><b>加载中…</b></span></div></div>
-  </div>
-  <div class="inf-card c3">
-    <h3 data-i18n="about.disksec">磁盘占用</h3>
+    </div>
+    <div class="infpag">
     <p class="pnote" data-i18n="about.diskhint">滑到本区自动读一次 · 只画图，不搬家、不删除 · 点模型展开文件明细，多则翻页</p>
     <div id="dsk"><span class="plab" data-i18n="about.diskwait">等待滑到这里…</span></div>
     <div class="dkpag" id="dsk-nav"></div>
+    </div>
+    </div></div>
   </div>
 </div>
 

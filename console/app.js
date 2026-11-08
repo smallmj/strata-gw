@@ -96,6 +96,13 @@ function dkPaint(){
     if(nx)nx.onclick=function(){if(DKPAGE<pages-1){DKPAGE++;dkPaint()}};
   }
 }
+var INFPG=0;
+function infPaint(){var tr=document.getElementById("inftrack");
+  if(tr)tr.style.transform="translateX(-"+(INFPG*100)+"%)";
+  var tb=document.querySelectorAll(".itab");
+  for(var i=0;i<tb.length;i++)tb[i].classList.toggle("on",(+tb[i].getAttribute("data-ip"))===INFPG);}
+(function(){var tb=document.querySelectorAll(".itab");
+  for(var i=0;i<tb.length;i++)(function(b){b.onclick=function(){INFPG=+b.getAttribute("data-ip");infPaint()}})(tb[i]);})();
 (function(){var _ab=document.getElementById("sec-about");if(!_ab)return;
   try{var io=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){
     if(es[i].isIntersecting&&!window._dsk1){window._dsk1=1;

@@ -447,4 +447,18 @@ _m=_re2.search(r"function dkPaint.*?\n}\n", js, _re2.S)
 ok(bool(_m) and "1e9" in _m.group(0) and "1073741824" not in _m.group(0),
    "T20k relocated disk map keeps the 10^9 website GB convention")
 
+# ---- T21: About section = one wide card, two pages sliding into view,
+#      engine dossier and disk map never share the screen
+ok(html.count('inf-card wide')==1 and 'class="inftrack"' in html and 'class="infpages"' in html
+   and html.index('id="dsk"')>html.index('inftrack'),
+   "T21a engine page and disk page live in ONE wide card as a sliding track")
+ok(".inftrack{" in css and "transition:transform" in css and "flex:0 0 100%" in css and "overflow:hidden" in _rule("infpages"),
+   "T21b the slide has a real animated transform, pages sized to the card")
+ok("INFPG" in js and "infPaint" in js and "translateX(-" in js,
+   "T21c page flips ride one state var and repaint by transform")
+ok('data-ip="0"' in html and 'data-ip="1"' in html and "about.tab.eng" in i18njs and "about.tab.disk" in i18njs,
+   "T21d tabs exist with i18n keys for both pages (zh/en pair guaranteed by T13a)")
+ok(html.count('id="dsk"')==1 and "dsk-nav" in html,
+   "T21e the relocated disk card keeps its single mount point and pager rail")
+
 sys.exit(0 if not F else 1)
