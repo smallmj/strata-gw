@@ -528,4 +528,36 @@ finally:
     gwG.close()
     shutil.rmtree(shG, ignore_errors=True)
 
+# ---- T26b1: engine_log_tail — the dead engine's own log file, read back ----
+import tempfile as _tf26
+_t26 = _tf26.mkdtemp(prefix="t26log-")
+try:
+    sys.path.insert(0, REPO)
+    from gw import backends as _b26
+    _lg = os.path.join(_t26, "eng.log")
+    with open(_lg, "w", encoding="utf-8") as f:
+        f.write("[strata] engine started: ...\n"
+                "strata-q36: 753 tensors (layout checked), 4.40 GiB on the GPU in 1.9 s\n"
+                "strata-q36: context 524288 cells, prompt chunk 2048, 0.00 GiB of VRAM free\n"
+                "strata-q36: not enough VRAM left for the hybrid experts' buffers and slots "
+                "(1760 MiB needed, 0 MiB free): use fewer slots, a shorter --max-context\n")
+    _cp = os.path.join(_t26, "strata-t26.json")
+    with open(_cp, "w", encoding="utf-8") as f:
+        json.dump({"model_name": "t26-test", "log": _lg}, f)
+    _b = _b26.Backend(_cp, {"model_name": "t26-test"}, 19876)
+    _tail = _b.engine_log_tail()
+    ok("not enough VRAM" in _tail and "--max-context" in _tail,
+       "T26b1a engine_log_tail returns the confession line, not the startup noise")
+    with open(_cp, "w", encoding="utf-8") as f:
+        json.dump({"model_name": "t26-test"}, f)           # no log field
+    ok(_b26.Backend(_cp, {"model_name": "t26-test"}, 19876).engine_log_tail() == "",
+       "T26b1b no log field in the config: empty tail, never a crash")
+    with open(os.path.join(_t26, "strata-t26b.json"), "w", encoding="utf-8") as f:
+        json.dump({"model_name": "t26-missing", "log": os.path.join(_t26, "gone.log")}, f)
+    ok(_b26.Backend(os.path.join(_t26, "strata-t26b.json"),
+                    {"model_name": "t26-missing"}, 19877).engine_log_tail() == "",
+       "T26b1c log file that never got written: empty tail, never a crash")
+finally:
+    shutil.rmtree(_t26, ignore_errors=True)
+
 print("ALL PASS")

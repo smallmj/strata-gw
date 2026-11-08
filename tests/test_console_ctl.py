@@ -500,4 +500,12 @@ ok('.lrow{' in css and '.cbtn.wide{' in css,
 ok('x.families||["qw"+"en","swift"]' in js,
    "T25g wizard tier lists obey the upstream default: a tier without a families field belongs to qwen/swift only")
 
+# ---- T26a: the enroll bar — a recruit of a 30 GB model must SHOW its percent ----
+ok("function parseProg(" in js,
+   "T26a1 a dedicated progress parser reads the download lines")
+ok('<progress id="wizprog"' in js and "wizprog" in js,
+   "T26a2 the live wizard mounts a real progress bar element")
+ok("parseProg(d.lines)" in js,
+   "T26a3 the live tick drives the bar from the status lines, not only the raw scroll")
+
 sys.exit(0 if not F else 1)

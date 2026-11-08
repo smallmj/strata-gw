@@ -176,11 +176,45 @@ class HolderStub:
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
 
+class DeadStub:
+    """T26b2: health 正常(活着)但任何 POST 直接掐连接不回包 —— 复现真机
+    'engine.exe 崩了而 serve 包装还活着' 的 502 Remote end closed。"""
+    def __init__(self, name, port):
+        self.name, self.port = name, port
+        outer = self
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a): pass
+            def do_GET(self):
+                if self.path.split("?")[0] == "/health":
+                    b = json.dumps({"status": "ok", "model": outer.name,
+                                    "loaded": False, "service": "strata",
+                                    "api_key": False}).encode()
+                    self.send_response(200); self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(b))); self.end_headers()
+                    self.wfile.write(b)
+                else:
+                    self.send_response(404); self.end_headers()
+            def do_POST(self):
+                try:
+                    length = int(self.headers.get("Content-Length") or 0)
+                    if length:
+                        self.rfile.read(length)
+                except (ValueError, OSError):
+                    pass
+                try:
+                    self.connection.close()
+                except OSError:
+                    pass
+        self.srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+        self.srv.daemon_threads = True
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
 CF = HolderStub(18097)
 MA = "qwen3.8-flash-next-iq3_s" if VIS else "aaa-qwen"
 MB = "sc117-qwen3.8-flash-next-abliterated-iq3_s" if VIS else "bbb-sc117"
 A = Stub(MA, 18095)      # 名字排序第一 = 无驻留且无偏好时的默认
 B = Stub(MB, 18096)
+D = DeadStub("ddd-dead", 18094)   # T26b2: serve 活着、engine 死了的连接重置现场
 MA_CFG = {"model_name": MA, "port": 18095, "api_key": "",
           # neutral fake tier values (never real engine tokens here — lint)
           "args": ["--pack", "/tmp/stub/pack-q9", "--kv", "z9z9",
@@ -227,6 +261,7 @@ else:
     open(os.path.join(ROOT, "gw-assets", "qwen-chan.png"), "wb").write(b"\x89PNG fake mascot")
 
 env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
+           GW_SCAN_WATCH_S="1",             # T26b: the scan watcher earns its keep fast here
            GW_GPU_URLS="http://127.0.0.1:18097",      # live stub holder, idle
            GW_GPU_FREE_WAIT="4",                 # force 等待窗缩短，测试不真等 120s
            STRATA_WATCH_S="2")                         # 看门狗提速，事件转场测试等得起
@@ -598,6 +633,40 @@ try:
                  STRATA_PYTHON="/opt/weird/python"))
     ok("/opt/weird/python" in r2.stdout,
        "T50c resolve_python honours STRATA_PYTHON override")
+    # ---- T26b: a dead engine must confess, not hide behind "unreachable" ----
+    # hand-drop a third card whose serve answers /health but whose engine is
+    # gone (every POST resets); its config names an engine log with the real
+    # reason inside. load must surface THAT line, not a bare connection error.
+    _dead_log = os.path.join(ROOT, "ddd-dead-engine.log")
+    with open(_dead_log, "w", encoding="utf-8") as f:
+        f.write("[strata] 2026-11-08 21:01:03 engine started: strata.exe --serve ...\n"
+                "strata-q36: context 524288 cells, prompt chunk 2048, 0.00 GiB of VRAM free\n"
+                "strata-q36: not enough VRAM left for the hybrid experts' buffers and slots "
+                "(1760 MiB needed, 0 MiB free): use fewer slots, a shorter --max-context\n")
+    with open(os.path.join(ROOT, "strata-ddd-dead.json"), "w") as f:
+        json.dump({"model_name": "ddd-dead", "port": 18094, "api_key": "",
+                   "log": _dead_log}, f)
+    got3 = False
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        s, h = req("GET", "/router/backends")
+        try:
+            got3 = any(b["model"] == "ddd-dead" for b in json.loads(h)["backends"])
+        except (ValueError, KeyError):
+            got3 = False
+        if got3:
+            break
+        time.sleep(0.5)
+    ok(got3, "T26b0 hand-dropped config is picked up by the scan watcher")
+    s, h = req("POST", "/load", {"model": "ddd-dead"})
+    j = json.loads(h) if s else {}
+    msg = (j.get("error") or {}).get("message", "")
+    ok(s == 502 and "not enough VRAM" in msg,
+       "T26b1 502 carries the engine log's real reason, not just 'unreachable'")
+    s, h = req("GET", "/router/events")
+    ok(any("not enough VRAM" in e["text"] for e in json.loads(h)["events"]),
+       "T26b2 the same reason lands in the live feed")
+
     print("ALL PASS")
 finally:
     router.terminate(); router.wait(timeout=10)

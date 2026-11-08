@@ -153,6 +153,27 @@ class Backend:
         finally:
             lock.release()
 
+    def engine_log_tail(self, chars: int = 1600) -> str:
+        """When a serve wrapper stays up but its engine died, the engine's own
+        log (the config's "log" path) holds the real reason. Return its last
+        error-looking line for 502 bodies and the live feed; "" when there is
+        nothing to surface. Never raises — diagnostics must not break requests."""
+        try:
+            with open(self.cfg_path, encoding="utf-8-sig") as f:
+                log = (json.load(f) or {}).get("log")
+            if not isinstance(log, str) or not log:
+                return ""
+            with open(log, "rb") as f:
+                size = f.seek(0, 2)
+                f.seek(max(size - chars, 0))
+                raw = f.read().decode("utf-8", "replace")
+        except (OSError, ValueError):
+            return ""
+        bad = [ln.strip()[:300] for ln in raw.splitlines()
+               if re.search(r"not enough|no space left|cannot|failed|refus",
+                            ln, re.I)]
+        return bad[-1] if bad else ""
+
     def wait_alive(self, timeout: float) -> bool:
         deadline = time.time() + timeout
         while time.time() < deadline:
