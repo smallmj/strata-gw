@@ -484,4 +484,48 @@ _kit_src = _kit_src[_kit_src.index("class H("): _kit_src.index("def main")]
 ok(_endpoints(_stub_src) == _endpoints(_kit_src),
    "K-SIM5 Stub and kit serve cover one identical endpoint set (no drift)")
 
+
+# ---- T25 (field bug): the wizard offered (family,tier) pairs the real setup
+# ---- rejects - qwen36 has no IQ3_S - and the failed run left zero visible
+# ---- log: spawn must be unbuffered, history must keep the output, and an
+# ---- own-path family must show only the tiers it actually ships.
+shG = tempfile.mkdtemp(prefix="gw-shG-")
+plant_kit_setup(shG)
+envG = dict(KIT_ENV(shG)); envG["SIM_STRATA_TOTAL_S"] = "6"
+gwG = Gateway([], [], extra_env=envG)
+try:
+    ok(up(gwG), "T25 pre: kit gateway up")
+    s, h = gwG.get("/router/setup/models")
+    cat = json.loads(h)
+    beta = (cat.get("families") or {}).get("simbeta") or {}
+    ok(isinstance(beta.get("tiers"), dict) and "BETA1" in beta["tiers"],
+       "T25a an own-path family's own models dict is its tier list")
+    s, h = gwG.post("/router/setup/run", {"family": "simbeta", "tier": "Q4SIM"})
+    ok(s == 400 and "choose one of" in h,
+       "T25b a tier the family does not ship is refused before spawn, with upstream's advice shape")
+    s, h = gwG.post("/router/setup/run", {"family": "simcore", "tier": "NOFAMS"})
+    ok(s == 400,
+       "T25c a tier with no families field obeys the upstream default (qwen/swift), not 'fits everywhere'")
+    s, _ = gwG.post("/router/setup/run", {"family": "simcore", "tier": "FAILSIM"})
+    ok(s == 200, "T25d failsim run accepted")
+    time.sleep(1.5)
+    s, h = gwG.get("/router/setup/status")
+    d = json.loads(h)
+    ok(d.get("state") == "running" and len(d.get("lines") or []) > 0,
+       "T25e the console sees setup output WHILE running - the spawn is unbuffered (-u)")
+    st = wait_done(gwG)
+    ok(st and st.get("state") == "failed", "T25f failsim ends failed as designed")
+    hist = json.load(open(os.path.join(gwG.root, "router-setup.json")))
+    ok(hist and isinstance(hist[-1].get("log"), list) and len(hist[-1]["log"]) > 0,
+       "T25g the failed run's log is persisted into history, not just the in-memory ring")
+    gwG.restart()
+    ok(up(gwG), "T25 pre2: gateway back")
+    s, h = gwG.get("/router/setup/status")
+    d = json.loads(h)
+    ok(d.get("from_history") and d.get("state") == "failed" and len(d.get("lines") or []) > 0,
+       "T25h after a restart the console can still read why the recruit died")
+finally:
+    gwG.close()
+    shutil.rmtree(shG, ignore_errors=True)
+
 print("ALL PASS")

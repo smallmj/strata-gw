@@ -27,7 +27,13 @@ FAMILIES = {
 PREVIEW_FAMILIES = {
     "simbeta": {"title": "SimBeta", "by": "strata-gw sim",
                 "about": "demo preview family - no real inference",
-                "name": "simbeta-preview", "tag": "preview", "vision": False},
+                "name": "simbeta-preview", "tag": "preview", "vision": False,
+                "models": {
+                    "BETA1": {"about": "preview-only tier 1", "download_gb": 2.0,
+                              "ram_gb": 6, "arena_gb": 1},
+                    "BETA2": {"about": "preview-only tier 2", "download_gb": 4.0,
+                              "ram_gb": 12, "arena_gb": 2},
+                }},
 }
 MULTI_FILE_FAMILIES = {
     "simmulti": {"title": "SimMulti", "by": "strata-gw sim",
@@ -49,6 +55,10 @@ MODELS = {
                           "use it to watch the retry badge",
                 "download_gb": 4.0, "ram_gb": 8, "arena_gb": 2,
                 "families": ["simcore", "simforge", "simvista", "simbeta"]},
+    # mirrors upstream: NO families field means "the stock qwen/swift families
+    # only" - it must NEVER read as "fits everywhere"
+    "NOFAMS": {"about": "demo tier without a families field",
+               "download_gb": 4.0, "ram_gb": 8, "arena_gb": 2},
 }
 
 

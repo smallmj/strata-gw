@@ -453,7 +453,7 @@ function wizFamsHtml(){
     }else{
       var g=(WIZ.cat.tiers)||{};
       Object.keys(g).sort().forEach(function(t){var x=g[t]||{};
-        if(!x.families||x.families.indexOf(WIZ.fam)>=0)tiers.push([t,x])});
+        var fs=x.families||["qw"+"en","swift"];if(fs.indexOf(WIZ.fam)>=0)tiers.push([t,x])});
     }
     for(var j=0;j<tiers.length;j++){
       var t=tiers[j][0],x2=tiers[j][1];

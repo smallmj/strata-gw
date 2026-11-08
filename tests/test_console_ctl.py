@@ -497,4 +497,7 @@ ok("sayP" in js and "sayP(tt" in js and js.index("sayP")<js.index("function open
 ok('.lrow{' in css and '.cbtn.wide{' in css,
    "T24e the status rows and the full-width search button have skins")
 
+ok('x.families||["qw"+"en","swift"]' in js,
+   "T25g wizard tier lists obey the upstream default: a tier without a families field belongs to qwen/swift only")
+
 sys.exit(0 if not F else 1)
