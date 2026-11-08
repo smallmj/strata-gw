@@ -231,12 +231,36 @@ function renderOnb(d){
     (e.version?" · v"+esc(String(e.version)):"")+"</span>";
   else eng.innerHTML=onbIco("M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4z")+
     "<span><b>"+tt("未找到 Strata 引擎","Strata engine not found")+"</b><em>"+
-    tt("装好 Strata 引擎（自带 SETUP.bat），或把 gateway.json 的 strata_home 指到它","install Strata (it ships SETUP.bat), or point gateway.json strata_home at it")+
-    "</em></span>";
+    tt("可以让我在常见安装位置找一次，或直接指定 Strata 目录","let me search the usual install places once, or point me at the Strata folder yourself")+
+    '</em><div class="onb-act"><button class="ghostbtn" id="onb-detect">'+tt("一键寻找","search for me")+
+    '</button><input id="onb-hpath" type="text" placeholder="'+tt("或手填 Strata 目录路径","or type the Strata folder path")+'">'+
+    '<button class="ghostbtn" id="onb-hset">'+tt("指这里","use this")+'</button></div>'+
+    '<span class="onb-hmsg" id="onb-hmsg"></span></span>';
+  wireHome();
   var cnt=document.getElementById("onb-cnt");
   if(cnt)cnt.innerHTML=onbIco("M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z")+
     "<span>"+tt("盘上特工","operatives on disk")+": <b>"+((d&&d.models!=null)?d.models:0)+"</b></span>";
   drawOnbCheck((d&&d.check)||{state:"idle"},!!e.found);
+}
+function wireHome(){
+  var dt=document.getElementById("onb-detect");if(!dt||dt._w)return;dt._w=1;
+  var hs=document.getElementById("onb-hset"),hp=document.getElementById("onb-hpath"),
+      msg=document.getElementById("onb-hmsg");
+  function sayH(t){if(msg)msg.textContent=t}
+  function adopted(){ONB.sig="";qs("router/onboard?check=1",function(d){renderOnb(d)})}
+  dt.onclick=function(){dt.disabled=true;sayH(tt("在常见安装位置寻找…","searching the usual places…"));
+    fetch("router/home/probe",{headers:hdrs(false)}).then(function(r){return r.json()}).then(function(pr){
+      if(pr&&pr.auto){fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({auto:true})})
+        .then(function(r2){return r2.json().then(function(j){return[r2.status,j]})})
+        .then(function(rj){if(rj[0]===200){adopted()}else{sayH(tt("认领失败了：","adopt failed: ")+String((rj[1]||{}).error||rj[0]));dt.disabled=false}})}
+      else{sayH(tt("常见位置没找到，请把路径填在右边","nothing in the usual places - type the path at the right"));dt.disabled=false}})
+      .catch(function(){sayH(tt("探测请求失败了","the probe request failed"));dt.disabled=false})};
+  if(hs)hs.onclick=function(){var v=(hp&&hp.value||"").trim();if(!v)return;
+    fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({path:v})})
+      .then(function(r){return r.json().then(function(j){return[r.status,j]})})
+      .then(function(rj){if(rj[0]===200){adopted()}
+        else sayH(String((rj[1]||{}).error||tt("这个目录不像 Strata 引擎","that folder does not look like a Strata engine")))})
+      .catch(function(){sayH(tt("请求失败了","the request failed"))})};
 }
 function drawOnbCheck(c,engineFound){
   var chk=document.getElementById("onb-chk");if(!chk)return;

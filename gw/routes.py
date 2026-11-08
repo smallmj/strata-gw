@@ -286,6 +286,29 @@ class Handler(BaseHTTPRequestHandler):
             from . import setup_wizard
             want = bool(re.search(r"(?:^|&)check=1", qs))
             return self._json(200, setup_wizard.onboard(want))
+        if method == "GET" and path == "/router/home":
+            from . import home_probe
+            return self._json(200, home_probe.current())
+        if method == "GET" and path == "/router/home/probe":
+            from . import home_probe
+            return self._json(200, home_probe.probe())
+        if method == "POST" and path == "/router/home":
+            from . import home_probe, setup_wizard
+            try:
+                body = json.loads(self._read_body() or b"{}")
+            except ValueError:
+                body = {}
+            p = str(body.get("path") or "")
+            if body.get("auto"):
+                p = str(home_probe.probe().get("auto") or "")
+            if not p:
+                return self._json(400, {"error": "no Strata install found to adopt; point at one manually"})
+            h = home_probe.set_home(p)
+            if not h:
+                return self._json(400, {"error": "not a Strata engine root: needs setup.py plus serve/server.py or an engine/ folder", "path": p})
+            setup_wizard._CHECK.update(state="idle", ok=None, summary=None)
+            backends.rescan()
+            return self._json(200, {"home": h, "valid": True})
         if method == "GET" and path == "/router/disk":
             from . import setup_wizard
             return self._json(200, setup_wizard.disk_report())
