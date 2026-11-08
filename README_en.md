@@ -1,141 +1,148 @@
-# STRATA — the Strata gateway
+# STRATA GW — the moe-operative loading desk
 
 **[中文](README.md) | English**
 
-**One local GPU · several local models · one gateway that folds load-swap, VRAM
-handover, monitoring and training into a single page.**
+**One local GPU · a roster of local moe operatives · a gateway written by the
+very models it serves.**
 
 ![the console — full page, English UI](docs/preview-full-en.png)
 
-Strata-gw is the gateway + web console layer of a personal "model loading
-desk": it manages N model backends on **one GPU**, exactly one of which may be
-resident at a time. Load / unload / switch are explicit, verified actions with
-an events timeline — no hidden autoswap. On top of the routing it ships
-stacked operative dossier cards (specs · tags · bio, one uniform schema read
-from the gateway itself, with tags + bio auto-written in one click: a Chinese
-self-report, then the same model translating it into English — both landing in
-their language slots), a per-model flip-over training drawer (sampling defaults, launch
-config, portrait upload, tag/bio editing), one ⚙ popover holding token ·
-language · background video · desk-pet, a live monitor (tokens/s, VRAM, RAM,
-expert cache, GPU thermals), an events feed, and a full-page EN/中文 bilingual
-UI.
+Strata-gw is the gateway + web console on top of the Strata engine: it turns
+"install a new model" into a three-step enlistment wizard, turns "swap models"
+into verified clock-in / clock-out moves, and runs a houseful of local LLMs as
+a **roster of operatives**. The gateway is stdlib-only Python — zero pip
+dependencies; all it asks for is your own Strata engine install.
 
-It requires **your own Strata engine install** (the engine providing
-`serve/server.py`). The gateway itself is stdlib-only Python — no pip installs.
+## What you get
+
+- **A universal entry (zero-config boot).** The gateway refuses to quit when
+  nothing is configured — it opens as a full-page onboarding checklist instead:
+  where is Strata installed? let the page **search the usual places** or
+  **point at the folder yourself** (trust is earned by folder *shape* —
+  `setup.py` plus `serve/server.py`/`engine/` — never by name); the PC check
+  (`setup.py --check` in plain words); how many operatives are on the roster.
+  A guide until configured, a console after.
+- **The recruit wizard (three steps).** Pick family and tier (read live from
+  your install's own `setup.py` whitelist; experimental families carry a
+  badge) → tune five parameters (context, KV quant, vision, GGUF dir, data dir
+  — raw command lines are never exposed) → watch the enlistment narrate itself
+  over a black terminal live-log. The header chip stays re-enterable mid-run,
+  progress never lost; failures step back with every parameter preserved, and
+  the retry badge survives gateway restarts.
+- **Cards mount themselves.** A ~20 s directory watch: when `setup.py` writes a
+  new config, the card lands face-down and flips upright in 2 s — no restart.
+  If a config file moves away the card greys to *unregistered* and points the
+  way; put it back and the card revives within ~5 s.
+- **The zero-deletion constitution.** The gateway never deletes a model file
+  and offers no button that could. It perfects *see it, find it* instead: the
+  About section slides between two same-width pages — engine dossier and a
+  read-only disk map with a drawer per model, shared-pack cross-tags, dangling
+  paths flagged, GB in the website sense. (The card *burn* only removes its
+  decorative entry in `cards.json`; model files stay everyone's business.)
+- **Explicit swaps.** Lazy spawn, exclusive residency, idle auto clock-out —
+  every verdict comes from the engine itself, never an optimistic guess; the
+  events timeline remembers even the moves the gateway did not cause.
+- **External VRAM handover (optional).** Any GPU holder exposing `/free` and
+  `/system_stats` (an image service, say) can be asked to hand the card back
+  before a clock-in — gentle mode never interrupts a running job; force mode
+  drains the queue first.
+- **Drills (training).** Sampling defaults (live, instant) and launch config
+  (next clock-in) in clearly labelled drawers, portrait upload, tag/bio editing
+  — and one-click **auto-written tags & bio**: the resident operative pens a
+  Chinese self-report, then translates it, both landing in their language
+  slots; an off-post card gets a third-person dossier ghost-written by whoever
+  is on duty, from codename and common sense alone.
+- **One page, everything**: live monitor (tokens/s, VRAM, RAM, expert cache,
+  thermals), events feed, OpenAI-compatible proxy, a scrolling drawer-organised
+  ⚙ popover (token · language · video · pet), a draggable desk-pet chat, full
+  EN/中文 bilingual UI, theme colour all the way through, sane at narrow widths.
+
+## The operative worldview
+
+Every word on this desk stays in character — and the character *is* the feature:
+
+| on screen | in fact |
+|---|---|
+| recruit an operative | model install wizard (runs your install's own `setup.py`) |
+| enlistment / the card flip | install done → watch discovers the config → card joins the roster |
+| clock in / clock out | load / unload (verified; failures report in red) |
+| drill | training page: sampling, launch config, art, tags & dossier |
+| roster / on post | backend list / resident model |
+| unregistered | the config file is out of place — the gateway deletes nothing, it points the way |
+
+## Three-minute start
+
+```bash
+git clone <this repo> strata-gw
+cd strata-gw
+python3 strata-router.py        # Windows: double-click the launcher, or edit GW_HOME in launcher/strata-gateway.cmd
+```
+
+Open `http://127.0.0.1:18075/gateway` — nothing to preconfigure. The
+onboarding page asks where Strata lives: let it search the usual places or
+type the path (validated by shape, not name), run the PC check, hit recruit,
+and the first operative walks in through the door.
+
+Prefer the manual wiring? Copy the two files from `config-examples/` to
+`gateway.json` (point `strata_home` at the engine root) and
+`strata-mymodel.json` (`model_name` / `model_dir`, `port: 0` = auto), or set
+`STRATA_HOME` / `STRATA_PYTHON`. Default port `18075` (override
+`STRATA_ROUTER_PORT`; 18080 belongs to the engine), backend ports auto-assigned
+from `18101` (`STRATA_FIRST_BACKEND_PORT` moves the block).
+
+Point any OpenAI-compatible client at `http://127.0.0.1:18075` and clock a
+model in from its card (or `POST router/load {"model":"mymodel"}`;
+`curl -s http://127.0.0.1:18075/router/version` proves it lives).
 
 ## How it works
 
 - Every backend is an OpenAI-compatible server; the gateway exposes one
   aggregated OpenAI-compatible endpoint plus a `router/*` control API.
-- **Lazy spawn:** a backend's engine process starts only when needed.
-- **Exclusive residency:** switching = unload current → verify VRAM handover →
-  load next. State comes from the engine, never from optimistic guesses.
-- **Idle reclaim:** an idle resident model can auto-unload (`idle_unload_s`).
-- **External VRAM handover (optional):** if another GPU consumer exposes
-  `/free` and `/system_stats` (e.g. an image generator), the gateway can ask
-  it to yield VRAM before loading — configure `gpu_free.urls` in gateway.json.
-- Endpoints the gateway proxies but your engine may not implement
-  (`/settings`, `/config`, `/metrics`, …) surface in the panel as
-  *unavailable* — they never break the page.
-
-## Three-minute setup
-
-```bash
-git clone <this repo> strata-gw
-cd strata-gw
-cp config-examples/gateway.example.json gateway.json        # optional knobs
-cp config-examples/strata-backend.example.json strata-mymodel.json
-#   edit strata-mymodel.json: model_name / model_dir (port 0 = auto-assign)
-```
-
-Point the gateway at your engine root (`serve/server.py` + `.venv` inside):
-either set `STRATA_HOME`, or put `"strata_home"` into `gateway.json`, or leave
-the gateway checked out *inside* the engine root. To pick a specific python,
-set `STRATA_PYTHON`.
-
-Start it (Windows: double-click `launcher/strata-gateway.cmd` after editing
-its `GW_HOME` line; Linux/macOS):
-
-```bash
-bash launcher/strata-gateway.sh        # or: python3 strata-router.py
-```
-
-Open `http://127.0.0.1:18075/gateway`. Default gateway port `18075`
-(override with `STRATA_ROUTER_PORT`; 18080 belongs to the engine itself);
-backend ports are auto-assigned from `18101`. Verify from a terminal:
-
-```bash
-curl -s http://127.0.0.1:18075/router/version
-```
-
-Point any OpenAI-compatible client at `http://127.0.0.1:18075` and load a
-model from the card ("开工 / Clock in") or via
-`POST router/load {"model":"mymodel"}`.
-
-## Cards, training & portraits
-
-Every dossier card carries a fixed-height action strip pinned to its bottom:
-*drill* and *clock in / out* as one style family on the left, a non-clickable
-status chip and load timer ring on the right. All cards are the same height,
-so those rows always line up. Hitting *drill* flips the card over — sampling
-defaults, launch config, portrait upload and tag/bio editing live in
-collapsible drawers; *Save* writes from the bottom-right corner, *Resume*
-steps out. Risky actions (burn card) first raise a dialog spelling out the
-consequence: the dossier is deleted for good (persisted to `cards.json`,
-survives restarts) while the backend itself stays untouched.
-
-`cards/cards.json` holds per-model presentation: nick, portrait, tags and an
-operative dossier. A loaded model can **auto-write** its tags and bio with
-one click: it first pens a Chinese self-report, then translates that very
-report into English — one voice, two tongues. If this card's model is off
-post, an on-duty operative ghost-writes its dossier from the codename. Every installed backend automatically gets a card (cards.json only
-decorates it); uninstalled factory cards show as *not installed* with a
-confirm-guarded burn. Portraits are uploaded through the page (stored under
-`gw-assets/uploads/`, git-ignored).
+- **Lazy spawn:** engine processes start only when needed; zero footprint
+  while nobody is on post.
+- **Exclusive residency:** swap = retire the resident → verify the VRAM hand
+  back → cold-load the new recruit (minutes; the card timer reports).
+- **Idle reclaim:** `idle_unload_s` frees the card on schedule; hot clock-ins
+  after that take seconds.
+- **Handover:** `gpu_free.urls` in gateway.json points at anything that
+  answers `/free`.
+- Optional endpoints your engine may not implement (`/settings`, `/config`,
+  `/metrics`, …) surface honestly as *unavailable* — the page never crashes.
 
 ## gateway.json keys
 
 | key | meaning |
 |---|---|
-| `strata_home` | engine root (overrides repo root; env `STRATA_HOME` wins) |
+| `strata_home` | engine root — the page can also search-and-adopt or take your typed path and write this atomically (env `STRATA_HOME` wins over everything) |
 | `github_url` | target of the header GitHub button |
 | `gpu_free.urls` | list of `/free`-capable yield endpoints |
 | `gpu_free.target_mib` | VRAM floor to demand; `0` = auto water-line |
 | `gpu_free.gentle_wait_s` / `wait_s` / `timeout_s` | yield pacing |
 
-## The pet
-
-A draggable desk-pet (`⚙` → pet) sits on the page; tap it for a compact
-native chat window — bubbles streaming over `/v1/chat/completions`, bound to
-the resident model. The pet carries no other features; loading lives on the
-cards. Its portrait is served as a virtual model `_pet` through the same
-gateway. Drag = move (persisted), right-click menu = size / off. It respects
-`prefers-reduced-motion`.
-
-## Tests
+## Tests & self-checks
 
 ```bash
-python3 tests/test_gateway_switch.py strata-router.py   # the big baseline suite
-for f in tests/test_*.py; do python3 "$f"; done         # every suite, incl. hygiene lint
+for f in tests/test_*.py; do python3 "$f"; done           # every suite (hygiene lint, zh/en key parity, brand-word scan)
+python3 scripts/e2e_sim_demo.py                           # sim-kit end-to-end: enlist → card mounts → clock in → chat → disk map → failure retry
+python3 scripts/host_compat_canary.py --upstream <tag>    # upstream contract drift check (static AST, never runs upstream code)
 ```
 
-All green = safe to poke at. The baseline suite boots stub backends on ports
-1809x–1810x, so don't run it beside a live demo.
+The discipline is pin-first: every behaviour gets a test pin that is red
+before the code exists, then green, then the same command re-run for a second
+round; green is measured by exit code. `tools/sim-strata/` is a
+**generator** (fake engine / installer / image service pinned to real protocol
+snapshots, guarded by six inertness pins) — only the generator enters git;
+nothing it fabricates ever reaches the product or a release package.
 
-## Built by
-
-strata-gw 的代码、测试、文档与页面设计，全部由一台 RTX 3090 + 64GB DDR4
-家用机上、经 Strata 本地推理网关跑起的 **qwen3.8-flash-next-iq3_s** 写成——
-就是这张加载台所服务的模型；示例立绘与背景视频同样出自这台机器。每段 git
-历史都带 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
-trailer，欢迎点查；后续维护仍由它继续。
+## Written by the operatives themselves
 
 All of strata-gw's code, tests, docs and page design were written by
-**qwen3.8-flash-next-iq3_s**, running on a home machine (RTX 3090, 64GB DDR4)
-behind the very Strata gateway this console drives. The example portraits and
-the background video were generated on the same machine. Every commit carries a
+**qwen3.8-flash-next-iq3_s** on a home machine (RTX 3090, 64GB DDR4), running
+behind the very Strata gateway this console drives — the model itself, on
+local compute, no cloud API and not a cent of inference rented. Example art
+and video come from the same box. Every commit carries a
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
-trailer; future maintenance continues the same way.
+trailer; every point of it is auditable, and maintenance continues the same way.
 
 ## Compatibility with the host app
 
@@ -144,12 +151,12 @@ trailer; future maintenance continues the same way.
 | Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.11** |
 | engine | 0.1.46 | **0.1.57** |
 
-Upstream ships roughly two versions a week; most upgrades are additive and
-the gateway's wizard reads the installed `setup.py` live, so new families and
-tiers appear on their own. The hardcoded coupling surface (twelve setup CLI
-flags, nine engine routes, the model json key form) is written down in
+Upstream ships roughly two versions a week; most upgrades are additive and the
+gateway's wizard reads the installed `setup.py` live, so new families and tiers
+appear on their own. The hardcoded coupling surface (fifteen setup CLI flags,
+nine engine routes, the model json key form) is written down in
 `tests/compat-baseline.json` and machine-checked by
-`scripts/host_compat_canary.py` - a drift tripwire, not a rule about anyone's
+`scripts/host_compat_canary.py` — a drift tripwire, not a rule about anyone's
 upgrading. When the engine is newer than the tested ceiling a yellow advisory
 chip appears in the top bar; it never blocks. See the release notes for
 ceiling bumps.
