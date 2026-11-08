@@ -74,25 +74,59 @@ def current() -> dict:
     return {"home": h, "source": src, "valid": looks_like_strata(h)}
 
 
+def _read_gw() -> dict | None:
+    gj = os.path.join(config.ROOT, "gateway.json")
+    if not os.path.isfile(gj):
+        return {}
+    try:
+        with open(gj, encoding="utf-8-sig") as f:
+            loaded = json.load(f)
+        return loaded if isinstance(loaded, dict) else None
+    except (OSError, ValueError):
+        return None              # a corrupt gateway.json must not be steamrolled
+
+
+def _write_gw_key(key: str, val) -> bool:
+    data = _read_gw()
+    if data is None:
+        return False
+    data[key] = val
+    gj = os.path.join(config.ROOT, "gateway.json")
+    tmp = gj + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1, ensure_ascii=False)
+    os.replace(tmp, gj)
+    return True
+
+
 def set_home(path: str) -> str | None:
     """Validate then persist. Returns the stored absolute path, or None when
     the folder is not an engine (nothing is written in that case)."""
     if not looks_like_strata(path):
         return None
     ap = os.path.abspath(path)
-    gj = os.path.join(config.ROOT, "gateway.json")
-    data: dict = {}
-    if os.path.isfile(gj):
-        try:
-            with open(gj, encoding="utf-8-sig") as f:
-                loaded = json.load(f)
-            if isinstance(loaded, dict):
-                data = loaded
-        except (OSError, ValueError):
-            return None          # a corrupt gateway.json must not be steamrolled
-    data["strata_home"] = ap
-    tmp = gj + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=1, ensure_ascii=False)
-    os.replace(tmp, gj)
-    return ap
+    return ap if _write_gw_key("strata_home", ap) else None
+
+
+def port_state() -> dict:
+    """Honest port picture: what is live now, what is saved for the next
+    boot, and who is pinning things (the env knob always trumps the file)."""
+    cur = config.ROUTER_PORT
+    saved = config.gateway_cfg().get("router_port")
+    try:
+        saved = int(saved) if saved is not None else None
+    except (TypeError, ValueError):
+        saved = None
+    return {"current": cur, "saved": saved,
+            "env_pinned": bool(config.env("STRATA_ROUTER_PORT")),
+            "restart_needed": saved is not None and saved != cur}
+
+
+def save_port(port) -> int | None:
+    try:
+        p = int(port)
+    except (TypeError, ValueError):
+        return None
+    if p < 1024 or p > 65535:
+        return None
+    return p if _write_gw_key("router_port", p) else None

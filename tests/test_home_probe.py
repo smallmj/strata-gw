@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""T22 - find it yourself, or point at it: home auto-probe + manual set."""
+"""T22/T23 - find it yourself, or point at it; and the gateway's own port.
+Home probes trust shape; the port is saved for the next boot, with the
+resolution order env > gateway.json > default pinned at function level."""
 import json
 import os
 import shutil
 import sys
+import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stub_common import Gateway, REPO, ok
+from stub_common import Gateway, REPO, ROUTER_PORT as gw_port, ok
 
 
 def plant_full(home):
@@ -23,8 +27,8 @@ def plant_broken(home):
         f.write("# not an engine: no serve, no engine dir\n")
 
 
-home1 = os.path.join(os.environ.get("TMPDIR", "/tmp"), "probe-full-home")
-home2 = os.path.join(os.environ.get("TMPDIR", "/tmp"), "probe-broken-home")
+home1 = os.path.join(tempfile.gettempdir(), "probe-full-home")
+home2 = os.path.join(tempfile.gettempdir(), "probe-broken-home")
 shutil.rmtree(home1, ignore_errors=True)
 shutil.rmtree(home2, ignore_errors=True)
 plant_full(home1)
@@ -35,7 +39,6 @@ gw = Gateway([], [], extra_env={
     "STRATA_PYTHON": sys.executable,
 })
 try:
-    import time
     up = False
     for _ in range(60):
         s, h = gw.get("/router/backends")
@@ -90,8 +93,68 @@ try:
     d = json.load(open(gj))
     ok(s == 200 and d.get("strata_home") == home1 and "gpu_free" in d,
        "H8 rewriting the home never clobbers unrelated gateway.json keys")
+
+    # ---- T23: the router port is a knob too --------------------------------
+    s, h = gw.get("/router/port")
+    d = json.loads(h)
+    ok(s == 200 and d.get("current") == gw_port and d.get("env_pinned") is True,
+       "H9 GET /router/port reports the live port and that env pins it (harness always sets STRATA_ROUTER_PORT)")
+
+    s, r = gw.post("/router/port", {"port": 18299})
+    d = json.loads(r)
+    g2 = json.load(open(gj))
+    ok(s == 200 and g2.get("router_port") == 18299 and d.get("restart_needed") is True,
+       "H10 saving a port writes gateway.json and honestly flags it needs a restart")
+
+    bad = 0
+    for bp in (999, 70000, "abc"):
+        s, _ = gw.post("/router/port", {"port": bp})
+        if s == 400:
+            bad += 1
+    ok(bad == 3 and json.load(open(gj)).get("router_port") == 18299,
+       "H11 ports below 1024, above 65535 and non-numbers are all refused without touching the file")
+
+    # env trumping survives a restart: the saved port waits its turn
+    gw.restart()
+    okr = False
+    for _ in range(60):
+        s, _ = gw.get("/router/backends")
+        if s == 200:
+            okr = True
+            break
+        time.sleep(0.25)
+    s, h = gw.get("/router/port")
+    d = json.loads(h)
+    ok(okr and d.get("current") == gw_port and d.get("saved") == 18299,
+       "H12 after a restart the env port still wins over gateway.json - saved waits its turn, nothing breaks")
 finally:
     gw.close()
     shutil.rmtree(home1, ignore_errors=True)
     shutil.rmtree(home2, ignore_errors=True)
+
+# pure-function pin of the resolution order
+sys.path.insert(0, REPO)
+import gw.config as _cfg
+_fake = tempfile.mkdtemp(prefix="gw-port-")
+_real_root = _cfg.ROOT
+_real_env = os.environ.get("STRATA_ROUTER_PORT")
+_cfg.ROOT = _fake
+try:
+    with open(os.path.join(_fake, "gateway.json"), "w") as f:
+        json.dump({"router_port": 23456}, f)
+    os.environ.pop("STRATA_ROUTER_PORT", None)
+    saved_only = _cfg.router_port()
+    os.environ["STRATA_ROUTER_PORT"] = "34567"
+    env_wins = _cfg.router_port()
+    os.environ.pop("STRATA_ROUTER_PORT", None)
+    os.remove(os.path.join(_fake, "gateway.json"))
+    default_port = _cfg.router_port()
+finally:
+    _cfg.ROOT = _real_root
+    if _real_env is not None:
+        os.environ["STRATA_ROUTER_PORT"] = _real_env
+    shutil.rmtree(_fake, ignore_errors=True)
+ok(saved_only == 23456 and env_wins == 34567 and default_port == 18075,
+   "H13 port resolution order is env > gateway.json > 18075 (function-level pin)")
+
 print("ALL PASS")

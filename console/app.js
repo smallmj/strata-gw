@@ -55,8 +55,54 @@ function fetchCards(cb){qs("router/cards",function(d){CARDS=(d&&typeof d==="obje
 
 var keyEl=document.getElementById("key"),msg=document.getElementById("msg");
 try{keyEl.value=localStorage.getItem("stratagw.key")||""}catch(e){}
+function paintHomePort(){
+  qs("router/home",function(h){
+    var el=document.getElementById("set-hnow"),pi=document.getElementById("set-hpill");
+    if(!el)return;
+    el.textContent=(h&&h.home)||"—";
+    if(pi)pi.innerHTML=h&&h.valid?'<span class="obpill ok">'+tt("就位","on post")+"</span>"
+      :'<span class="obpill bad">'+tt("未就位","off post")+"</span>";
+  });
+  qs("router/port",function(d){
+    var el=document.getElementById("set-pnow"),ip=document.getElementById("set-pnew");
+    if(!el)return;
+    el.textContent=tt("当前","live")+": "+((d&&d.current)||"?")+(d&&d.saved&&d.saved!==d.current?(" · "+tt("已存下次","saved")+" "+d.saved):"");
+    if(ip&&d&&d.saved)ip.value=d.saved;
+  });
+}
+function wireSetHomePort(){
+  var dt=document.getElementById("set-detect");if(!dt||dt._w)return;dt._w=1;
+  var hs=document.getElementById("set-hset"),hp=document.getElementById("set-hpath"),
+      msg=document.getElementById("set-hmsg"),ps=document.getElementById("set-psave"),
+      pp=document.getElementById("set-pnew"),pmsg=document.getElementById("set-pmsg");
+  function sayM(t){if(msg)msg.textContent=t}
+  dt.onclick=function(){dt.disabled=true;sayM(tt("在常见安装位置寻找…","searching the usual places…"));
+    fetch("router/home/probe",{headers:hdrs(false)}).then(function(r){return r.json()}).then(function(pr){
+      if(pr&&pr.auto){fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({auto:true})})
+        .then(function(r2){return r2.json().then(function(j){return[r2.status,j]})})
+        .then(function(rj){if(rj[0]===200){sayM(tt("已认领：","adopted: ")+String((rj[1]||{}).home||""));paintHomePort();refresh()}
+          else{sayM(tt("认领失败了：","adopt failed: ")+String((rj[1]||{}).error||rj[0]));dt.disabled=false}})}
+      else{sayM(tt("常见位置没找到，请把路径填在右边","nothing in the usual places - type the path at the right"));dt.disabled=false}})
+      .catch(function(){sayM(tt("探测请求失败了","the probe request failed"));dt.disabled=false})};
+  if(hs)hs.onclick=function(){var v=(hp&&hp.value||"").trim();if(!v)return;
+    fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({path:v})})
+      .then(function(r){return r.json().then(function(j){return[r.status,j]})})
+      .then(function(rj){if(rj[0]===200){sayM(tt("已指到这里：","pointed at: ")+String((rj[1]||{}).home||""));paintHomePort();refresh()}
+        else sayM(String((rj[1]||{}).error||tt("这个目录不像 Strata 引擎","that folder does not look like a Strata engine")))})
+      .catch(function(){sayM(tt("请求失败了","the request failed"))})};
+  if(ps)ps.onclick=function(){var v=(pp&&pp.value||"").trim();if(!v)return;
+    fetch("router/port",{method:"POST",headers:hdrs(true),body:JSON.stringify({port:v})})
+      .then(function(r){return r.json().then(function(j){return[r.status,j]})})
+      .then(function(rj){if(rj[0]===200){
+          var j=rj[1]||{};
+          sayM(tt("端口已保存；本网关继续答应在旧端口，直到主人重启——下次启动后地址就是 http://127.0.0.1:","port saved; the gateway keeps answering on the old port until a restart - next boot answers at http://127.0.0.1:")+j.saved+"/gateway"+(j.env_pinned?tt("（注意：环境变量 STRATA_ROUTER_PORT 仍会压过这里保存的值）"," (note: the STRATA_ROUTER_PORT env var still overrides this saved value)"):""));
+          paintHomePort()}
+        else sayM(String((rj[1]||{}).error||tt("端口保存失败了","the port could not be saved")))})
+      .catch(function(){sayM(tt("请求失败了","the request failed"))})};
+}
 function openSettings(focusKey){
   setpop.style.display="block";
+  paintHomePort();wireSetHomePort();
   if(focusKey){var _td=document.getElementById("set-tok");if(_td)_td.open=true;keyEl.focus();
     var kb=document.querySelector("#setpop .keyrow");
     if(kb){kb.classList.remove("flash");void kb.offsetWidth;kb.classList.add("flash");
