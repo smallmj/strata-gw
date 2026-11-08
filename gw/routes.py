@@ -79,6 +79,19 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, status: int, obj, headers: dict | None = None) -> None:
         self._send(status, json.dumps(obj, ensure_ascii=False).encode(), headers=headers)
 
+    def _dead_engine_note(self, backend, err) -> str:
+        """'unreachable' hides the truth when a serve wrapper outlives its
+        engine: append what the engine itself last confessed in its own log."""
+        msg = f"backend {backend.name} unreachable: {err}"
+        try:
+            conf = backend.engine_log_tail()
+        except Exception:
+            conf = ""
+        if conf:
+            msg += f" — engine log: {conf}"
+            events.revent("error", f"{backend.name} engine said: {conf}")
+        return msg
+
     def _forward_raw(self, backend: backends.Backend, method: str, path_qs: str, body: bytes,
                      extra_timeout: float = 900.0) -> int:
         """Stream the backend's answer through, byte for byte."""
@@ -92,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
         except HTTPError as e:
             resp = e                              # pass the backend's status/body through
         except (URLError, OSError) as e:
-            self._json(502, {"error": {"message": f"backend {backend.name} unreachable: {e}"}})
+            self._json(502, {"error": {"message": self._dead_engine_note(backend, e)}})
             return 502
         with resp:
             status = resp.code
@@ -124,7 +137,7 @@ class Handler(BaseHTTPRequestHandler):
         except HTTPError as e:
             resp = e
         except (URLError, OSError) as e:
-            self._json(502, {"error": {"message": f"backend {backend.name} unreachable: {e}"}})
+            self._json(502, {"error": {"message": self._dead_engine_note(backend, e)}})
             return
         with resp:
             status = resp.code
@@ -237,7 +250,10 @@ class Handler(BaseHTTPRequestHandler):
         if not target.alive():
             target.spawn()
             if not target.wait_alive(config.LOAD_WAIT_S):
-                raise RuntimeError(f"backend {target.name} did not come up on :{target.port}")
+                conf = target.engine_log_tail()
+                raise RuntimeError(f"backend {target.name} did not come up on "
+                                   f":{target.port}"
+                                   + (f" — engine log: {conf}" if conf else ""))
         if target.resident() is not True:            # None (fresh spawn) counts as "about to load"
             for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
                 if b is not target and b.alive():

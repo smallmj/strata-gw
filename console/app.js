@@ -560,13 +560,29 @@ function wizNav2(nav){
   };
   nav.appendChild(back);nav.appendChild(go);
 }
+function parseProg(lines){
+  // the recruit's money line: "… name.gguf: 20.21 / 32.61 GB (62%)" — the
+  // LAST one wins, so a reopened wizard redraws where the download stands now.
+  var re=/([0-9.]+)\s*\/\s*([0-9.]+)\s*GB\s*\((\d+)%\)/,out=null;
+  for(var i=0;i<lines.length;i++){
+    var m=re.exec(lines[i]);
+    if(m)out={cur:m[1],tot:m[2],pct:parseInt(m[3],10),what:/[Ee]ncoder/.test(lines[i])?"encoder":"weights"};
+  }
+  return out}
+
 function wizLive(body,nav){
   var pre=document.getElementById("wiz-log");if(!pre)return;
   if(!document.getElementById("wizpill")){
     var pill=document.createElement("div");pill.id="wizpill";pill.className="wizpill";
     body.insertBefore(pill,pre);
   }
-  WIZRUN.cursor=0;WIZRUN.follow=true;pre.textContent="";
+  if(!document.getElementById("wizprog")){
+    var pw=document.createElement("div");pw.className="wizprog";
+    pw.innerHTML='<progress id="wizprog" max="100" value="0"></progress>'+
+                 '<span id="wizprogtxt"></span>';
+    body.insertBefore(pw,pre);
+  }
+  WIZRUN.cursor=0;WIZRUN.follow=true;WIZRUN.prog=null;pre.textContent="";
   pre.onscroll=function(){WIZRUN.follow=pre.scrollHeight-pre.scrollTop-pre.clientHeight<80};
   var tick=function(){
     fetch("router/setup/status?since="+WIZRUN.cursor,{headers:hdrs(false)})
@@ -578,6 +594,17 @@ function wizLive(body,nav){
           if(WIZRUN.follow)pre.scrollTop=pre.scrollHeight;
         }
         if(typeof d.next==="number")WIZRUN.cursor=d.next;
+        var pg=parseProg(d.lines);          // incremental: each batch's last money line wins
+        if(pg)WIZRUN.prog=pg;
+        if(d.state==="done")WIZRUN.prog={pct:100,cur:"",tot:""};
+        var bar=document.getElementById("wizprog"),tx=document.getElementById("wizprogtxt");
+        if(bar&&WIZRUN.prog){
+          if(bar.value!==WIZRUN.prog.pct)bar.value=WIZRUN.prog.pct;
+          var ps=WIZRUN.prog.cur?(WIZRUN.prog.what==="encoder"?tt("视觉编码器","encoder")+" ":"")
+                  +WIZRUN.prog.cur+" / "+WIZRUN.prog.tot+" GB · "+WIZRUN.prog.pct+"%"
+                 :(d.state==="done"?tt("完成","done"):"");
+          if(tx&&tx._s!==ps){tx._s=ps;tx.textContent=ps}   // repaint only on change (K27 law)
+        }
         var p=document.getElementById("wizpill");
         if(p){
           var sg=d.state+"|"+(d.code==null?"":d.code);
