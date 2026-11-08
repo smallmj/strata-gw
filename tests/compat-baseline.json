@@ -1,0 +1,22 @@
+{
+  "_note": "compat contract snapshot - tests the drift tripwire scripts/host_compat_canary.py against. Pinned from the live box 2026-11-07 (engine BUILD.json 0.1.57 = upstream v0.2.11 generation, source f-0214 commit 0bdcef4682c5), same pin as the tools/sim-strata protocol stamp. Update the three-set (this file + config.TESTED_UP_TO + kit stamp) together in ONE commit on release day, after the canary says the newest tag is diff-free.",
+  "strata_tag": "v0.2.11",
+  "engine": "0.1.57",
+  "setup_cli": ["--setup", "--family", "--model", "--context", "--kv",
+                "--vision", "--api-key", "--port", "--data-dir", "--gguf-dir",
+                "--no-start", "--yes", "--check", "--update", "--rollback-engine"],
+  "constants": {
+    "FAMILIES": ["coder", "gyro", "nvfp4", "qwen", "swift", "unsloth"],
+    "PREVIEW_FAMILIES": ["qwen36"],
+    "MULTI_FILE_FAMILIES": ["deepseek41"],
+    "MODELS_n": 21
+  },
+  "engine_routes": ["/health", "/v1/models", "/load", "/unload", "/metrics",
+                    "/settings", "/config", "/status", "/v1/chat/completions"],
+  "model_json_keys": ["exe", "args", "cwd", "tokenizer", "model_name", "env",
+                      "undeclared_tool_calls", "log", "lib_dirs", "port", "gpu",
+                      "gpus_asked", "host", "api_key", "open_browser", "vision",
+                      "idle_unload_s", "effort_position", "sampling",
+                      "min_free_vram_mib", "expert_profile_save", "cors_origins",
+                      "drafting"]
+}

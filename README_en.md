@@ -137,6 +137,23 @@ the background video were generated on the same machine. Every commit carries a
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
 trailer; future maintenance continues the same way.
 
+## Compatibility with the host app
+
+| | floor | ceiling (tested) |
+|---|---|---|
+| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.11** |
+| engine | 0.1.46 | **0.1.57** |
+
+Upstream ships roughly two versions a week; most upgrades are additive and
+the gateway's wizard reads the installed `setup.py` live, so new families and
+tiers appear on their own. The hardcoded coupling surface (twelve setup CLI
+flags, nine engine routes, the model json key form) is written down in
+`tests/compat-baseline.json` and machine-checked by
+`scripts/host_compat_canary.py` - a drift tripwire, not a rule about anyone's
+upgrading. When the engine is newer than the tested ceiling a yellow advisory
+chip appears in the top bar; it never blocks. See the release notes for
+ceiling bumps.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

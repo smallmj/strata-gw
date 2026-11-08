@@ -119,6 +119,29 @@ the background video were generated on the same machine. Every commit carries a
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
 trailer; future maintenance continues the same way.
 
+## Strata 兼容 / Compatibility with the host app
+
+| | 下限 floor | 上限 ceiling (tested) |
+|---|---|---|
+| Strata (母软件 App/Terminal) | v0.2.x（母软件自己声明 `MIN_ENGINE=(0,1,46)`） | **v0.2.11** |
+| 引擎 engine | 0.1.46 | **0.1.57** |
+
+上游约 2 天一版（实查 2026-10-19 → 11-07 共 12 版），绝大多数升级是增量：
+网关的向导实时读取装机 `setup.py`，新家族/新档位自动可见。硬耦合面（12 个
+CLI 参数 + 9 个引擎端点 + 模型 json 键形）成文在 `tests/compat-baseline.json`，
+`scripts/host_compat_canary.py` 机器对账——它是漂移绊线，不是对任何人升级纪律
+的要求。引擎比上限新时顶栏会亮一枚黄色提示（不拦截），发版上限见 release
+notes。
+
+The upstream app ships roughly two versions a week; most upgrades are additive
+and the gateway's wizard reads the installed `setup.py` live, so new families
+and tiers show up on their own. The hardcoded coupling surface (twelve setup
+CLI flags, nine engine routes, the model json key form) is written down in
+`tests/compat-baseline.json` and machine-checked by `scripts/host_compat_canary.py`
+- a drift tripwire, not a rule about anyone's upgrading. When the engine is
+newer than the tested ceiling a yellow advisory chip appears in the top bar;
+it never blocks. See the release notes for ceiling bumps.
+
 ## License
 
 MIT — 见 [LICENSE](LICENSE)。
