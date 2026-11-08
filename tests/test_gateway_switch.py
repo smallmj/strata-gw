@@ -464,8 +464,9 @@ try:
        "T65b kill-on-close Job Object implemented with ctypes only")
     ok("stdout=subprocess.DEVNULL" not in _bk,
        "T65c backend children keep the console: engine logs stream into the cmd window")
-    ok('"STRATA_ROUTER_PORT", "18075"' in _cf,
-       "T66 default router port is 18075 — the engine's own 18080 stays untouched")
+    ok('"STRATA_ROUTER_PORT"' in _cf and "def router_port" in _cf and "return 18075" in _cf
+       and _cf.count("18075")>=2 and '"18080"' not in _cf,
+       "T66 default router port is 18075 (env > gateway.json > default) — the engine's own 18080 stays out of config")
 
     # ---- ux v8: auto-generate tags + dossier from the LOADED model ----
     A.loaded = True

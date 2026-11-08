@@ -309,6 +309,22 @@ class Handler(BaseHTTPRequestHandler):
             setup_wizard._CHECK.update(state="idle", ok=None, summary=None)
             backends.rescan()
             return self._json(200, {"home": h, "valid": True})
+        if method == "GET" and path == "/router/port":
+            from . import home_probe
+            return self._json(200, home_probe.port_state())
+        if method == "POST" and path == "/router/port":
+            from . import home_probe
+            try:
+                body = json.loads(self._read_body() or b"{}")
+            except ValueError:
+                body = {}
+            saved = home_probe.save_port(body.get("port"))
+            if saved is None:
+                return self._json(400, {"error": "port must be a number between 1024 and 65535"})
+            st = home_probe.port_state()
+            return self._json(200, {"saved": saved, "restart_needed": True,
+                                    "env_pinned": st["env_pinned"],
+                                    "note": "the gateway keeps answering on the old port until it restarts"})
         if method == "GET" and path == "/router/disk":
             from . import setup_wizard
             return self._json(200, setup_wizard.disk_report())

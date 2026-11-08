@@ -53,6 +53,7 @@ def main() -> None:
             b.spawn()
     threading.Thread(target=events._watchdog, daemon=True).start()
     threading.Thread(target=backends.watch_scan, daemon=True).start()
+    config.ROUTER_PORT = config.router_port()
     httpd = ThreadingHTTPServer(("0.0.0.0", config.ROUTER_PORT), routes.Handler)
     httpd.daemon_threads = True
     names = ", ".join(f"{b.name}(:{b.port})" for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name))

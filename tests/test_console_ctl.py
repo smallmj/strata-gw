@@ -192,8 +192,10 @@ ok('setGwConn' in js and 'id="gwbanner"' in html and 'e instanceof TypeError' in
    "K25e dead gateway shows a retrying banner, never a raw 'Failed to fetch'")
 ok('if(entry.card){var c=entry.card;' in js and 'archBox(474,y,"be",c.nick,subs)' in js,
    "K25f renderArch unpacks dgBackends {card:...} wrapper — titles never 'undefined'")
-ok('"STRATA_ROUTER_PORT", "18075"' in open(os.path.join(ROOT,"gw","config.py"),encoding="utf-8").read(),
-   "K25g open-source default port is 18075 — legacy 18080 untouched (master iron rule)")
+_cf18=open(os.path.join(ROOT,"gw","config.py"),encoding="utf-8").read()
+ok('"STRATA_ROUTER_PORT"' in _cf18 and "def router_port" in _cf18 and "return 18075" in _cf18
+   and _cf18.count("18075")>=2 and '"18080"' not in _cf18,
+   "K25g open-source default port is 18075 (env > gateway.json > default) — legacy 18080 never in config (master iron rule)")
 ok("grid-template-columns:1fr 1fr" in css, "K17h two-column rows on wide screens")
 
 # ---- K24 (ux v8): training page = drawers for every section + tag/bio edit
@@ -467,5 +469,15 @@ ok('id="onb-detect"' in js and 'id="onb-hpath"' in js and 'id="onb-hset"' in js
    "T22f the not-found row carries both routes: one-click search and manual point-at-it")
 ok(".onb-act{" in css and "onb-hmsg" in css,
    "T22g the home-finding row has its own skin and a message slot")
+
+# ---- T23: gear popover hosts the engine-home finder AND the router port knob
+_m=_re2.search(r'id="setpop".*?</header>', html, _re2.S)
+_sp2=_m.group(0) if _m else ""
+ok('id="set-loc"' in _sp2 and 'id="set-port"' in _sp2 and _sp2.count('<details class="drw"')>=6,
+   "T23a both the Strata-home finder and the port knob live as drawers in the gear popover")
+ok("router/port" in js and "set-pnew" in js and "restart" in js and "set-detect" in js,
+   "T23b the port round-trip and the settings-page search button are wired in app.js")
+ok("set.locsec" in i18njs and "set.portsec" in i18njs and "set.porthint" in i18njs,
+   "T23c the new drawer labels ship as zh/en pairs (parity guaranteed by T13a)")
 
 sys.exit(0 if not F else 1)

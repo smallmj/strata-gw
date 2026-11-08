@@ -16,7 +16,27 @@ TESTED_UP_TO = {"engine": "0.1.57", "strata": "v0.2.11"}
 # repo root (the directory holding strata-router.py; gw/ lives under it)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-ROUTER_PORT = int(os.environ.get("STRATA_ROUTER_PORT", "18075"))
+ROUTER_PORT = 18075   # live value resolved at boot by router_port() below
+def router_port() -> int:
+    """Which port the gateway LISTENS on at boot: env STRATA_ROUTER_PORT wins,
+    then gateway.json "router_port" (saved from the settings page), then the
+    old 18075 default. main.py stamps ROUTER_PORT with this at startup."""
+    e = env("STRATA_ROUTER_PORT")
+    if e:
+        try:
+            return int(e)
+        except ValueError:
+            pass
+    g = gateway_cfg().get("router_port")
+    try:
+        g = int(g)
+        if 1024 <= g <= 65535:
+            return g
+    except (TypeError, ValueError):
+        pass
+    return 18075
+
+
 FIRST_BACKEND_PORT = int(os.environ.get("STRATA_FIRST_BACKEND_PORT", "18101"))
 PORTS_FILE = os.path.join(ROOT, "router-ports.json")
 SPAWN_COOLDOWN_S = 60.0
