@@ -13,7 +13,7 @@ document.getElementById("theme").onclick=function(){applyTheme(root.dataset.them
 var CARDS={},INFO={};
 var LANG=(navigator.language||"zh").toLowerCase().indexOf("zh")===0?"zh":"en";
 try{var _lg=localStorage.getItem("stratagw.lang");if(_lg==="zh"||_lg==="en")LANG=_lg}catch(e){}
-document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();renderHero();syncLangBtn();sig="";refresh()};
+document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh";try{localStorage.setItem("stratagw.lang",LANG)}catch(e){}applyLang();renderHero();syncLangBtn();sig="";refresh();loadRelease()};
 function syncLangBtn(){var b=document.getElementById("langbtn");if(b)b.textContent=LANG==="zh"?"中 / EN":"EN / 中"}
 document.getElementById("gwver").onclick=function(){fetch("router/info").then(function(r){return r.json()}).then(function(j){var b=j.build||j.engine||{};var mv=document.querySelector('meta[name="strata-gw-version"]');var lines=[tt("网关版本","gateway version")+" "+(j.version||(mv&&mv.content)||"?")];if(b.commit){var sh=String(b.commit);if(sh.length>12)sh=sh.substring(0,12);lines.push(tt("引擎构建","engine build")+" "+sh)}if(b.version)lines.push(tt("引擎版本","engine version")+" "+b.version);if(b.built_at||b.built)lines.push(tt("构建时间","built")+" "+(b.built_at||b.built));alert(lines.join("\n"))}).catch(function(){alert(tt("拿不到引擎构建信息（引擎可能没在跑）","cannot read engine build (engine may be offline)"))})};
 var setpop=document.getElementById("setpop");
@@ -184,6 +184,23 @@ function setGwConn(on){var b=document.getElementById("gwbanner");if(!b)return;
   if(on){b.style.display="none"}
   else{b.style.display="";b.textContent=tt("连不上网关——服务可能没在跑或端口不对，页面会自动重试直到接上","gateway unreachable — service down or wrong port; the page retries automatically")}}
 function qs(url,cb){fetch(url,{headers:hdrs(false)}).then(function(r){return r.ok?r.json():Promise.reject(r.status)}).then(function(d){okrun=Math.min(9,okrun+1);if(okrun>=2){qfail=0;setGwConn(true)}cb(d)}).catch(function(){okrun=0;if(++qfail>=3)setGwConn(false)})}
+function loadRelease(){                       // the yellow whisper: newer release out there?
+  qs("router/release",function(d){
+    var bar=document.getElementById("relbar");if(!bar)return;
+    var skip="";try{skip=localStorage.getItem("stratagw.relskip")||""}catch(e){}
+    if(d&&d.reachable===true&&d.behind===true&&d.latest!==skip){
+      if(bar._s!==d.latest){bar._s=d.latest;bar.style.display="";
+        bar.innerHTML='<a href="'+esc(d.url||"#")+'" target="_blank" rel="noopener">'+
+          "v"+esc(d.latest)+tt(" 已发布："," is out: ")+esc(d.name||d.latest)+
+          " · "+tt("本机","this box runs")+" v"+esc(d.local||"?")+" · "+
+          tt("升级仍是双击更新器，这里只耳语","updating stays a double-click; this only whispers")+
+          '</a> <button id="relx" title="'+esc(tt("这个版本不再提醒","stop whispering about this one"))+'">&times;</button>';
+        var x=document.getElementById("relx");
+        if(x)x.onclick=function(){try{localStorage.setItem("stratagw.relskip",d.latest)}catch(e){}
+          bar.style.display="none";bar._s=""}}
+    }else if(bar._s!==""){bar._s="";bar.style.display="none";bar.innerHTML=""}
+  });
+}
 function postj(url,obj,cb){fetch(url,{method:"POST",headers:hdrs(true),body:JSON.stringify(obj)})
   .then(function(r){return r.json().then(function(j){return[r.status,j]}).catch(function(){return[r.status,{}]})}).then(cb)
   .catch(function(e){say(tt("请求失败: ","request failed: ")+e,"err")})}
@@ -1719,6 +1736,7 @@ fetchCards();refresh();setInterval(refresh,2000);
 setInterval(pollMetrics,2500);
 setInterval(loadEvents,5000);loadEvents();
 setInterval(loadInfo,10000);loadInfo();
+setInterval(loadRelease,900000);loadRelease();     // hourly truth lives server-side; this is just re-ask
 
 (function wireDrawer(){
   var d=document.getElementById("dossier-edit");if(!d)return;

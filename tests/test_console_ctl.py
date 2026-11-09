@@ -526,4 +526,8 @@ ok("busy.phase" in js or '"phase"' in js,
 ok("wizhist" in js,
    "T29d the wizard shows archived attempts as dated history, never as live output")
 
+# ---- T30 pin: the release banner ----
+ok("router/release" in js and "relbar" in js,
+   "T30d the console listens for a newer release and has a place to say it")
+
 sys.exit(0 if not F else 1)
