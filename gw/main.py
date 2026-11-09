@@ -58,6 +58,8 @@ def main() -> None:
     httpd.daemon_threads = True
     names = ", ".join(f"{b.name}(:{b.port})" for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name))
     print(f"[router] ready on :{config.ROUTER_PORT}  models: {names or '(none yet)'}", flush=True)
+    from . import events as _ev
+    _ev.revent("boot", "gateway woke up on :%s" % config.ROUTER_PORT)
     db = backends.default_backend()
     if db is not None:
         print(f"[router] default model: {db.name}", flush=True)

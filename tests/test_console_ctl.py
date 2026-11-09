@@ -522,4 +522,8 @@ ok("router/poke" in js,
 ok("busy.phase" in js or '"phase"' in js,
    "T28h the in-flight ring shows which stage the operation is at")
 
+# ---- T29 pins: history banners itself, live replay stays clean ----
+ok("wizhist" in js,
+   "T29d the wizard shows archived attempts as dated history, never as live output")
+
 sys.exit(0 if not F else 1)

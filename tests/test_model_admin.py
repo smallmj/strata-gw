@@ -538,6 +538,16 @@ try:
     d2 = json.loads(h)
     ok(d2.get("kv_gb") is None and d2.get("fits") is None,
        "T27k a family with no table: no numbers invented")
+    # ---- T29: the archive knows WHEN; the history branch says so too ----
+    hist2 = json.load(open(os.path.join(gwG.root, "router-setup.json")))
+    ok(isinstance(hist2[-1].get("finished"), (int, float))
+       and hist2[-1]["finished"] >= hist2[-1]["t"],
+       "T29a every archived attempt knows when it started AND ended")
+    s, h = gwG.get("/router/setup/status?since=999999")
+    d = json.loads(h)
+    ok(d.get("from_history") and isinstance(d.get("started"), (int, float))
+       and isinstance(d.get("finished"), (int, float)),
+       "T29b the history branch of status names its own timestamps, not just the state")
 finally:
     gwG.close()
     shutil.rmtree(shG, ignore_errors=True)
@@ -600,5 +610,7 @@ except TypeError:
 ok(bi and bi.get("op") == "load" and bi.get("phase") == "moving the weights in",
    "T28e set_busy carries the stage of the operation, not just its name")
 _b26.clear_busy("t28-ghost")
+
+# ---- T29: recruit history wears its own timestamp, live replay stays clean ----
 
 print("ALL PASS")

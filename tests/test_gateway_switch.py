@@ -698,6 +698,12 @@ try:
     ok(s == 404,
        "T28d poking a model that was never enlisted: a clean 404, not a guess")
 
+    # ---- T29: the event river starts with a source marker ----
+    s, h = req("GET", "/router/events")
+    kinds = [e.get("kind") for e in json.loads(h)["events"]]
+    ok("boot" in kinds,
+       "T29c the river remembers where the gateway woke up")
+
     print("ALL PASS")
 finally:
     router.terminate(); router.wait(timeout=10)

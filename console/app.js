@@ -612,6 +612,10 @@ function wizLive(body,nav){
     var pill=document.createElement("div");pill.id="wizpill";pill.className="wizpill";
     body.insertBefore(pill,pre);
   }
+  if(!document.getElementById("wizhist")){
+    var hh=document.createElement("p");hh.className="wizhist";hh.id="wizhist";
+    body.insertBefore(hh,pre);
+  }
   if(!document.getElementById("wizprog")){
     var pw=document.createElement("div");pw.className="wizprog";
     pw.innerHTML='<progress id="wizprog" max="100" value="0"></progress>'+
@@ -619,12 +623,23 @@ function wizLive(body,nav){
     body.insertBefore(pw,pre);
   }
   WIZRUN.cursor=0;WIZRUN.follow=true;WIZRUN.prog=null;pre.textContent="";
+  var hh0=document.getElementById("wizhist");if(hh0){hh0.textContent="";hh0._s=""}
   pre.onscroll=function(){WIZRUN.follow=pre.scrollHeight-pre.scrollTop-pre.clientHeight<80};
   var tick=function(){
     fetch("router/setup/status?since="+WIZRUN.cursor,{headers:hdrs(false)})
       .then(function(r){return r.json()})
       .then(function(d){
         WIZRUN.state=d.state;setChip(d.state==="running");
+        if(d.from_history){                       // an archive is not a live run:
+          var hs=document.getElementById("wizhist");   // banner it, never replay lines
+          var sg2=d.state+"|"+(d.started||0);
+          if(hs&&hs._s!==sg2){hs._s=sg2;
+            hs.textContent=tt("上回报到","last attempt")+" · "+tstr(d.started||0)+
+              (d.finished?(" → "+tstr(d.finished)):"")+" · "+d.state+
+              tt(" —— 这是历史，不是现在；点「重新入册」可原参数重试"," — history, not now; retry keeps the params");}
+          if(typeof d.next==="number")WIZRUN.cursor=d.next;
+          return;
+        }
         if((d.lines||[]).length){
           pre.textContent+=d.lines.join("\n")+"\n";
           if(WIZRUN.follow)pre.scrollTop=pre.scrollHeight;
@@ -1578,7 +1593,7 @@ function renderArch(backends){
   g.innerHTML=defs+links+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
 }
 
-var KIND={load:tt("开工","clock-in"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),error:tt("异常","stale")};
+var KIND={load:tt("开工","clock-in"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),keepalive:tt("续命","keep-alive"),boot:tt("苏醒","woke up"),error:tt("异常","stale")};
 var evOpen=false;
 function loadEvents(){
   qs("router/events",function(d){
