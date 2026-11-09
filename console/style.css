@@ -728,3 +728,15 @@ details.drw #cfg-list{margin:0 12px}
 html[data-theme=light] .dg-row .cbtn.primary{color:#fff}
 .dg-row .cbtn.danger{border-color:color-mix(in srgb,var(--err) 55%,var(--line));color:var(--err)}
 .dg-row .cbtn.danger:hover{border-color:var(--err);color:var(--err);box-shadow:0 8px 20px -12px var(--err)}
+
+/* T31: phones & narrow panes - nothing may overflow sideways here */
+@media (max-width:760px){
+  #ctlbar{flex-wrap:wrap;gap:8px}
+  .card{grid-template-columns:minmax(0,1fr);min-height:0;padding:16px 16px 14px;gap:14px}
+  .acts{flex-wrap:wrap;height:auto;padding-top:12px}
+  .acts button,.acts .statechip{height:36px}
+  #cards .page.on .card{margin:0 14px}
+  .mechwrap{grid-template-columns:minmax(0,1fr)}
+  .hero{margin:16px 0 4px}
+  .hero p{font-size:.92rem}
+}

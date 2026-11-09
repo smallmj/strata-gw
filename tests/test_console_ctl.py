@@ -530,4 +530,15 @@ ok("wizhist" in js,
 ok("router/release" in js and "relbar" in js,
    "T30d the console listens for a newer release and has a place to say it")
 
+# ---- T31 pins: the narrow-screen contract ----
+_i = css.find("@media (max-width:760px)")
+_blk = css[_i:_i + 800] if _i >= 0 else ""
+ok(_blk != "", "T31a the phone breakpoint exists at all")
+ok(".card{grid-template-columns:minmax(0,1fr)" in _blk,
+   "T31b flip cards stack into one column instead of squeezing 330px+1fr")
+ok("#ctlbar{flex-wrap:wrap" in _blk,
+   "T31c the sticky control bar may wrap on a narrow face instead of overflowing")
+ok(".acts{flex-wrap:wrap" in _blk,
+   "T31d the action row breathes instead of cutting buttons off")
+
 sys.exit(0 if not F else 1)
