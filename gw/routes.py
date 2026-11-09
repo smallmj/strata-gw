@@ -123,7 +123,9 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.flush()
             except (ConnectionResetError, BrokenPipeError):
                 pass                              # the client went away mid-stream
-            return status
+        if status < 400 and method == "POST" and "completions" in path_qs:
+            backend.last_fwd = time.time()        # the residency clock ticks from here
+        return status
 
     def _forward_html(self, backend: backends.Backend, path_qs: str) -> None:
         """GET a webUI HTML page, buffer it, inject the unload-watcher before </body>
@@ -238,8 +240,16 @@ class Handler(BaseHTTPRequestHandler):
             alive = b.alive()
             if not alive:
                 b.spawn()
+            loaded = b.resident() if alive else None
+            idle = (b.cfg_facts() or {}).get("idle_unload_s")
+            off_in = None
+            if loaded is True and idle and b.last_fwd > 0:
+                # the engine clocks itself out N s after the last inference the
+                # gateway carried: an estimate (the timer runs inside the engine)
+                off_in = max(0, int(idle - (time.time() - b.last_fwd)))
             blist.append({"model": b.name, "port": b.port, "alive": alive,
-                          "loaded": b.resident() if alive else None,
+                          "loaded": loaded, "idle_unload_s": idle,
+                          "off_in_s": off_in,
                           "busy": backends.busy_info(b.name)})
         self._json(200, {"status": "ok", "service": "strata-router", "port": config.ROUTER_PORT,
                          "backends": blist})
@@ -248,6 +258,7 @@ class Handler(BaseHTTPRequestHandler):
         """The target is not resident: free the machine for it, then wait for its
         API (a freshly spawned lazy backend binds within seconds or so)."""
         if not target.alive():
+            backends.set_busy(target.name, "load", "the engine starts up")
             target.spawn()
             if not target.wait_alive(config.LOAD_WAIT_S):
                 conf = target.engine_log_tail()
@@ -255,12 +266,15 @@ class Handler(BaseHTTPRequestHandler):
                                    f":{target.port}"
                                    + (f" — engine log: {conf}" if conf else ""))
         if target.resident() is not True:            # None (fresh spawn) counts as "about to load"
+            backends.set_busy(target.name, "load", "clocking the others out")
             for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
                 if b is not target and b.alive():
                     b.unload()
+            backends.set_busy(target.name, "load", "waiting for the card")
             if not gpu_free.ensure_card():
                 raise gpu_free.CardNotFree("the external holder still holds the GPU "
                                            "(a generation task may still be running)")
+        backends.set_busy(target.name, "load", "moving the weights in")
 
     def _route(self, method: str) -> None:
         if method == "OPTIONS":                # CORS preflight: answer here, no backend roundtrip
@@ -282,6 +296,24 @@ class Handler(BaseHTTPRequestHandler):
             return self._health_all()
         if method == "GET" and path == "/router/gpu":
             return self._json(200, gpu_free.gpu_stats())
+        if method == "POST" and path == "/router/poke":
+            try:
+                body = json.loads(self._read_body() or b"{}")
+            except ValueError:
+                body = {}
+            name = str(body.get("model") or "")
+            b = next((x for x in backends.BACKENDS.values()
+                      if x.name == name or name in x.aliases), None)
+            if b is None:
+                return self._json(404, {"error": {"message": "no such model"}})
+            if b.resident() is not True:
+                return self._json(409, {"error": {"message":
+                    "that model is not resident - send it a real chat instead of a poke"}})
+            ok = b.poke()
+            if ok:
+                events.revent("keepalive", f"{b.name} stays awake another "
+                                           f"{b.cfg_facts().get('idle_unload_s') or '?'} s")
+            return self._json(200 if ok else 502, {"ok": ok})
         if method == "GET" and path == "/router/events":
             return self._json(200, {"events": [{"t": t, "kind": k, "text": x}
                                                for t, k, x in reversed(list(events.EVENTS))]})

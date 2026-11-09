@@ -242,7 +242,7 @@ ok("margin:0 70px" in css and "translateX(40px)" in css and "translateX(98px)" i
 # ---- K27 (flicker annihilation): 2s polling must not repaint anything unless
 # the content actually changed; rebuilds are signature-gated, DOM writes are
 # diff-gated, banner + fx canvas never strobe under model load ----
-ok('if(dl._h!==h){dl._h=h;dl.innerHTML=h;return true}' in js,
+ok('if(dl._h!==h){dl._h=h;dl.innerHTML=h;' in js,
    "K27a live spec rows rewritten only when changed")
 ok('g.getAttribute("data-sig")===asig' in js and 'g.setAttribute("data-sig",asig)' in js,
    "K27b architecture svg rebuilt only on data/language change")
@@ -513,5 +513,13 @@ ok("setup/fit" in js and 'id="w-fit"' in js,
    "T27e the tuning step asks the gateway for a fit verdict and paints one budget line")
 ok("x2.ram_gb" in js,
    "T27f the tier cards surface the official RAM figures before the download starts")
+
+# ---- T28 pins: the residency clock on the card + the phase in the ring ----
+ok('"off_in_s"' in js or "off_in_s" in js,
+   "T28f the console reads the countdown field off /router/backends")
+ok("router/poke" in js,
+   "T28g the card offers a way to keep a resident model awake")
+ok("busy.phase" in js or '"phase"' in js,
+   "T28h the in-flight ring shows which stage the operation is at")
 
 sys.exit(0 if not F else 1)

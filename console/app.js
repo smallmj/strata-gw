@@ -915,15 +915,37 @@ function updateLive(card,name){
   row("KV",cfg.kv||DASH);
   row("RoPE",cfg.rope||DASH);
   row(tt("投机解码","drafting"),cfg.drafting?cfg.drafting+(cfg.spec?(" · spec "+cfg.spec):""):DASH);
-  row(tt("闲置卸载","idle unload"),cfg.idle_unload_s!=null?Math.round(cfg.idle_unload_s/60)+tt(" 分钟"," min"):DASH);
+  var idle=b?b.off_in_s:null;                       // live countdown when resident & served
+  if(b&&b.loaded&&idle==null&&cfg.idle_unload_s!=null)idle=cfg.idle_unload_s;  // not counted yet: show the full window
+  rows.push('<div class="srow"><dt>'+esc(tt("闲置下班","idle clock-out"))+'</dt><dd>'+
+    (cfg.idle_unload_s==null?esc(DASH):
+      (b&&b.loaded&&b.off_in_s!=null
+        ?esc(fmtmm(b.off_in_s))+' <button class="pokebtn" data-act="poke" title="'+
+          esc(tt("一次 1-token 推理，拨回引擎自己的下班钟","one-token inference rewinds the engine's own clock-out timer"))+
+          '">'+esc(tt("续半天","stay"))+'</button>'
+        :esc(Math.round(cfg.idle_unload_s/60)+tt(" 分钟没活自动下班"," min without work, then it clocks out"))))+'</dd></div>');
   row(tt("思考等级","reasoning"),cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default","default"));
   var smp=cfg.sampling||{};
   row(tt("采样默认","sampling"),(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)?[smp.temperature!=null?("t "+smp.temperature):null,smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "):DASH);
   row(tt("图像输入","vision"),info.images!=null?(info.images?tt("有","yes"):tt("无","no")):DASH);
   row(tt("显存占用","VRAM"),hw&&hw.gpu_mem_used!=null?gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB":DASH);
   var h=rows.join("");
-  if(dl._h!==h){dl._h=h;dl.innerHTML=h;return true}
+  if(dl._h!==h){dl._h=h;dl.innerHTML=h;
+    var pk=dl.querySelector('[data-act="poke"]');
+    if(pk)pk.onclick=function(){pokeModel(name)};
+    return true}
   return false
+}
+function fmtmm(s){var m=Math.floor(s/60),x=s%60;return m+"m"+("0"+x).slice(-2)+"s"}
+function pokeModel(n){
+  say(tt("递了杯咖啡…","handing over a coffee…"));
+  fetch("router/poke",{method:"POST",headers:hdrs(true),body:JSON.stringify({model:n})})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d&&d.ok)say(tt("它能再多守半小时了","it can hold the post another half hour"));
+      else say(tt("续命没递到（引擎没接）","the poke did not land (engine refused)"),"err");
+      refresh()})
+    .catch(function(e){say(tt("续命失败: ","poke failed: ")+e,"err")});
 }
 var ED_PALETTE=["#48c6d8","#f0679a","#8f7bff","#3ba55d","#f5a623","#e05252","#2f80ed","#a0a6b3"];
 var edAccent="";
@@ -1058,11 +1080,19 @@ function paint(list){
       setTxt(el,e0<100?(e0+"s"):(Math.floor(e0/60)+"m"+("0"+(e0%60)).slice(-2)+"s"));}
     else ring.classList.remove("on");
     var lv=mon.data&&mon.data.live?mon.data.live:null;
-    var ltxt=st==="down"?tt("离线","offline"):act2?(act2.op==="load"?tt("请上卡","yield ask"):tt("让卡中","yielding")):
+    var ltxt=st==="down"?tt("离线","offline"):act2?(act2.op==="load"?(phaseOf(b)||tt("请上卡","yield ask")):(phaseOf(b)||tt("让卡中","yielding"))):
       (st==="loaded"?((lv&&lv.state==="generating")?(fnum(lv.tok_s,1)+" tok/s"):
       ((lv&&lv.state==="reading")?tt("读提示词","prompt decode"):tt("静驻","idle resident"))):tt("待加载","not loaded"));
     setTxt(live,ltxt);
   });
+}
+function phaseOf(b){return (b.busy&&b.busy.phase)?phaseTxt(b.busy.phase):null}
+function phaseTxt(p){
+  var M={"the engine starts up":tt("引擎上线中","engine is starting"),
+         "clocking the others out":tt("清场：送旧岗下班","clocking the others out"),
+         "waiting for the card":tt("等显卡腾位置","waiting for the card"),
+         "moving the weights in":tt("搬运权重中","moving the weights in")};
+  return M[p]||p;
 }
 function refresh(){
   fetch("router/backends").then(function(r){return r.json()}).then(function(d){
