@@ -348,6 +348,30 @@ class Handler(BaseHTTPRequestHandler):
             from . import setup_wizard
             st, obj = setup_wizard.catalog()
             return self._json(st, obj)
+        if method == "GET" and path == "/router/setup/fit":
+            from . import setup_wizard
+            from urllib.parse import parse_qs
+            q = parse_qs(qs)
+            st, cat = setup_wizard.catalog()
+            if st != 200:
+                return self._json(st, cat)
+            fam = (cat.get("families") or {}).get(
+                (q.get("family") or [""])[0]) or {}
+            vis = (q.get("vision") or ["auto"])[0]
+            want_vis = vis == "yes" or (vis in ("auto", "") and bool(fam.get("vision")))
+            total = None
+            for url in gpu_free.settings()["urls"]:
+                p = gpu_free.probe(url, 2.0)
+                if p and p.get("vram_total_mib"):
+                    total = p["vram_total_mib"]
+                    break
+            if total is None:
+                try:
+                    total = gpu_free.nvidia_smi_mib()[1]
+                except Exception:
+                    total = None
+            return self._json(200, setup_wizard.compute_fit(
+                fam, (q.get("context") or ["0"])[0], want_vis, total))
         if method == "GET" and path == "/router/setup/status":
             from . import setup_wizard
             m3 = re.search(r"(?:^|&)since=([0-9]+)", qs)

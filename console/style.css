@@ -263,6 +263,7 @@ html[data-theme=light] .wstep.on{color:#fff}
   border:1px solid var(--line);border-radius:999px;padding:.1rem .5rem}
 .tmeta{display:flex;gap:12px;margin-top:6px;font-size:.78rem;color:var(--ac)}
 .wiz-err{border:1px dashed var(--err);color:var(--err);border-radius:10px;padding:10px 12px;font-size:.85rem}
+.pnote-bad{color:var(--err);font-weight:600}
 .wiz-hint{color:var(--muted);padding:14px;font-size:.85rem}
 .wiz-params{display:flex;flex-direction:column;gap:10px}
 .prm{border:1px solid var(--line);border-radius:10px;padding:10px 12px}

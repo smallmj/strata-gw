@@ -508,4 +508,10 @@ ok('<progress id="wizprog"' in js and "wizprog" in js,
 ok("parseProg(d.lines)" in js,
    "T26a3 the live tick drives the bar from the status lines, not only the raw scroll")
 
+# ---- T27: the wizard shows the fit, the catalog carries the table ----
+ok("setup/fit" in js and 'id="w-fit"' in js,
+   "T27e the tuning step asks the gateway for a fit verdict and paints one budget line")
+ok("x2.ram_gb" in js,
+   "T27f the tier cards surface the official RAM figures before the download starts")
+
 sys.exit(0 if not F else 1)
