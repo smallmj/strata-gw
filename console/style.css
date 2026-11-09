@@ -63,6 +63,10 @@ html[data-theme=light] #theme .sun{display:none}
 html[data-theme=light] #theme .moon{display:inline}
 #gwbanner{margin:10px 16px 0;padding:.6rem .9rem;border:1px solid #d8a24a;border-radius:11px;
   background:color-mix(in srgb,#d8a24a 14%,transparent);color:#d8a24a;font-size:.78rem}
+#relbar{margin:10px 16px 0;padding:.6rem .9rem;border:1px solid #d8a24a;border-radius:11px;
+  background:color-mix(in srgb,#d8a24a 14%,transparent);color:#d8a24a;font-size:.78rem}
+#relbar a{color:inherit}
+#relbar button{border:0;background:none;color:inherit;cursor:pointer;font-size:.9rem}
 .hero{margin:22px 0 4px;animation:rise .6s .24s both}
 .hero p{margin:0 0 12px;font-size:.98rem;line-height:1.7;color:var(--fg)}
 .hero p b{color:var(--q)}

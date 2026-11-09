@@ -209,7 +209,27 @@ class DeadStub:
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
 
+class ReleaseStub:
+    """假 GitHub /releases/latest: counts its hits so the hourly cache
+    can be pinned without waiting an hour."""
+    def __init__(self, port, payload):
+        self.payload, self.hits = payload, 0
+        outer = self
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a): pass
+            def do_GET(self):
+                outer.hits += 1
+                b = json.dumps(outer.payload).encode()
+                self.send_response(200); self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        self.srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+        self.srv.daemon_threads = True
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+
 CF = HolderStub(18097)
+REL = ReleaseStub(18099, {"tag_name": "v9.9.9", "name": "T30 test release",
+                          "html_url": "https://github.com/smallmj/strata-gw/releases/tag/v9.9.9"})
 MA = "qwen3.8-flash-next-iq3_s" if VIS else "aaa-qwen"
 MB = "sc117-qwen3.8-flash-next-abliterated-iq3_s" if VIS else "bbb-sc117"
 A = Stub(MA, 18095)      # 名字排序第一 = 无驻留且无偏好时的默认
@@ -263,6 +283,7 @@ else:
 env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
            GW_SCAN_WATCH_S="1",             # T26b: the scan watcher earns its keep fast here
            GW_GPU_URLS="http://127.0.0.1:18097",      # live stub holder, idle
+           GW_RELEASE_API="http://127.0.0.1:18099/releases/latest",   # T30: pretend GitHub
            GW_GPU_FREE_WAIT="4",                 # force 等待窗缩短，测试不真等 120s
            STRATA_WATCH_S="2")                         # 看门狗提速，事件转场测试等得起
 router = subprocess.Popen([sys.executable, os.path.join(ROOT, "strata-router.py")], env=env)
@@ -703,6 +724,30 @@ try:
     kinds = [e.get("kind") for e in json.loads(h)["events"]]
     ok("boot" in kinds,
        "T29c the river remembers where the gateway woke up")
+
+    # ---- T30: the release whisper — behind, cached, silent when dark ----
+    s, h = req("GET", "/router/release")
+    d = json.loads(h)
+    ok(s == 200 and d.get("reachable") is True and d.get("behind") is True
+       and d.get("latest") == "9.9.9" and "releases/tag/v9.9.9" in (d.get("url") or ""),
+       "T30a the gateway notices a newer release and hands the console the link")
+    h0 = REL.hits
+    req("GET", "/router/release"); req("GET", "/router/release")
+    ok(REL.hits == h0,
+       "T30b the answer is cached: polling the console never hammers GitHub")
+    s2, h2 = req("GET", "/router/release")   # (no query backdoors: an SSRF gift
+    d = json.loads(h2)                       #  waiting to happen - the probe URL
+    ok(d.get("behind") is not None,          #  only ever comes from the env)
+       "T30c1 the cached answer keeps serving without a second hit")
+    import subprocess as _sp
+    r = _sp.run([sys.executable, "-c",
+                 "import sys;sys.path.insert(0,'.');"
+                 "from gw import release_check as R;"
+                 "print(R.check().get('reachable'),R.check().get('behind'))"],
+                cwd=ROOT, capture_output=True, text=True, timeout=30,
+                env=dict(os.environ, GW_RELEASE_API="http://127.0.0.1:1/nope"))
+    ok("False None" in r.stdout,
+       "T30c an unreachable GitHub whispers nothing - the banner stays asleep")
 
     print("ALL PASS")
 finally:

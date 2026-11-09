@@ -314,6 +314,9 @@ class Handler(BaseHTTPRequestHandler):
                 events.revent("keepalive", f"{b.name} stays awake another "
                                            f"{b.cfg_facts().get('idle_unload_s') or '?'} s")
             return self._json(200 if ok else 502, {"ok": ok})
+        if method == "GET" and path == "/router/release":
+            from . import release_check
+            return self._json(200, release_check.check())
         if method == "GET" and path == "/router/events":
             return self._json(200, {"events": [{"t": t, "kind": k, "text": x}
                                                for t, k, x in reversed(list(events.EVENTS))]})
