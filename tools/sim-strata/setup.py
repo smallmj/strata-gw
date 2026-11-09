@@ -28,6 +28,9 @@ PREVIEW_FAMILIES = {
     "simbeta": {"title": "SimBeta", "by": "strata-gw sim",
                 "about": "demo preview family - no real inference",
                 "name": "simbeta-preview", "tag": "preview", "vision": False,
+                # a pretend per-token KV table, same shape as upstream's
+                # own-path families: it drives the fit preflight pins
+                "kv_bytes_per_token": 20000,
                 "models": {
                     "BETA1": {"about": "preview-only tier 1", "download_gb": 2.0,
                               "ram_gb": 6, "arena_gb": 1},

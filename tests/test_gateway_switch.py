@@ -667,6 +667,9 @@ try:
     ok(any("not enough VRAM" in e["text"] for e in json.loads(h)["events"]),
        "T26b2 the same reason lands in the live feed")
 
+    # (T27 fit preflight pins live in test_model_admin, whose sim-gateway
+    #  section carries STRATA_HOME; the switch router here has no setup.py)
+
     print("ALL PASS")
 finally:
     router.terminate(); router.wait(timeout=10)

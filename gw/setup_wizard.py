@@ -25,7 +25,8 @@ import sys, json
 home = sys.argv[1]
 sys.path.insert(0, home)
 import setup as s
-KEEP = {"title", "by", "about", "tag", "name", "vision"}
+KEEP = {"title", "by", "about", "tag", "name", "vision",
+        "kv_bytes_per_token"}
 TKEEP = {"about", "download_gb", "ram_gb", "arena_gb", "families", "shards", "vision"}
 def lite(d, keys):
     out = {}
@@ -84,6 +85,39 @@ def catalog() -> tuple[int, dict]:
 
 KV_CHOICES = {"k8v4", "int8", "q4_0", "fp16"}
 _CTX_LO, _CTX_HI = 1024, 2 ** 21
+
+# ---- the fit preflight: official numbers only, no invented physics ----------
+_RESERVE_MIB = 788      # 0.77 GiB: the reserve the q36 engine states itself
+_VISION_MIB = 1250      # picture encoder on the card: ~1.2 GB measured, docs
+_HYBRID_MIB = 1760      # experts' buffers + slots the engine asks for at start
+_CTX_RUNGS = (32768, 65536, 131072, 262144, 524288, 1048576, 2097152)
+
+
+def compute_fit(fam_md: dict, context, vision: bool, gpu_total_mib):
+    """The wizard's budget line: the family's OWN per-token KV table (only
+    families that ship one get a verdict) against the card's real size.
+    GB in decimal (the same unit the disk map uses); fits=None whenever any
+    input is official-missing — the console shows the number and stops,
+    never guesses."""
+    out: dict = {"kv_gb": None, "budget_gb": None, "fits": None, "suggest_context": None}
+    bpt = fam_md.get("kv_bytes_per_token") if isinstance(fam_md, dict) else None
+    try:
+        ctx = int(context)
+    except (TypeError, ValueError):
+        return out
+    if isinstance(bpt, (int, float)) and bpt > 0 and ctx > 0:
+        out["kv_gb"] = round(int(bpt) * ctx / 1e9, 2)
+        if gpu_total_mib:
+            budget_mib = int(gpu_total_mib) - _RESERVE_MIB - (
+                _VISION_MIB if vision else 0) - _HYBRID_MIB
+            out["budget_gb"] = round(budget_mib * 1048576 / 1e9, 2)
+            kv_mib = int(bpt) * ctx / 1048576
+            out["fits"] = bool(kv_mib <= budget_mib)
+            if not out["fits"]:
+                room = max(int(budget_mib * 1048576 / int(bpt)), 1024)
+                fit_rungs = [r for r in _CTX_RUNGS if r <= room]
+                out["suggest_context"] = max(fit_rungs) if fit_rungs else None
+    return out
 
 _RUN: dict | None = None          # one recruit at a time (409 while running)
 _run_lock = threading.Lock()

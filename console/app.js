@@ -512,6 +512,7 @@ function wizParamsHtml(){
    '<div class="prm"><label>'+tt("数据目录","data dir")+'</label><input id="w-data" type="text" placeholder="'+
    tt("留空=默认位置","leave empty = default place")+'" value="'+esc(p.data)+'">'+
    "<em>"+tt("模型文件的存放位置","where the model files will live")+"</em></div>"+
+   '<p class="pnote" id="w-fit">'+tt("正在核算显卡预算…","checking the card budget…")+'</p>'+
    "</div>"+
    '<aside class="wiz-sum"><p class="stt">'+tt("即将入册","about to enlist")+"</p>"+
    '<b class="sname">'+esc(f.title||WIZ.fam||"?")+"</b>"+
@@ -525,12 +526,47 @@ function wizParamsHtml(){
 }
 function wireParams(){
   var g=function(id){return document.getElementById(id)};
-  g("w-context").onchange=function(){WIZ.p.context=this.value;g("w-ctxother").style.display=this.value==="other"?"":"none"};
-  g("w-ctxother").oninput=function(){WIZ.p.ctxother=this.value};
+  g("w-context").onchange=function(){WIZ.p.context=this.value;g("w-ctxother").style.display=this.value==="other"?"":"none";fitNow()};
+  g("w-ctxother").oninput=function(){WIZ.p.ctxother=this.value;fitNow()};
   g("w-kv").onchange=function(){WIZ.p.kv=this.value};
-  g("w-vision").onchange=function(){WIZ.p.vision=this.value};
+  g("w-vision").onchange=function(){WIZ.p.vision=this.value;fitNow()};
   g("w-gguf").oninput=function(){WIZ.p.gguf=this.value};
   g("w-data").oninput=function(){WIZ.p.data=this.value};
+  fitNow();
+}
+function fitRung(n){return n>=1048576?(n/1048576)+"M":Math.round(n/1024)+"K"}
+var _fitT=0;
+function fitNow(){          // the budget line follows the dials (debounced)
+  if(_fitT)clearTimeout(_fitT);
+  _fitT=setTimeout(function(){
+    var b=wizParamsBody(),p=WIZ.p;
+    var q="family="+encodeURIComponent(WIZ.fam||"")+"&tier="+encodeURIComponent(WIZ.tier||"")+
+          "&context="+encodeURIComponent(b.context||0)+"&vision="+encodeURIComponent(p.vision||"auto");
+    fetch("router/setup/fit?"+q,{headers:hdrs(false)})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        var el=document.getElementById("w-fit");if(!el)return;
+        var s="";
+        if(d.fits===false){
+          el.className="pnote pnote-bad";
+          s="\u26a0 "+tt("KV 缓存就要 ~","KV cache alone needs ~")+d.kv_gb+" GB\u3001"+
+            tt("这张卡最多留给缓存 ~","this card budgets at most ~")+d.budget_gb+" GB"+
+            (d.suggest_context?tt("，建议上下文改到 ≤"," - try a context of \u2264")+fitRung(d.suggest_context):"");
+        }else if(d.fits===true){
+          el.className="pnote";
+          s=tt("预算内：KV 缓存 ~","fits: KV cache ~")+d.kv_gb+" GB / "+tt("卡上留给缓存 ~","card budget ~")+d.budget_gb+" GB";
+        }else if(d.kv_gb!=null){
+          el.className="pnote";
+          s=tt("KV 缓存就要 ~","KV cache alone needs ~")+d.kv_gb+" GB\u3002"+tt("本机显存读不到，先只给个数","card size unreadable here - the number stands");
+        }else{
+          el.className="pnote";
+          s=tt("这个家族没有官方显存预估表：看档位卡上的 RAM 门槛","no official VRAM table for this family - read the RAM floor on the tier cards");
+        }
+        if(el._s!==s){el._s=s;el.textContent=s}
+      })
+      .catch(function(){var el=document.getElementById("w-fit");
+        if(el&&el._s!=="x"){el._s="x";el.textContent=tt("预算接口没应答，不拦路","the budget endpoint stayed quiet - no blocker")}});
+  },350);
 }
 function wizParamsBody(){
   var b={family:WIZ.fam,tier:WIZ.tier},p=WIZ.p;

@@ -524,6 +524,20 @@ try:
     d = json.loads(h)
     ok(d.get("from_history") and d.get("state") == "failed" and len(d.get("lines") or []) > 0,
        "T25h after a restart the console can still read why the recruit died")
+    # ---- T27: fit preflight over the wire, against the sim catalog ----
+    # simbeta's pretend KV table: 20,000 B/token. No GPU water level exists
+    # in this sandbox, so the honest answer is the raw number and NO verdict.
+    s, h = gwG.get("/router/setup/fit?family=simbeta&context=2097152&vision=no")
+    ok(s == 200, "T27i GET /router/setup/fit answers 200")
+    d = json.loads(h)
+    ok(round(d.get("kv_gb") or 0, 1) == 41.9 and d.get("fits") is None
+       and d.get("suggest_context") is None,
+       "T27j fit quotes the catalog's own table (41.9 GB at 2M ctx) and refuses "
+       "a verdict when the card size is unreadable")
+    s, h = gwG.get("/router/setup/fit?family=simcore&context=2097152&vision=no")
+    d2 = json.loads(h)
+    ok(d2.get("kv_gb") is None and d2.get("fits") is None,
+       "T27k a family with no table: no numbers invented")
 finally:
     gwG.close()
     shutil.rmtree(shG, ignore_errors=True)
@@ -559,5 +573,21 @@ try:
        "T26b1c log file that never got written: empty tail, never a crash")
 finally:
     shutil.rmtree(_t26, ignore_errors=True)
+
+# ---- T27: the fit preflight — a 30 GB recruit must warn before it crashes ----
+from gw.setup_wizard import compute_fit
+_Q36_MD = {"kv_bytes_per_token": 11 * 2 * 256 * 2 * 4, "vision": True}
+f = compute_fit(_Q36_MD, 524288, True, 24576)
+ok(f["kv_gb"] > 23.0 and f["fits"] is False and f["suggest_context"] == 262144,
+   "T27a q36@512K on a 24 GB card reads red and lands on the 262K rung (the q36 field case)")
+f = compute_fit(_Q36_MD, 131072, True, 24576)
+ok(f["fits"] is True and f["kv_gb"] < 6.5,
+   "T27b q36@128K budgets green: the same card, the honest number")
+f = compute_fit({}, 524288, False, 24576)
+ok(f["fits"] is None,
+   "T27c a family without an official per-token KV table: no verdict, never a guess")
+f = compute_fit(_Q36_MD, 524288, True, None)
+ok(f["fits"] is None and f["kv_gb"] > 23.0,
+   "T27d no GPU water level: still shows the KV weight, silently skips the verdict")
 
 print("ALL PASS")
