@@ -29,6 +29,8 @@ class Backend:
         self.key = cfg.get("api_key", "")
         self.port = port
         self.last_spawn = 0.0
+        self.last_fwd = 0.0        # last inference the gateway carried for this
+                                   # model: the residency countdown counts from here
         self.proc: subprocess.Popen | None = None
 
     @property
@@ -291,6 +293,28 @@ class Backend:
             return None
         return {"model": self.name, "tags": tags, "dossier": dossier}
 
+    def poke(self, timeout: float = 240.0) -> bool:
+        """One-token inference to rewind the engine's own idle timer:
+        cost is one decode step (unless the engine cold-loaded it meanwhile,
+        which is exactly what waiting for this timeout covers)."""
+        body = json.dumps({"model": self.name,
+                           "messages": [{"role": "user", "content": "x"}],
+                           "max_tokens": 1}).encode("utf-8")
+        req = urlrequest.Request(self.base + "/v1/chat/completions", data=body,
+                                 headers={"Content-Type": "application/json"},
+                                 method="POST")
+        if self.key:
+            req.add_header("Authorization", "Bearer " + self.key)
+        try:
+            with config.OPENER.open(req, timeout=timeout) as r:
+                r.read()
+                ok = r.code == 200
+        except (HTTPError, URLError, OSError):
+            ok = False
+        if ok:
+            self.last_fwd = time.time()
+        return ok
+
     def unload(self, timeout: float = 60.0) -> None:
         """Best effort: stop the engine to free RAM/VRAM. busy (409) is fine here:
         the load's own min_free_vram check + the router's retry catch it."""
@@ -508,8 +532,10 @@ _busy: dict[str, dict] = {}    # model -> {"op","since"}: an in-flight load/unlo
                                # so refreshing the page mid-load keeps the timer going.
 
 
-def set_busy(name: str, op: str) -> None:
-    _busy[name] = {"op": op, "since": time.time()}
+def set_busy(name: str, op: str, phase: str | None = None) -> None:
+    cur = _busy.get(name)
+    since = cur["since"] if cur and cur["op"] == op else time.time()
+    _busy[name] = {"op": op, "phase": phase, "since": since}
 
 
 def clear_busy(name: str) -> None:
@@ -520,7 +546,8 @@ def busy_info(name: str):
     b = _busy.get(name)
     if not b:
         return None
-    return {"op": b["op"], "elapsed_s": int(time.time() - b["since"])}
+    return {"op": b["op"], "phase": b.get("phase"),
+            "elapsed_s": int(time.time() - b["since"])}
 
 
 _APPVER: dict = {}

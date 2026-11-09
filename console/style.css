@@ -321,6 +321,9 @@ html[data-theme=light] .itab.on{color:#fff}
 .dkpag button{border:1px solid var(--line);background:none;color:var(--fg);border-radius:8px;
   padding:.25rem .75rem;cursor:pointer;font-size:.85rem}
 .dkpag button:disabled{opacity:.35;cursor:default}
+.pokebtn{border:1px solid var(--line);background:none;color:var(--muted);border-radius:7px;
+  padding:.06rem .5rem;cursor:pointer;font-size:.7rem;vertical-align:middle}
+.pokebtn:hover{color:var(--fg);border-color:var(--accent)}
 .acts{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
   height:64px;box-sizing:content-box;flex-wrap:nowrap}
 .acts button,.acts .statechip{height:40px;box-sizing:border-box;white-space:nowrap}

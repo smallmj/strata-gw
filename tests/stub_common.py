@@ -201,7 +201,8 @@ class Gateway:
         for name, port in zip(models, ports):
             p = os.path.join(self.root, f"strata-{name}.json")
             with open(p, "w") as f:
-                json.dump({"model_name": name, "port": port, "api_key": ""}, f)
+                json.dump({"model_name": name, "port": port, "api_key": "",
+                           "idle_unload_s": 1800}, f)
             self.cfg_paths[name] = p
         os.makedirs(os.path.join(self.root, "gw-assets"), exist_ok=True)
         open(os.path.join(self.root, "gw-assets", "bg-loop.mp4"), "wb").write(b"VFIX" * 750)

@@ -670,6 +670,34 @@ try:
     # (T27 fit preflight pins live in test_model_admin, whose sim-gateway
     #  section carries STRATA_HOME; the switch router here has no setup.py)
 
+    # ---- T28: the residency clock — countdown, and a way to extend the stay ----
+    req("POST", "/load", {"model": "aaa-qwen"})        # make the clock's subject resident
+    req("POST", "/v1/chat/completions",
+        {"model": "aaa-qwen", "messages": [{"role": "user", "content": "hi"}]})
+    s, h = req("GET", "/router/backends")
+    row = next(b for b in json.loads(h)["backends"] if b["model"] == "aaa-qwen")
+    ok(row.get("loaded") is True and row.get("off_in_s") is not None
+       and 0 < row["off_in_s"] <= 1800,
+       "T28a a served model shows the engine's idle clock ticking down")
+    before = row["off_in_s"]
+    time.sleep(3.0)                                  # let the countdown tick measurably
+    s, h = req("GET", "/router/backends")
+    mid = next(b for b in json.loads(h)["backends"] if b["model"] == "aaa-qwen")["off_in_s"]
+    ok(mid < before,
+       "T28b1 the countdown really ticks: three seconds of quiet shows in it")
+    req("POST", "/v1/chat/completions",
+        {"model": "aaa-qwen", "messages": [{"role": "user", "content": "hi"}]})
+    s, h = req("GET", "/router/backends")
+    row = next(b for b in json.loads(h)["backends"] if b["model"] == "aaa-qwen")
+    ok(row["off_in_s"] > mid,
+       "T28b fresh inference rewinds the countdown - the card knows what keeps a model awake")
+    s, h = req("POST", "/router/poke", {"model": "aaa-qwen"})
+    ok(s == 200 and json.loads(h).get("ok") is True,
+       "T28c POST /router/poke keeps the resident model awake")
+    s, h = req("POST", "/router/poke", {"model": "no-such-model"})
+    ok(s == 404,
+       "T28d poking a model that was never enlisted: a clean 404, not a guess")
+
     print("ALL PASS")
 finally:
     router.terminate(); router.wait(timeout=10)

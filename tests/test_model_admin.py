@@ -590,4 +590,15 @@ f = compute_fit(_Q36_MD, 524288, True, None)
 ok(f["fits"] is None and f["kv_gb"] > 23.0,
    "T27d no GPU water level: still shows the KV weight, silently skips the verdict")
 
+# ---- T28: the load keeps a phase of its own, so the card can say WHERE ----
+bi = None
+try:
+    _b26.set_busy("t28-ghost", "load", "moving the weights in")
+    bi = _b26.busy_info("t28-ghost")
+except TypeError:
+    pass
+ok(bi and bi.get("op") == "load" and bi.get("phase") == "moving the weights in",
+   "T28e set_busy carries the stage of the operation, not just its name")
+_b26.clear_busy("t28-ghost")
+
 print("ALL PASS")
