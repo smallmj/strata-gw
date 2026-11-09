@@ -541,4 +541,43 @@ ok("#ctlbar{flex-wrap:wrap" in _blk,
 ok(".acts{flex-wrap:wrap" in _blk,
    "T31d the action row breathes instead of cutting buttons off")
 
+# ---- T32: a resumed download must not lie to the progress bar ----
+# upstream setup.py keeps finished 32 MB pieces in <name>.part.chunks and
+# prints "<have> / <total> GB (<pct>%)" counted from the WHOLE file. The
+# console's parseProg must take those resumed lines as-is: no reset to 0.
+def _fn_src(text, name):
+    i = text.find("function " + name)
+    if i < 0:
+        return ""
+    depth, j = 0, i
+    while j < len(text):
+        if text[j] == "{":
+            depth += 1
+        elif text[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[i:j + 1]
+        j += 1
+    return ""
+
+_pp = _fn_src(js, "parseProg")
+ok(bool(_pp), "T32a1 parseProg is extractable for a real run")
+if _pp:
+    import subprocess as _spp
+    import tempfile as _tfpp
+    _script = _pp + r"""
+var a = parseProg(["  m.gguf: 21.00 / 32.60 GB (64%)"]);
+var b = parseProg(["  m.gguf: 21.00 / 32.60 GB (64%)",
+                   "  m.gguf: 24.00 / 32.60 GB (74%)"]);
+var ok = a && b && +b.cur > +a.cur && b.tot === a.tot && b.pct === 74;
+console.log(ok ? "RESUME-MONOTONIC" : "BAD " + JSON.stringify([a, b]));
+"""
+    _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "t32pp.js")
+    with open(_tf, "w", encoding="utf-8") as _f:
+        _f.write(_script)
+    _r = _spp.run(["node", _tf], capture_output=True, text=True, timeout=20)
+    os.remove(_tf)
+    ok("RESUME-MONOTONIC" in _r.stdout,
+       "T32a parseProg reads resumed-download lines as standing where they are, not 0%")
+
 sys.exit(0 if not F else 1)
