@@ -182,7 +182,8 @@ def _history() -> list:
 
 
 def _hist_record(run: dict) -> dict:
-    return {"t": run["started"], "params": run["params"], "state": run["state"],
+    return {"t": run["started"], "finished": run.get("finished"),
+            "params": run["params"], "state": run["state"],
             "code": run["code"], "result": run.get("result"),
             "log": list(run["lines"])[-120:]}
 
@@ -191,6 +192,7 @@ def _append_history(run: dict) -> None:
     """Every recruit attempt stays on disk - the 重新入册 badge and its
     prefilled params must survive gateway restarts (master's interrupt rule:
     no cancel button, but never lose the way back)."""
+    run.setdefault("finished", time.time())
     h = _history()
     h.append(_hist_record(run))
     p = _hist_file()
@@ -375,6 +377,7 @@ def status(since: int) -> tuple[int, dict]:
         last = h[-1]
         log = last.get("log") or []
         return 200, {"state": last.get("state", "idle"), "from_history": True,
+                     "started": last.get("t"), "finished": last.get("finished"),
                      "params": last.get("params"), "code": last.get("code"),
                      "result": last.get("result"), "lines": log, "next": len(log)}
     return 200, {"state": "idle", "lines": [], "next": 0}
