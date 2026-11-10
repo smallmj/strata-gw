@@ -17,6 +17,7 @@ from . import config
 from . import console
 from . import events
 from . import gpu_free
+from . import sweep
 
 WATCH_JS = ('<script>/*strataGatewayWatch*/'
             '(function(){var n=0;'
@@ -270,6 +271,10 @@ class Handler(BaseHTTPRequestHandler):
             for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name):
                 if b is not target and b.alive():
                     b.unload()
+            # strata's own leftovers (an engine whose wrapper died, a wrapper
+            # whose gateway died) hold VRAM silently: reap exactly those, then
+            # ask the external holder for its card back.
+            sweep.sweep_orphans()
             backends.set_busy(target.name, "load", "waiting for the card")
             if not gpu_free.ensure_card():
                 raise gpu_free.CardNotFree("the external holder still holds the GPU "

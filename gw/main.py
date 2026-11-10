@@ -11,6 +11,7 @@ from . import backends
 from . import config
 from . import events
 from . import routes
+from . import sweep
 
 
 def cleanup() -> None:
@@ -27,6 +28,11 @@ def cleanup() -> None:
 
 def main() -> None:
     sys.stdout = events.Tee(sys.stdout)
+    # legacy semantics, restored (sweep.py): reap the old router/wrappers/engines
+    # BEFORE anything is adopted - a restart then truly restarts, engines are our
+    # own children (their logs stream into this window) and the VRAM card comes
+    # back clean. Inert on non-Windows and when STRATA_SWEEP=0.
+    sweep.sweep_boot()
     if os.name != "nt" and not os.environ.get("STRATA_ROUTER_ANYHOST"):
         print(f"[router] note: designed for the Strata box (Windows); running on "
               f"{sys.platform}", flush=True)
