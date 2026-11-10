@@ -145,4 +145,10 @@ apps = __import__("gw.gpu_free", fromlist=["parse_apps"]).parse_apps(
 ok(apps and apps[0][0] == "67648" and "strata" in apps[0][1],
    "SW9d parse_apps reads the nvidia-smi compute-apps csv shape")
 
+# ---- SW10: enumeration must fail LOUD, never silently empty ---------------
+with open(os.path.join(REPO, "gw", "sweep.py"), encoding="utf-8") as f:
+    sweep_src = f.read()
+ok("no sweep performed" in sweep_src, "SW10a an enumeration crash says so on the console")
+ok("enumeration returned no processes" in sweep_src, "SW10b an empty enumeration says so too")
+
 print("ALL PASS")

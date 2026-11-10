@@ -182,9 +182,17 @@ def _enumerate() -> list[dict]:
         r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
                             "-Command", _PS_ROW_SCRIPT],
                            capture_output=True, timeout=40)
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"[router] sweep: process enumeration failed ({e}); "
+              "no sweep performed", flush=True)
         return []
-    return parse_rows((r.stdout or b"").decode("utf-8", "replace"))
+    rows = parse_rows((r.stdout or b"").decode("utf-8", "replace"))
+    if not rows:
+        print("[router] sweep: enumeration returned no processes (exit "
+              "{0}): {1}".format(r.returncode,
+                                 (r.stderr or b"").decode("utf-8", "replace")[:200]),
+              flush=True)
+    return rows
 
 
 def _kill(plan: list[tuple[int, str, str]]) -> None:
