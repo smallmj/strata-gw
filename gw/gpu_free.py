@@ -144,6 +144,34 @@ def nvidia_smi_mib():
         return None, None
 
 
+def parse_apps(text: str) -> list[tuple[str, str]]:
+    """nvidia-smi --query-compute-apps csv rows -> [(pid, process_name)]."""
+    out: list[tuple[str, str]] = []
+    for line in (text or "").splitlines():
+        if not line.strip():
+            continue
+        pid, _, name = line.partition(",")
+        out.append((pid.strip(), name.strip()))
+    return out
+
+
+def smi_holders() -> list[tuple[str, str]]:
+    """Who actually holds the card right now, per the driver itself (read-only;
+    on some drivers the per-process memory column is N/A, the names still are)."""
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return []
+    try:
+        r = subprocess.run([exe, "--query-compute-apps=pid,process_name",
+                            "--format=csv,noheader"],
+                           capture_output=True, text=True, timeout=6)
+        if r.returncode != 0:
+            return []
+        return parse_apps(r.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return []
+
+
 _free_inflight: dict = {}     # release-in-flight {"op","since"}: spinners survive a refresh
 
 
@@ -234,6 +262,16 @@ def ensure_card() -> bool:
         p = probe(url, st["timeout_s"])
     print("[router] the external holder gave the card back "
           "{0} MiB free".format((p or {}).get("vram_free_mib")), flush=True)
+    # cross-check the holder's word against the driver itself: other processes
+    # (a game, a browser, a stale engine) can keep the card busy while the
+    # holder happily reports its own share as released. Name them on the
+    # console so the reason for a slow load is visible, not a mystery.
+    free, total = nvidia_smi_mib()
+    if free is not None and target is not None and free + 512 < target:
+        who = ", ".join(f"{n} (pid {p})" for p, n in smi_holders()[:8]) or "unknown"
+        print("[router] note: the GPU itself still has only {0} MiB free "
+              "(need {1}); card currently held by: {2}".format(free, target, who),
+              flush=True)
     return True
 
 

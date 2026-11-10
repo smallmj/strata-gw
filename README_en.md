@@ -106,6 +106,16 @@ model in from its card (or `POST router/load {"model":"mymodel"}`;
   after that take seconds.
 - **Handover:** `gpu_free.urls` in gateway.json points at anything that
   answers `/free`.
+- **Clean boot (the legacy semantics):** before scanning anything, the
+  gateway sweeps its own family's stale processes — old routers, serve
+  wrappers, engine and vision-excoder processes — then spawns everything
+  fresh, so engine logs stream straight into the launching window and the
+  VRAM card comes back genuinely free. Before every model load it also
+  reaps orphaned engines (processes whose parent already died — the silent
+  VRAM squatters), and when the GPU itself is still short it names the
+  actual card-holders in the console. Set `STRATA_SWEEP=0` (env) or
+  `"sweep": false` (gateway.json) for side-by-side gateways that must
+  never touch each other's engines.
 - Optional endpoints your engine may not implement (`/settings`, `/config`,
   `/metrics`, …) surface honestly as *unavailable* — the page never crashes.
 
@@ -118,6 +128,7 @@ model in from its card (or `POST router/load {"model":"mymodel"}`;
 | `gpu_free.urls` | list of `/free`-capable yield endpoints |
 | `gpu_free.target_mib` | VRAM floor to demand; `0` = auto water-line |
 | `gpu_free.gentle_wait_s` / `wait_s` / `timeout_s` | yield pacing |
+| `sweep` | `false` disables the boot/load strata-process sweep (on by default; `STRATA_SWEEP=0` works too) |
 
 ## Tests & self-checks
 

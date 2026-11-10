@@ -79,6 +79,7 @@ python3 strata-router.py        # Windows：双击启动器，或编辑 launcher
 - **断点续传**：招募下载的续传由引擎安装器自己负责（32 MB 分块 + `.part.chunks` 记账，重跑从已完成块继续）；网关的进度条读它的全量口径进度行，续传不归零。
 - **发版耳语**：网关每小时问一次 GitHub releases；发现更新只在页顶亮一条黄条（带发布页链接），升级永远是你的双击。
 - **让卡**：`gateway.json` 的 `gpu_free.urls` 指到任何支持 `/free` 的服务即可。
+- **干净启动（老版语义）**：网关启动前先清扫 strata 家族的全部旧进程——旧 router、serve 包装、引擎与视觉编码器——然后全新拉起：引擎日志直通启动窗口，显存卡干净交还。加载模型前还会回收「父进程已死」的孤儿引擎（就是那些无声占着显存不放的残骸），并在显存仍不够时把真正持卡的进程点名进日志。并排跑两个网关互不想杀的场合用环境变量 `STRATA_SWEEP=0` 或 `gateway.json` 的 `"sweep": false` 关掉。
 - 你的引擎没实现的可选端点（`/settings`、`/config`、`/metrics`…）在面板里如实显示*不可用*——页面永不崩。
 
 ## gateway.json 键位
@@ -90,6 +91,7 @@ python3 strata-router.py        # Windows：双击启动器，或编辑 launcher
 | `gpu_free.urls` | 支持 `/free` 的让卡端点列表 |
 | `gpu_free.target_mib` | 要求腾出的显存底线；`0` = 按驻留后端自动水位 |
 | `gpu_free.gentle_wait_s` / `wait_s` / `timeout_s` | 让卡节奏 |
+| `sweep` | `false` 关闭启动/加载的 strata 进程清扫（默认开；也可用环境变量 `STRATA_SWEEP=0`） |
 
 ## 测试与自检
 
