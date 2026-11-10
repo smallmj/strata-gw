@@ -421,6 +421,9 @@ def rescan() -> int:
                 b.last_spawn, b.proc = old.last_spawn, old.proc
         BACKENDS.clear()
         BACKENDS.update(found)
+    _CFG_FACTS.clear()     # a hand-edited json must reach the card facts too:
+                           # the cache is keyed by cfg_path, so keeping it across
+                           # rescans would serve pre-edit facts forever (T3d)
     invalidate_resident()
     return len(BACKENDS)
 

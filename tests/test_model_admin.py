@@ -163,6 +163,34 @@ try:
     while time.time() < deadline and "watch-t3" in names(gw4):
         time.sleep(0.4)
     ok("watch-t3" not in names(gw4), "T3c removed config auto-dropped without a restart")
+
+    # T3d: editing an EXISTING config reaches the card facts too - the watch
+    # rescan must not serve a stale cfg_facts cache (same path, mtime bump).
+    wp = os.path.join(shome4, "strata-watch.json")
+    with open(wp, "w") as f:
+        json.dump({"model_name": "watch-t3", "api_key": "",
+                   "args": ["--max-context", "524288", "--kv", "k8v4"]}, f)
+    deadline = time.time() + 6
+    while time.time() < deadline and "watch-t3" not in names(gw4):
+        time.sleep(0.4)
+    ok("watch-t3" in names(gw4), "T3d1 replanted config is adopted again")
+    s, h = gw4.get("/router/info")
+    cfg0 = ((json.loads(h).get("models") or {}).get("watch-t3") or {}).get("cfg") or {}
+    ok(cfg0.get("max_context") == 524288,
+       "T3d2 card facts read the planted context first")
+    with open(wp, "w") as f:
+        json.dump({"model_name": "watch-t3", "api_key": "",
+                   "args": ["--max-context", "262144", "--kv", "k8v4"]}, f)
+    deadline = time.time() + 8
+    seen = {}
+    while time.time() < deadline:
+        s, h = gw4.get("/router/info")
+        seen = ((json.loads(h).get("models") or {}).get("watch-t3") or {}).get("cfg") or {}
+        if seen.get("max_context") == 262144:
+            break
+        time.sleep(0.4)
+    ok(seen.get("max_context") == 262144,
+       "T3d3 edited context reaches the card facts after the watch rescan (no stale cache)")
 finally:
     gw4.close()
     shutil.rmtree(shome4, ignore_errors=True)
