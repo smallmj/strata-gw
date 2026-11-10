@@ -33,7 +33,7 @@ RAW = (
     "911|python.exe|910|D:\\Strata\\.venv\\Scripts\\python.exe D:\\Strata\\serve\\server.py --port 18081\n"
     "912|strata.exe|911|D:\\Strata\\engine\\strata.exe --serve --pack ...\n"
     "913|strata-vision.exe|911|D:\\Strata\\engine\\strata-vision.exe --mmproj ...\n"
-    "914|python.exe|915|\"D:\\Comfy\\.venv\\Scripts\\python.exe\" -X utf8 main.py --listen\n"
+    "914|python.exe|915|\"D:\\CanvasGen\\.venv\\Scripts\\python.exe\" -X utf8 main.py --listen\n"
     "916|python.exe|917|C:\\hermes\\python.exe -m hermes_cli.main gateway run\n"
     "918|explorer.exe|1|\n"
     "919|pythonw.exe|1|\"pythonw.exe\" \"D:\\strata-gw\\strata-router.py\"\n"
@@ -89,7 +89,7 @@ orows = [R(930, 999, "strata.exe", "D:\\Strata\\engine\\strata.exe --serve"),   
          R(911, 910, "python.exe", "D:\\Strata\\.venv\\Scripts\\python.exe " + SERVER_PY + " --port 18081"),
          R(910, 1, "python.exe", "D:\\Strata\\.venv\\Scripts\\python.exe " + SERVER_PY + " --port 18081"),
          R(934, 888, "python.exe", "python.exe " + SERVER_PY + " --port 18082"),       # wrapper, router long dead
-         R(935, 936, "python.exe", "\"D:\\Comfy\\.venv\\Scripts\\python.exe\" main.py --listen"),
+         R(935, 936, "python.exe", "\"D:\\CanvasGen\\.venv\\Scripts\\python.exe\" main.py --listen"),
          R(936, 1, "cmd.exe", "")]
 orph = {pid for pid, _n, _w in sweep.plan_orphans(orows, me=set())}
 ok(930 in orph, "SW5a an engine whose parent died is an orphan and gets reaped before a load")
@@ -141,7 +141,7 @@ ok("smi_holders" in gf_src and "def parse_apps" in gf_src, "SW9b holder enumerat
 ok(sweep.__name__ in gf_src or "sweep" in routes_src,
    "SW9c something on the load path owns the reaping of strata's own leftovers")
 apps = __import__("gw.gpu_free", fromlist=["parse_apps"]).parse_apps(
-    "67648, D:\\Strata\\engine\\strata.exe\n26388, D:\\Comfy\\python.exe")
+    "67648, D:\\Strata\\engine\\strata.exe\n26388, D:\\CanvasGen\\python.exe")
 ok(apps and apps[0][0] == "67648" and "strata" in apps[0][1],
    "SW9d parse_apps reads the nvidia-smi compute-apps csv shape")
 
