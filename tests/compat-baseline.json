@@ -1,7 +1,7 @@
 {
-  "_note": "compat contract snapshot - tests the drift tripwire scripts/host_compat_canary.py against. Pinned from upstream tag v0.2.12 (static scan, all faces diff-free 2026-11-08); the live box runs the engine 0.1.58 rc generation ahead of that tag - its MODELS list grows, and MODELS_n is a FLOOR by design (the list only ever grows upstream; a shrink is the drift signal). Update the three-set (this file + config.TESTED_UP_TO + kit stamp) together in ONE commit, after the canary says the newest tag is diff-free.",
-  "strata_tag": "v0.2.12",
-  "engine": "0.1.57",
+  "_note": "compat contract snapshot - tests the drift tripwire scripts/host_compat_canary.py against. Pinned from upstream tag v0.2.13 (static scan, all faces diff-free 2026-11-14); the live box runs engine 0.1.59 from the f-0213-rc line - its MODELS list grows, and MODELS_n is a FLOOR by design (the list only ever grows upstream; a shrink is the drift signal). CAVEAT learned at this pin: the STATIC upstream scan counts only string-literal dict keys - v0.2.13 added a model under a Name-reference key (UNSLOTH_V31_IQ4_XS), so the raw dict holds 22 entries while the scan sees 21; the FLOOR keeps the scan-observed number. Update the three-set (this file + config.TESTED_UP_TO + kit stamp) together in ONE commit, after the canary says the newest tag is diff-free.",
+  "strata_tag": "v0.2.13",
+  "engine": "0.1.59",
   "setup_cli": ["--setup", "--family", "--model", "--context", "--kv",
                 "--vision", "--api-key", "--port", "--data-dir", "--gguf-dir",
                 "--no-start", "--yes", "--check", "--update", "--rollback-engine"],

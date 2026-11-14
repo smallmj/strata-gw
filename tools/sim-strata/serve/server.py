@@ -1,4 +1,4 @@
-# protocol snapshot: Strata v0.2.12 / engine 0.1.58 (pinned 2026-11-08)
+# protocol snapshot: Strata v0.2.13 / engine 0.1.59 (pinned 2026-11-14)
 """sim-strata serve/server.py - the FAKE engine, spoken to by the gateway.
 
 The gateway spawns exactly the real command line:
