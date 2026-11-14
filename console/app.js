@@ -1193,6 +1193,27 @@ var BANDS=[
   {label:tt("专家缓存","expert cache"),keys:["cache"]}
 ];
 function bandRows(by){var out=[];BANDS.forEach(function(b){out.push('<div class="mband">'+b.label+'</div>');b.keys.forEach(function(k){out.push(by[k])})});return out}
+var MONTS=0,HTEMP=90,HRAM=95,HPOW=95; /* at-a-glance worry thresholds: degC / % of system RAM / % of the GPU power cap */
+function paintHealth(d,hw,rp){
+  var h=document.getElementById("mon-health");if(!h)return;
+  var alerts=[],lvl=0,lost=!d;
+  if(d){
+    if(d.gpu_temp!=null&&d.gpu_temp>=HTEMP){alerts.push(tt("GPU 温度越线","GPU temp over the line"));lvl=1}
+    if(rp>=HRAM){alerts.push(tt("内存水位越线","RAM level over the line"));lvl=1}
+    var _cap=(hw&&hw.gpu_power_limit)||0;
+    if(_cap&&d.gpu_power!=null&&d.gpu_power>=_cap*HPOW/100){alerts.push(tt("功耗逼近上限","power near cap"));lvl=1}
+  }
+  var cls=lost?"h-alarm":(lvl?"h-warn":"h-ok");
+  var badge=lost?tt("指标断流","metrics feed lost"):(lvl?tt("有情况","something stirs"):tt("万事平静","all quiet"));
+  var chips=lost?tt("读数没接上——检查 key，或引擎是否在跑","no readings — check the key, or whether the engine is up")
+    :(alerts.length?alerts.join(" · "):tt("温度、内存、功耗都在阈值内","temp, RAM and power all inside limits"));
+  var vs=cls+"|"+badge+"|"+chips;
+  if(h._v!==vs){h._v=vs;h.innerHTML='<span class="hbadge '+cls+'" role="status">'+badge+'</span>'+
+    '<span class="hchips">'+chips+'</span>'+(d?'<span class="hage"></span>':'')}
+  var ag=h.querySelector(".hage");
+  if(ag){var at=tt("更新于 ","updated ")+Math.max(0,Math.round((Date.now()-MONTS)/1000))+tt(" 秒前","s ago");
+    if(ag._t!==at){ag._t=at;ag.textContent=at}}
+}
 function gbf(v,d){if(v==null||isNaN(v))return "–";var x=v/1073741824;return d?x.toFixed(d):""+(Math.round(x*10)/10)}
 function kfmt(v){if(v==null)return "–";if(v>=1000000)return (v/1000000).toFixed(2)+"M";if(v>=1000)return (v/1000).toFixed(1)+"K";return ""+v}
 function flatSpark(){return '<svg viewBox="0 0 100 32" preserveAspectRatio="none"><path class="line" d="M0,30L100,30" style="stroke-dasharray:3 3;opacity:.55"/></svg>'}
@@ -1239,7 +1260,7 @@ function renderMonitor(){
     if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
     if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
-    phTiles();setTxt(strip,"");
+    paintHealth(null,null,0);phTiles();setTxt(strip,"");
     var pr0='<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>';if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
     setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
@@ -1359,12 +1380,13 @@ function renderMonitor(){
   }
   var rh=rows.join("");if(tb._h!==rh){tb._h=rh;tb.innerHTML=rh}
   setTxt(hint,(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start")));
+  paintHealth(d,hw,rp);
 }
 function pollMetrics(){
   if(!selName)return;
   fetch("router/metrics?model="+encodeURIComponent(selName),{headers:hdrs(false)})
     .then(function(r){return r.ok?r.json():Promise.reject(r.status)})
-    .then(function(m){mon.data=m;renderMonitor()})
+    .then(function(m){mon.data=m;MONTS=Date.now();renderMonitor()})
     .catch(function(){mon.data=null;renderMonitor()});
 }
 
@@ -1375,7 +1397,7 @@ var SAMP=[["temperature","stemp","ostemp",1],["top_p","stop_p","os-top_p",2],["t
 function selectModel(name,quiet){
   if(selName===name)return;
   selName=name;
-  mon.data=null;pollMetrics();
+  mon.data=null;MONTS=0;pollMetrics();
   loadSettings();loadConfig();
 }
 function loadSettings(){
