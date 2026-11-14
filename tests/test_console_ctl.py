@@ -457,6 +457,27 @@ ok("不认名字。挪位置二选一" in _i18 and "改完重启网关才生效"
 ok("不认文件夹名" not in _i18 and "端口改动下次启动网关才生效" not in _i18,
    "K39e the old winded wordings are gone, not parked in a corner")
 
+# ---- K40 (master's S5 tail note): the dark settings popover was a stack of
+# semi-transparent veils — 66% over page text, then 60% of that, then 50%. ----
+_pop = re.search(r"#setpop\{([^}]*)\}", css)
+_sec = re.search(r"#setpop \.sec\{([^}]*)\}", css)
+_drw = re.search(r"details\.drw\{([^}]*)\n[^}]*\}", css)
+ok(_pop and "background:var(--pop)" in _pop.group(1),
+   "K40a the popover paints on a dedicated opaque panel token, not the page's translucent card veil")
+_rootm = re.search(r":root\{(.{0,900})", css, re.S)
+_lightm = re.search(r"html\[data-theme=light\]\{([^}]*)\}", css)
+ok(_rootm and _lightm and "--pop:" in _rootm.group(1)
+   and all(re.search(r"--pop[a-z]*:#[0-9a-fA-F]{3,8};", b) for b in (_rootm.group(1), _lightm.group(1))),
+   "K40b both themes define the popover stack as solid hex colours — no rgba veil sneaks back in")
+ok(_sec and _drw and "transparent" not in _sec.group(1) and "transparent" not in _drw.group(1),
+   "K40c the inner drawer levels step lighter/darker on solids instead of stacking more transparency")
+_i = css.find("#setpop .poprow input[type=password]")
+_b = css.find("#setpop .poprow button{")
+ok(_i >= 0 and _b >= 0
+   and "var(--card)" not in css[_i:_i+320] and "var(--popfield)" in css[_i:_i+320]
+   and "var(--card)" not in css[_b:_b+220] and "var(--popsec)" in css[_b:_b+220],
+   "K40d fields and buttons inside the popover sit on solid pop tokens too — no var(--card) veil survives a level deeper")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")
