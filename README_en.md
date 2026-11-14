@@ -159,8 +159,8 @@ trailer; every point of it is auditable, and maintenance continues the same way.
 
 | | floor | ceiling (tested) |
 |---|---|---|
-| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.12** |
-| engine | 0.1.46 | **0.1.58** |
+| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.13** |
+| engine | 0.1.46 | **0.1.59** |
 
 Upstream ships roughly two versions a week; most upgrades are additive and the
 gateway's wizard reads the installed `setup.py` live, so new families and tiers
