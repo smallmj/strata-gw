@@ -154,6 +154,8 @@ local compute, no cloud API and not a cent of inference rented. Example art
 and video come from the same box. Every commit carries a
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
 trailer; every point of it is auditable, and maintenance continues the same way.
+The console's monospaced numerals are set in JetBrains Mono (SIL OFL), bundled as a
+Latin subset in the repo and served by the gateway itself — no CDN is ever contacted.
 
 ## Compatibility with the host app
 

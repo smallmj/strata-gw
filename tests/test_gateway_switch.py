@@ -279,6 +279,9 @@ if VIS:
                     os.path.join(ROOT, "gw-assets", _n))
 else:
     open(os.path.join(ROOT, "gw-assets", "qwen-chan.png"), "wb").write(b"\x89PNG fake mascot")
+# the console's local font must pass the same static pipeline: seed a minimal
+# real-shape woff2 (magic wOF2) so T36b probes whitelist + content-type, not the repo blob
+open(os.path.join(ROOT, "gw-assets", "jbmono-latin.woff2"), "wb").write(b"wOF2" + bytes(24))
 
 env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
            GW_SCAN_WATCH_S="1",             # T26b: the scan watcher earns its keep fast here
@@ -487,6 +490,8 @@ try:
     ok(stt == 404, "T35 asset path traversal blocked")
     stt, body, loc = raw("GET", "/router/assets/evil.txt")
     ok(stt == 404, "T36 only whitelisted image names served")
+    stt, body, loc = raw("GET", "/router/assets/jbmono-latin.woff2")
+    ok(stt == 200 and body[:4] == "wOF2", "T36b the console font ships and serves as a woff2 asset")
 
     # ---- 引擎档案 info ----
     s, h = req("GET", "/router/metrics?model=aaa-qwen")
