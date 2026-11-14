@@ -350,6 +350,30 @@ ok('tt("中文标签："' in js and 'tt("英文档案：","English bio: ")' in j
 ok("rj[1].tags?{zh:{tags:rj[1].tags" in js,
    "K33e a half-updated pairing (new page, old backend) still renders the legacy single-tongue reply instead of blanks")
 
+# ---- K34 (UI refresh S1): the token layer — font, status ladder, light palette ----
+ok('@font-face' in css and 'jbmono-latin.woff2' in css,
+   "K34a a local @font-face carries the numeric font — no CDN, the box stays offline")
+ok('https://' not in css and 'http://' not in css,
+   "K34b negative pin: the stylesheet references no remote source")
+ok('--font-num' in css and css.count('var(--font-num)') >= 6,
+   "K34c the numeric typeface ships as a token and feeds the data elements")
+ok(all(t in css for t in ('--warn:', '--na:')) and 'var(--warn)' in css and 'var(--na)' in css,
+   "K34d the status ladder has four rungs (--ok/--warn/--err/--na) and they are consumed")
+_l = css.find('html[data-theme=light]{')
+_lb = css[_l:css.find('}', _l)] if _l >= 0 else ""
+ok(_l >= 0 and all(t in _lb for t in ('--q:', '--s:', '--ok:', '--warn:', '--err:', '--muted:', '--line:')),
+   "K34e light is a standalone palette — brand, status and neutrals re-inked, not an inversion")
+ok(':focus-visible' in css, "K34f visible keyboard focus exists on the page")
+ok('html[data-theme=light] .cfback{' in css,
+   "K34g the card's flipped back re-inks for light instead of keeping a hardcoded dark skin")
+_font = os.path.join(ROOT, "gw-assets", "jbmono-latin.woff2")
+with open(_font, "rb") as _ff:
+    _magic = _ff.read(4)
+ok(_magic == b"wOF2",
+   "K34h the shipped font blob is a real woff2 — served locally, no download step exists to fail")
+ok(os.path.isfile(os.path.join(ROOT, "gw-assets", "LICENSE-JetBrainsMono.txt")),
+   "K34i the OFL license ships beside the font")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")

@@ -113,12 +113,15 @@ strata-gw 的代码、测试、文档、页面设计，全部由一台 RTX 3090 
 模型本身。示例立绘与背景视频同样出自这台机器。每一段 git 历史都带
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)`
 trailer，欢迎逐条点查；后续维护仍由它继续。全程本地算力，不经过云端模型，不花一分钱 API。
+控制台上的等宽数字采用 JetBrains Mono（SIL OFL 开源字体，拉丁子集随仓库打包、由网关本地供给，不连任何 CDN）。
 
 All of strata-gw's code, tests, docs and page design were written by
 **qwen3.8-flash-next-iq3_s** on a home machine (RTX 3090, 64GB DDR4), behind the very
 Strata gateway this console drives — the model itself, on local compute, no cloud API
 involved. Example art and video come from the same box. Every commit carries a
 `Written-by: qwen3.8-flash-next-iq3_s via strata-gw (RTX 3090, 64GB DDR4)` trailer.
+The console's monospaced numerals are set in JetBrains Mono (SIL OFL), bundled as a
+Latin subset in the repo and served by the gateway itself — no CDN is ever contacted.
 
 ## Strata 兼容 / Compatibility with the host app
 

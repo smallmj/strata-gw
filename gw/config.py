@@ -92,7 +92,7 @@ WATCH_S = float(os.environ.get("STRATA_WATCH_S", "20"))   # state-transition wat
 PROXY_PATHS = ("/router/settings", "/router/config", "/router/mcp", "/router/status",
                "/router/metrics", "/router/props", "/router/slots")   # mirrored to the page
 
-ASSET_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}\.(?:png|webp|jpe?g|mp4|webm)$")
+ASSET_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}\.(?:png|webp|jpe?g|mp4|webm|woff2)$")
 
 # Internal calls must never go through a system proxy (http_proxy/HTTPS_PROXY
 # would hijack 127.0.0.1 traffic on a box with a clash client running).

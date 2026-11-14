@@ -179,7 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         ext = name.rsplit(".", 1)[-1].lower()
         ctype = {"png": "image/png", "webp": "image/webp", "jpg": "image/jpeg",
-                 "jpeg": "image/jpeg", "mp4": "video/mp4", "webm": "video/webm"}[ext]
+                 "jpeg": "image/jpeg", "mp4": "video/mp4", "webm": "video/webm",
+                 "woff2": "font/woff2"}[ext]
         lo, hi, status = 0, size - 1, 200
         rng = (self.headers.get("Range") or "").strip()
         m = re.match(r"bytes=(\d*)-(\d*)$", rng) if rng else None
