@@ -334,7 +334,8 @@ html[data-theme=light] .itab.on{color:#fff}
 #setpop::-webkit-scrollbar{width:9px}
 .lrow{display:flex;align-items:center;gap:8px;margin:7px 0;min-width:0}
 .lrow>b{font-size:.7rem;letter-spacing:.08em;color:var(--dim);white-space:nowrap}
-.lrow .lval{flex:1;min-width:0;font-size:.78rem;overflow-wrap:anywhere;color:var(--fg)}
+.lrow .lval{flex:1;min-width:0;font-size:.78rem;overflow-wrap:anywhere;color:var(--fg);
+  font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cbtn.wide{width:100%;justify-content:center;display:flex;box-sizing:border-box}
 .setmsg{display:block;margin-top:6px;font-size:.74rem;color:var(--muted);line-height:1.55;min-height:1em}
 #setpop::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;border:2px solid var(--card)}
@@ -395,7 +396,10 @@ html[data-theme=light] .acts .load{color:#fff}
 #mon-who{font-size:.72rem;color:var(--dim);letter-spacing:.05em;flex:none;max-width:30ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #mon-prog{flex:0 1 200px;min-width:120px;height:6px;border-radius:4px;background:rgba(148,163,184,.16);overflow:hidden;align-self:center}
 #mon-prog i{display:block;height:100%;width:0;border-radius:4px;background:var(--ac);transition:width .5s}
-#mon{display:grid;gap:13px;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));align-items:stretch}
+#mon{display:flex;flex-direction:column;gap:16px}
+.mrow{display:flex;align-items:stretch;gap:14px}
+.mgrp{flex:var(--c) 1 0;display:grid;grid-template-columns:repeat(var(--c),minmax(0,1fr));gap:13px;min-width:0}
+.mdiv{width:1px;flex:none;background:var(--line)}
 .mband{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:4px 0 -3px;
   font-size:.62rem;letter-spacing:.26em;color:var(--dim);font-weight:600}
 .mband::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -456,10 +460,10 @@ html[data-theme=light] .acts .load{color:#fff}
 #mon-hint{font-size:.72rem;color:var(--dim);min-height:1.5em}
 
 /* ---------------- settings ---------------- */
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px;
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-md);padding:4px;gap:4px;
   background:var(--card);margin-bottom:16px}
 .seg button{border:none;background:transparent;color:var(--muted);font:inherit;font-size:.78rem;
-  padding:.42rem 1.1rem;border-radius:999px;cursor:pointer;transition:all .35s}
+  padding:.42rem 1.1rem;border-radius:var(--r-sm);cursor:pointer;transition:all .35s}
 .seg button.on{background:linear-gradient(135deg,var(--q),var(--s));color:#05121f;font-weight:600}
 html[data-theme=light] .seg button.on{color:#fff}
 .panel{border:1px solid var(--line);border-radius:18px;background:var(--card);backdrop-filter:blur(12px);
@@ -580,11 +584,11 @@ details.drawer .dbody .ptitle{display:none}
 .evbtn:hover{color:var(--q);border-color:var(--q)}
 
 /* ---- Phase 6 unified control bar ---- */
-.tbtn,.verchip{font-size:.7rem;letter-spacing:.06em;border:1px solid var(--line);border-radius:99px;
+.tbtn,.verchip{font-size:.7rem;letter-spacing:.06em;border:1px solid var(--line);border-radius:var(--r-md);
   padding:.34rem .72rem;background:transparent;color:var(--muted);cursor:pointer}
 .tbtn:hover,.verchip:hover{color:var(--fg);border-color:var(--q)}
 .verchip{font-family:var(--font-num);font-variant-numeric:tabular-nums}
-.ghico{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:10px;color:var(--muted)}
+.ghico{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:var(--r-md);color:var(--muted)}
 .ghico svg{width:19px;height:19px;fill:currentColor}
 .ghico:hover{color:var(--fg);background:var(--line)}
 .gearbtn{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:11px;
@@ -604,7 +608,7 @@ details.drawer .dbody .ptitle{display:none}
 #setpop .popsec em{font-style:normal;font-size:.6rem;letter-spacing:.24em;color:var(--dim);margin-left:8px}
 #setpop .pnote{font-size:.66rem;color:var(--dim)}
 #setpop .poprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#setpop input[type=password]{flex:1;min-width:0;padding:.42rem .6rem;border-radius:9px;
+#setpop .poprow input[type=password],#setpop .poprow input[type=text],#setpop .poprow input[type=number]{flex:1;min-width:0;padding:.42rem .6rem;border-radius:var(--r-sm);
   border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:.78rem}
 #setpop .poprow button{padding:.42rem .9rem;border-radius:9px;border:1px solid var(--line);
   background:var(--card);color:var(--fg);cursor:pointer;font-size:.76rem}
@@ -778,6 +782,9 @@ html[data-theme=light] .dg-row .cbtn.primary{color:#fff}
 @media (max-width:760px){
   #ctlbar{flex-wrap:wrap;gap:8px}
   #gpubtns{border-left:0;padding-left:0;margin-left:0}
+  .mrow{flex-wrap:wrap}
+  .mdiv{display:none}
+  .mgrp{flex:1 1 100%;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
   .card{grid-template-columns:minmax(0,1fr);min-height:0;padding:16px 16px 14px;gap:14px}
   .acts{flex-wrap:wrap;height:auto;padding-top:12px}
   .acts button,.acts .statechip{height:36px}

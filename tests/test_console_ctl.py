@@ -39,8 +39,8 @@ ok('id="seg-bg"' in html and 'id="vid-sound"' in html and 'id="seg-bg"' not in b
 # ---- K6: version + GitHub link --------------------------------------------
 ok('id="gwver"' in bar and "v__VERSION__" in bar,
    "K6 version chip uses the __VERSION__ placeholder")
-ok('href="__GITHUB_URL__"' in html and 'href="__GITHUB_URL__"' not in bar,
-   "K6 GitHub anchor moved to the footer, bar stays slim")
+ok('href="__GITHUB_URL__"' in bar and 'id="bar-gh"' in bar and 'target="_blank"' in bar,
+   "K6 the GitHub mark rides the bar itself now (master's S5 call) — an icon, not a drawer")
 
 # ---- K7: settings popover keeps pet controls; the API key moved to the bar ----
 ok('id="setpop"' in html, "K7 settings popover #setpop present")
@@ -430,6 +430,33 @@ ok("CFGFLASH" in js and 'closest(".crow")' in js and 'scrollIntoView({behavior:"
 ok(js.count("paintHomePort();wireSetHomePort()") == 2,
    "K37g the ⚙ gear itself wires the port/home controls — the panel was dead when opened that way")
 
+# ---- K38 (master's S5 note): the monitor reads as two tidy two-group rows,
+# not a soup of ragged bands; groups are divided, narrow screens stack. ----
+ok('class="mrow"' in js and 'class="mdiv"' in js and 'class="mgrp"' in js,
+   "K38a the twelve tiles assemble as rows of two labelled groups with a divider between")
+ok('i+=2' in js and 'repeat(var(--c)' in css and '.mdiv{' in css,
+   "K38b group widths follow their tile count; the divider is a real 1px line, not margin folklore")
+ok('BANDS=[\n  {label:tt("推理速度","inference")' in js and '"主机","host"),keys:["cpu","ram","disk"]}' in js,
+   "K38c inference rides beside host, GPU & VRAM beside the expert cache — the pairings master asked for")
+ok(".mrow{flex-wrap:wrap" in css or ".mrow{flex-direction:column" in css,
+   "K38d on narrow screens the two groups stack instead of squinting into slivers")
+
+# ---- K39 (master's S5 note): settings drawers — one shape language, honest
+# compact prose, and the one-line GitHub drawer retires to a top-bar icon. ----
+ok('id="bar-gh"' in html and 'id="set-git"' not in html,
+   "K39a the GitHub drawer retires; the mark rides the top bar's tail where eyes already sweep")
+_seg = re.search(r"\n\.seg\{([^}]*)\}", css)
+_tbtn = re.search(r"\n\.tbtn,\.verchip\{([^}]*)\}", css)
+ok(_seg and "999px" not in _seg.group(1) and "var(--r-" in _seg.group(1)
+   and _tbtn and "99px" not in _tbtn.group(1) and "var(--r-" in _tbtn.group(1),
+   "K39b one radius language across the drawers — pills and rectangles stop competing")
+ok('#setpop input[type=text]' in css or '#setpop .poprow input' in css,
+   "K39c every field in the drawers wears the house frame — no bare browser-default inputs sneak in")
+ok("不认名字。挪位置二选一" in _i18 and "改完重启网关才生效" in _i18,
+   "K39d the drawer prose says what it means in half the breath, in both tongues")
+ok("不认文件夹名" not in _i18 and "端口改动下次启动网关才生效" not in _i18,
+   "K39e the old winded wordings are gone, not parked in a corner")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")
@@ -553,7 +580,7 @@ ok(".onb-act{" in css and "onb-hmsg" in css,
 # ---- T23: gear popover hosts the engine-home finder AND the router port knob
 _m=_re2.search(r'id="setpop".*?</header>', html, _re2.S)
 _sp2=_m.group(0) if _m else ""
-ok('id="set-loc"' in _sp2 and 'id="set-port"' in _sp2 and _sp2.count('<details class="drw"')>=6,
+ok('id="set-loc"' in _sp2 and 'id="set-port"' in _sp2 and _sp2.count('<details class="drw"')>=5,
    "T23a both the Strata-home finder and the port knob live as drawers in the gear popover")
 ok("router/port" in js and "set-pnew" in js and "restart" in js and "set-detect" in js,
    "T23b the port round-trip and the settings-page search button are wired in app.js")
