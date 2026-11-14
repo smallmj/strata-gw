@@ -374,6 +374,26 @@ ok(_magic == b"wOF2",
 ok(os.path.isfile(os.path.join(ROOT, "gw-assets", "LICENSE-JetBrainsMono.txt")),
    "K34i the OFL license ships beside the font")
 
+# ---- K35 (UI refresh S2): component layer — bands, honest empties, bar truth ----
+ok('class="mband"' in js and '.mband{' in css,
+   "K35a the twelve tiles are read in named semantic bands, not one soup")
+ok('class="t-empty"' in js and '.t-empty' in css,
+   "K35b an empty request table says so — fake dash rows no longer mime a breakage")
+_g = html[html.find('id="gpuhold"'):]
+_g = _g[:_g.find('</div>')]
+ok('id="gfree"' not in _g and 'id="gforce"' not in _g and 'id="gpubtns"' in html,
+   "K35c the top bar pill only reads out; the yield-VRAM actions stand outside it")
+_k5d = re.search(r"#gpuhold \.bar i\{([^}]*)\}", css)
+ok(_k5d and "width:0" in _k5d.group(1),
+   "K35d the VRAM pill bar opens empty — a detecting state must not look like a full card")
+ok('class="tick"' in js and '.pbar .tick' in css,
+   "K35e the RAM rail carries its hot-level tick where the number only said it")
+ok('pbar none' in js and '.pbar.none' in css,
+   "K35f waiting-for-data rails read as hatched grey, never as colored full")
+_i18 = open(os.path.join(ROOT, "console", "i18n.js"), encoding="utf-8").read()
+ok("KV 复用 tok" in _i18 and "生成 tok" in _i18 and "gen tok" in _i18 and "reused tok" in _i18,
+   "K35g the request table headers carry their units in both tongues")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")

@@ -1186,6 +1186,13 @@ var TILES=[
   {key:"cpu",label:"CPU",unit:"%",series:"cpu",alt:true},
   {key:"disk",label:tt("磁盘读取","disk read"),unit:"MB/s",series:"disk_read_mb"}
 ];
+var BANDS=[
+  {label:tt("推理速度","inference"),keys:["decode","prefill","ctx"]},
+  {label:tt("GPU 与显存","GPU & VRAM"),keys:["gpu","vram","temp","power","pcie"]},
+  {label:tt("主机","host"),keys:["cpu","ram","disk"]},
+  {label:tt("专家缓存","expert cache"),keys:["cache"]}
+];
+function bandRows(by){var out=[];BANDS.forEach(function(b){out.push('<div class="mband">'+b.label+'</div>');b.keys.forEach(function(k){out.push(by[k])})});return out}
 function gbf(v,d){if(v==null||isNaN(v))return "–";var x=v/1073741824;return d?x.toFixed(d):""+(Math.round(x*10)/10)}
 function kfmt(v){if(v==null)return "–";if(v>=1000000)return (v/1000000).toFixed(2)+"M";if(v>=1000)return (v/1000).toFixed(1)+"K";return ""+v}
 function flatSpark(){return '<svg viewBox="0 0 100 32" preserveAspectRatio="none"><path class="line" d="M0,30L100,30" style="stroke-dasharray:3 3;opacity:.55"/></svg>'}
@@ -1199,14 +1206,15 @@ function spark(arr,max){
   return '<svg viewBox="0 0 100 32" preserveAspectRatio="none"><path class="area" d="M0,32L'+pts.join("L")+'L100,32Z"/><path class="line" d="'+line+'"/></svg>';
 }
 function phTiles(){
-  document.getElementById("mon").innerHTML=
-    TILES.map(function(m){
-      return '<div class="tile ph'+(m.alt?" alt":"")+'"><div class="lab">'+m.label+'</div>'+
-        '<div class="val">–<small>'+m.unit+'</small></div><div class="sub">'+tt("载入后点亮","lights up once loaded")+'</div>'+flatSpark()+'</div>';
-    }).join("")+
-    '<div class="tile ph"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">–<small>%</small></div><div class="sub">'+tt("最近请求占窗口比","recent req / window")+'</div><div class="pbar"><i style="width:0"></i></div></div>'+
-    '<div class="tile ph"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">–<small>'+tt("槽","slots")+'</small></div><div class="sub">'+tt("热专家占显存比","hot experts / VRAM")+'</div><div class="pbar"><i style="width:0"></i></div></div>'+
-    '<div class="tile ph"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">–<small>GB</small></div><div class="sub">'+tt("引擎常驻水位","engine floor")+'</div><div class="pbar ram"><i style="width:0"></i></div></div>';
+  var by={};
+  TILES.forEach(function(m){
+    by[m.key]='<div class="tile ph'+(m.alt?" alt":"")+'"><div class="lab">'+m.label+'</div>'+
+      '<div class="val">–<small>'+m.unit+'</small></div><div class="sub">'+tt("载入后点亮","lights up once loaded")+'</div>'+flatSpark()+'</div>';
+  });
+  by.ctx='<div class="tile ph"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">–<small>%</small></div><div class="sub">'+tt("最近请求占窗口比","recent req / window")+'</div><div class="pbar none"><i style="width:0"></i></div></div>';
+  by.cache='<div class="tile ph alt"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">–<small>'+tt("槽","slots")+'</small></div><div class="sub">'+tt("热专家占显存比","hot experts / VRAM")+'</div><div class="pbar none"><i style="width:0"></i></div></div>';
+  by.ram='<div class="tile ph"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">–<small>GB</small></div><div class="sub">'+tt("引擎常驻水位","engine floor")+'</div><div class="pbar ram none"><i style="width:0"></i><u class="tick" style="left:92%"></u></div></div>';
+  document.getElementById("mon").innerHTML=bandRows(by).join("");
 }
 var FIN={stop:["ok",tt("已完成","done")],length:["len",tt("触上限","limit")],cancel:["stop",tt("已停止","stopped")],disconnect:["stop",tt("已断开","gone")],error:["err",tt("错误","error")],timeout:["stop",tt("超时","timeout")]};
 var TROWS=10;
@@ -1232,7 +1240,7 @@ function renderMonitor(){
     if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
     phTiles();setTxt(strip,"");
-    var pr0=phRow().repeat(TROWS);if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
+    var pr0='<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>';if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
     setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
   }
@@ -1282,7 +1290,7 @@ function renderMonitor(){
       '<div class="val">'+val+(unit?'<small>'+unit+'</small>':"")+'</div>'+
       '<div class="sub">'+(sub||"")+'</div>'+spark(h[m.series],amax)+'</div>';
   }
-  var tiles=[],amax,sub2;
+  var by={},amax,sub2;
   TILES.forEach(function(m){
     var val;
     if(m.key==="decode"){val=fnum(decodeV,1);sub2=speedSub;amax=null}
@@ -1297,26 +1305,27 @@ function renderMonitor(){
     else if(m.key==="cpu"){val=fnum(hw.cpu,0);sub2=st.threads?((st.cores?st.cores+tt(" 核 · "," cores · "):"")+st.threads+tt(" 线程"," threads")):tt("负载","load");amax=100}
     else{var rd=hw.disk_read_mb;val=rd==null?"–":fnum(rd,rd<10?1:0);
       sub2=hw.disk_write_mb==null?(st.psutil?"":tt("需 psutil","psutil needed")):(tt("写 ","write ")+fnum(hw.disk_write_mb,1)+" MB/s")}
-    tiles.push(std(m,val,m.unit,sub2,amax));
+    by[m.key]=std(m,val,m.unit,sub2,amax);
   });
   var ctx=eng.max_context||0,usedNow=0;
   if(state==="reading"||state==="generating")usedNow=(lv.prompt_tokens||0)+(lv.generated||0);
   else if(last)usedNow=(last.prompt_tokens||0)+(last.output_tokens||0);
   var frac=ctx?Math.min(1,usedNow/ctx):0;
-  tiles.push('<div class="tile"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">'+Math.round(frac*100)+
+  by.ctx='<div class="tile"><div class="lab">'+tt("上下文填充","ctx fill")+'</div><div class="val">'+Math.round(frac*100)+
     '<small>%</small></div><div class="sub">'+(ctx?(kfmt(usedNow)+" / "+Math.round(ctx/1024)+"K tok"):"–")+'</div>'+
-    '<div class="pbar"><i style="width:'+(frac*100).toFixed(1)+'%"></i></div></div>');
+    '<div class="pbar'+(ctx?"":" none")+'"><i style="width:'+(frac*100).toFixed(1)+'%"></i></div></div>';
   var cacheBytes=(eng.expert_cache_mib||0)*1048576;
   var cacheFrac=(hw.gpu_mem_total&&cacheBytes)?Math.min(1,cacheBytes/hw.gpu_mem_total):0;
-  tiles.push('<div class="tile alt"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">'+
+  by.cache='<div class="tile alt"><div class="lab">'+tt("显存专家缓存","expert cache")+'</div><div class="val">'+
     (eng.expert_slots!=null?num(eng.expert_slots):"–")+'<small>'+tt("槽","slots")+'</small></div><div class="sub">'+
     (cacheBytes?(gbf(cacheBytes,1)+" GB · "+Math.round(cacheFrac*100)+tt("% 显存","% VRAM")):"–")+'</div>'+
-    '<div class="pbar warm"><i style="width:'+(cacheFrac*100).toFixed(1)+'%"></i></div></div>');
+    '<div class="pbar warm'+(cacheBytes?"":" none")+'"><i style="width:'+(cacheFrac*100).toFixed(1)+'%"></i></div></div>';
   var rp=(hw.ram_total&&hw.ram_used!=null)?Math.min(100,100*hw.ram_used/hw.ram_total):0;
-  tiles.push('<div class="tile"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">'+
+  by.ram='<div class="tile"><div class="lab">'+tt("系统内存","system RAM")+'</div><div class="val">'+
     (hw.ram_used!=null?gbf(hw.ram_used,1):"–")+'<small>GB</small></div><div class="sub">'+
     (hw.ram_total?(tt("共 ","total ")+gbf(hw.ram_total,0)+tt(" GB · 水位 "," GB · floor ")+Math.round(rp)+"%"):"–")+'</div>'+
-    '<div class="pbar ram'+(rp>92?" hot":"")+'"><i style="width:'+rp.toFixed(1)+'%"></i></div></div>');
+    '<div class="pbar ram'+(rp>92?" hot":"")+(hw.ram_total?"":" none")+'"><i style="width:'+rp.toFixed(1)+'%"></i><u class="tick" style="left:92%"></u></div></div>';
+  var tiles=bandRows(by);
   var mt=document.getElementById("mon"),mh=tiles.join("");
   if(mt._h!==mh){mt._h=mh;mt.innerHTML=mh}
   
@@ -1333,7 +1342,10 @@ function renderMonitor(){
     if(strip._h!==sh){strip._h=sh;strip.innerHTML=sh}
   }else setTxt(strip,tt("本次会话尚无请求——统计从引擎启动起累计","no requests this session — counters run since engine start"));
   var rows=[];
-  for(var ri=0;ri<TROWS;ri++){
+  if(!requests.length){
+    rows.push('<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>');
+  }
+  for(var ri=0;requests.length&&ri<TROWS;ri++){
     var r=requests[ri];
     if(!r){rows.push(phRow());continue}
     var f=FIN[r.finish]||["",r.finish||"–"];
