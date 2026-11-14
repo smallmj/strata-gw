@@ -284,6 +284,7 @@ else:
 open(os.path.join(ROOT, "gw-assets", "jbmono-latin.woff2"), "wb").write(b"wOF2" + bytes(24))
 
 env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
+             STRATA_SWEEP="0", STRATA_HOME=ROOT,   # tests never sweep the host or see its configs,
            GW_SCAN_WATCH_S="1",             # T26b: the scan watcher earns its keep fast here
            GW_GPU_URLS="http://127.0.0.1:18097",      # live stub holder, idle
            GW_RELEASE_API="http://127.0.0.1:18099/releases/latest",   # T30: pretend GitHub
@@ -451,7 +452,11 @@ try:
     ok(s == 200 and fr and fr.get("op") == "force" and fr.get("elapsed_s", -1) >= 0,
        "T24 freeing visible mid-force on /router/gpu (spinner survives a page refresh)")
     t2.join(20)
-    j = json.loads(res2[0][1])
+    _raw = res2[0][1] if res2 else "<thread never finished>"
+    try:
+        j = json.loads(_raw)
+    except ValueError:
+        raise SystemExit("T25 RAW RESPONSE: %r" % _raw[:300])
     ok(j.get("gave_card") is False and j.get("waited_s", 0) >= 3
        and json.loads(req("GET", "/router/gpu")[1]).get("freeing") is None,
        "T25 force gives up after the wait window (4s env), freeing cleared afterwards")

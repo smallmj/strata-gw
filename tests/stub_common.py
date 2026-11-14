@@ -124,6 +124,7 @@ class Stub:
 
     def shutdown(self):
         self.srv.shutdown()
+        self.srv.server_close()     # a dead stub must refuse connections, not hang them
 
 
 class StubHolder:
@@ -180,6 +181,7 @@ class StubHolder:
 
     def shutdown(self):
         self.srv.shutdown()
+        self.srv.server_close()     # a dead stub must refuse connections, not hang them
 
 
 class Gateway:
@@ -209,7 +211,9 @@ class Gateway:
         open(os.path.join(self.root, "gw-assets", "qwen-chan.png"), "wb").write(b"\x89PNG fake mascot")
         open(os.path.join(self.root, "gw-assets", "sc117-chan.png"), "wb").write(b"\x89PNG fake mascot")
         env = dict(os.environ, STRATA_ROUTER_PORT=str(ROUTER_PORT), STRATA_ROUTER_ANYHOST="1",
-                   GW_GPU_FREE_WAIT="4", STRATA_WATCH_S="2")
+                   GW_GPU_FREE_WAIT="4", STRATA_WATCH_S="2",
+                   STRATA_SWEEP="0",            # a test gateway must NEVER sweep the host
+                   STRATA_HOME=self.root)       # nor discover the host's real model configs
         if holder_port:
             env["GW_GPU_URLS"] = f"http://127.0.0.1:{holder_port}"
         if extra_env:
