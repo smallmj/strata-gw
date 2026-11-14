@@ -413,6 +413,23 @@ ok("h._v!==vs" in js and "ag._t!==at" in js,
 ok("MONTS=Date.now()" in js and "Math.round((Date.now()-MONTS)/1000)" in js,
    "K36f freshness is measured from the last good /metrics tick, never assumed")
 
+# ---- K37 (UI refresh S4): the three small honesty cuts — copyable endpoint,
+# the idle policy's edit door beside its read-out, and "—" that says which no. ----
+ok('id="set-pcopy"' in html and 'cpText("http://127.0.0.1:"' in js,
+   "K37a the settings port row hands over the OpenAI base_url in one click")
+ok('execCommand("copy")' in js and "navigator.clipboard" in js,
+   "K37b copy works on plain-LAN http too — clipboard API first, execCommand keeps the fall")
+ok('data-act="copyport"' in js and 'data-act="cfgjump"' in js,
+   "K37c the card spec lines carry their own doors: copy the port, edit the idle policy")
+ok('class="sdim"' in js and "没在看" in js,
+   "K37d a live figure not being watched admits 没在看 — the lone dash no longer shrugs")
+ok(".crow.hl" in css and ".sdim" in css,
+   "K37e the jump lands visibly (highlighted row) and the not-watched note reads calm")
+ok("CFGFLASH" in js and 'closest(".crow")' in js and 'scrollIntoView({behavior:"smooth",block:"center"})' in js,
+   "K37f cfgjump opens the config drawer and lands the eye on the ROW that owns the key (scroll + timed highlight; focus attempted but not asserted)")
+ok(js.count("paintHomePort();wireSetHomePort()") == 2,
+   "K37g the ⚙ gear itself wires the port/home controls — the panel was dead when opened that way")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")
