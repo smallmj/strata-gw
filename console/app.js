@@ -17,7 +17,9 @@ document.getElementById("langbtn").onclick=function(){LANG=LANG==="zh"?"en":"zh"
 function syncLangBtn(){var b=document.getElementById("langbtn");if(b)b.textContent=LANG==="zh"?"中 / EN":"EN / 中"}
 document.getElementById("gwver").onclick=function(){fetch("router/info").then(function(r){return r.json()}).then(function(j){var b=j.build||j.engine||{};var mv=document.querySelector('meta[name="strata-gw-version"]');var lines=[tt("网关版本","gateway version")+" "+(j.version||(mv&&mv.content)||"?")];if(b.commit){var sh=String(b.commit);if(sh.length>12)sh=sh.substring(0,12);lines.push(tt("引擎构建","engine build")+" "+sh)}if(b.version)lines.push(tt("引擎版本","engine version")+" "+b.version);if(b.built_at||b.built)lines.push(tt("构建时间","built")+" "+(b.built_at||b.built));alert(lines.join("\n"))}).catch(function(){alert(tt("拿不到引擎构建信息（引擎可能没在跑）","cannot read engine build (engine may be offline)"))})};
 var setpop=document.getElementById("setpop");
-document.getElementById("setgear").onclick=function(e){e.stopPropagation();setpop.style.display=setpop.style.display==="none"?"block":"none"};
+document.getElementById("setgear").onclick=function(e){e.stopPropagation();
+  var open=setpop.style.display==="none";setpop.style.display=open?"block":"none";
+  if(open){paintHomePort();wireSetHomePort()}};
 document.addEventListener("click",function(e){if(setpop.style.display!=="none"&&!setpop.contains(e.target))setpop.style.display="none"});
 var petOn=false,petSize=120;
 try{var _p=localStorage.getItem("stratagw.pet");petOn=_p===null?true:_p==="1";
@@ -67,6 +69,7 @@ function paintHomePort(){
     var el=document.getElementById("set-pnow"),ip=document.getElementById("set-pnew");
     if(!el)return;
     el.textContent=tt("当前","live")+": "+((d&&d.current)||"?")+(d&&d.saved&&d.saved!==d.current?(" · "+tt("已存下次","saved")+" "+d.saved):"");
+    GWPORT=String((d&&d.current)||"");
     if(ip&&d&&d.saved)ip.value=d.saved;
   });
 }
@@ -74,9 +77,14 @@ function wireSetHomePort(){
   var dt=document.getElementById("set-detect");if(!dt||dt._w)return;dt._w=1;
   var hs=document.getElementById("set-hset"),hp=document.getElementById("set-hpath"),
       msg=document.getElementById("set-hmsg"),ps=document.getElementById("set-psave"),
-      pp=document.getElementById("set-pnew"),pmsg=document.getElementById("set-pmsg");
+      pp=document.getElementById("set-pnew"),pmsg=document.getElementById("set-pmsg"),
+      pc=document.getElementById("set-pcopy");
   function sayM(t){if(msg)msg.textContent=t}
   function sayP(t){if(pmsg)pmsg.textContent=t}
+  if(pc&&!pc._w){pc._w=1;pc.onclick=function(){
+    cpText("http://127.0.0.1:"+(GWPORT||"?")+"/v1",function(ok){
+      sayP(ok?tt("已复制 base_url：","base_url copied: ")+("http://127.0.0.1:"+(GWPORT||"?")+"/v1")
+             :tt("浏览器拦了剪贴板 —— 手动选中上面的监听地址","the browser blocked the clipboard — select the address by hand"))});}}
   dt.onclick=function(){dt.disabled=true;sayM(tt("在常见安装位置寻找…","searching the usual places…"));
     fetch("router/home/probe",{headers:hdrs(false)}).then(function(r){return r.json()}).then(function(pr){
       if(pr&&pr.auto){fetch("router/home",{method:"POST",headers:hdrs(true),body:JSON.stringify({auto:true})})
@@ -935,12 +943,15 @@ function updateLive(card,name){
   var b=backendOf(name),info=INFO[name]||{},cfg=info.cfg||{},rows=[];
   function row(a,c){rows.push('<div class="srow"><dt>'+esc(a)+'</dt><dd>'+esc(String(c))+'</dd></div>')}
   var DASH=tt("—","–");
+  function dashLive(){return '<span class="sdim" title="'+esc(tt("没在看这个后端 —— 到它的卡片上点「盯哨」，实时数字就亮","not being watched — open its monitor and the live figures light up"))+'">'+esc(tt("没在看","not watched"))+'</span>'}
   var lv=(name===selName&&mon.data&&mon.data.live)?mon.data.live:null;
   var hw=(name===selName&&mon.data&&mon.data.hardware)?mon.data.hardware:null;
   row(tt("进程","process"),b?(b.alive?tt("在线","up"):tt("待冷启动","cold pending")):tt("未入册","not enrolled"));
   row(tt("驻留","resident"),b?(b.loaded?tt("在位","on GPU"):tt("待载入","standby")):DASH);
-  row(tt("速度","speed"),lv&&lv.state==="generating"&&lv.tok_s!=null?fnum(lv.tok_s,1)+" tok/s":DASH);
-  row(tt("端口","port"),b?":"+b.port:DASH);
+  rows.push('<div class="srow"><dt>'+esc(tt("速度","speed"))+'</dt><dd>'+
+    (lv&&lv.state==="generating"&&lv.tok_s!=null?fnum(lv.tok_s,1)+" tok/s":(name===selName?esc(DASH):dashLive()))+'</dd></div>');
+  rows.push('<div class="srow"><dt>'+esc(tt("端口","port"))+'</dt><dd>'+
+    (b?":"+esc(String(b.port))+' <button class="pokebtn" data-act="copyport" title="'+esc(tt("复制端口号","copy the port number"))+'">'+esc(tt("复制","copy"))+'</button>':esc(DASH))+'</dd></div>');
   row(tt("量化档","quant"),cfg.quant||DASH);
   var mc=cfg.max_context||info.max_context;
   row(tt("上下文","context"),mc?Math.round(mc/1024)+"K":DASH);
@@ -955,20 +966,45 @@ function updateLive(card,name){
         ?esc(fmtmm(b.off_in_s))+' <button class="pokebtn" data-act="poke" title="'+
           esc(tt("一次 1-token 推理，拨回引擎自己的下班钟","one-token inference rewinds the engine's own clock-out timer"))+
           '">'+esc(tt("续半天","stay"))+'</button>'
-        :esc(Math.round(cfg.idle_unload_s/60)+tt(" 分钟没活自动下班"," min without work, then it clocks out"))))+'</dd></div>');
+        :esc(Math.round(cfg.idle_unload_s/60)+tt(" 分钟没活自动下班"," min without work, then it clocks out"))))+
+    ' <button class="pokebtn" data-act="cfgjump" title="'+
+      esc(tt("跳到引擎配置白名单，直接改这个阈值","jump to the model settings whitelist and edit this threshold"))+
+      '">'+esc(tt("改政策","edit policy"))+'</button></dd></div>');
   row(tt("思考等级","reasoning"),cfg.reasoning_effort!=null?cfg.reasoning_effort:tt("default","default"));
   var smp=cfg.sampling||{};
   row(tt("采样默认","sampling"),(smp.temperature!=null||smp.top_p!=null||smp.top_k!=null)?[smp.temperature!=null?("t "+smp.temperature):null,smp.top_p!=null?("p "+smp.top_p):null,smp.top_k!=null?("k "+smp.top_k):null].filter(Boolean).join(" · "):DASH);
   row(tt("图像输入","vision"),info.images!=null?(info.images?tt("有","yes"):tt("无","no")):DASH);
-  row(tt("显存占用","VRAM"),hw&&hw.gpu_mem_used!=null?gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB":DASH);
+  rows.push('<div class="srow"><dt>'+esc(tt("显存占用","VRAM"))+'</dt><dd>'+
+    (hw&&hw.gpu_mem_used!=null?gbf(hw.gpu_mem_used,1)+" / "+gbf(hw.gpu_mem_total,0)+" GB":(name===selName?esc(DASH):dashLive()))+'</dd></div>');
   var h=rows.join("");
   if(dl._h!==h){dl._h=h;dl.innerHTML=h;
     var pk=dl.querySelector('[data-act="poke"]');
     if(pk)pk.onclick=function(){pokeModel(name)};
+    var cpb=dl.querySelector('[data-act="copyport"]');
+    if(cpb)cpb.onclick=function(){cpText(String(b.port),function(ok){
+      var o=cpb.textContent;cpb.textContent=ok?tt("已复制","copied"):tt("被拦","blocked");
+      setTimeout(function(){cpb.textContent=o},1500)})};
+    var cjb=dl.querySelector('[data-act="cfgjump"]');
+    if(cjb)cjb.onclick=function(){
+      var det=document.getElementById("sect-config");if(det)det.open=true;
+      if(name!==selName){CFGFLASH=1;selectModel(name,true)}
+      else flashCfg();
+    };
     return true}
   return false
 }
 function fmtmm(s){var m=Math.floor(s/60),x=s%60;return m+"m"+("0"+x).slice(-2)+"s"}
+function cpText(t,done){
+  function fb(){var x=document.createElement("textarea");x.value=t;
+    x.style.position="fixed";x.style.top="-60px";x.style.opacity="0";
+    document.body.appendChild(x);x.focus();x.select();var ok=false;
+    try{ok=document.execCommand("copy")}catch(e){}
+    try{document.body.removeChild(x)}catch(e){}
+    if(done)done(ok)}
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(t).then(function(){if(done)done(true)},fb);
+  else fb();
+}
 function pokeModel(n){
   say(tt("递了杯咖啡…","handing over a coffee…"));
   fetch("router/poke",{method:"POST",headers:hdrs(true),body:JSON.stringify({model:n})})
@@ -1498,6 +1534,23 @@ document.getElementById("t-clear").onclick=function(){
 document.getElementById("t-close").onclick=function(){closeTrain()};
 var cfgKeys=[];
 var CFGNOTE=tt("后端 /config 白名单键。保存时 Strata 官方会自动备份配置 json；改动从该模型下次启动起生效。留空 = 删除该键（回默认）。","Whitelisted /config keys. Saving auto-backs-up the engine config json; changes apply at the model's next boot. Blank = remove the key (back to default).");
+var CFGFLASH=0,GWPORT="";
+function flashCfg(){
+  var wrap=document.getElementById("cfg-list");
+  var fr=wrap&&wrap.querySelector('[data-ck="idle_unload_s"]');
+  if(!fr){
+    CFGFLASH=0;
+    var det=document.getElementById("sect-config");
+    if(det)det.scrollIntoView({behavior:"smooth",block:"start"});
+    say(tt("引擎配置白名单里没有 idle_unload_s —— 这项政策由引擎侧保管","the model settings whitelist does not list idle_unload_s — that policy is kept engine-side"),"");
+    return}
+  CFGFLASH=0;
+  var row=fr.closest(".crow")||fr;
+  row.scrollIntoView({behavior:"smooth",block:"center"});
+  row.classList.add("hl");
+  setTimeout(function(){if(fr.focus)fr.focus({preventScroll:true})},450);
+  setTimeout(function(){row.classList.remove("hl")},2400);
+}
 function loadConfig(){
   if(!selName)return;
   qs("router/config?model="+encodeURIComponent(selName),function(d){
@@ -1520,6 +1573,7 @@ function loadConfig(){
         '<div class="ch">'+esc(k.help||"")+'</div>';
       wrap.appendChild(row);
     });
+    if(CFGFLASH)flashCfg();
   });
 }
 
