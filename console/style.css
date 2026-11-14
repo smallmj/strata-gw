@@ -5,6 +5,7 @@
 :root{
   --bg1:#070b14; --bg2:#0c1322; --fg:#e8eef8; --muted:#a9b8cc; --line:rgba(148,163,184,.22);
   --card:rgba(15,23,40,.66); --cardbg:#0f1728; --shadow:0 20px 50px -20px rgba(0,0,0,.65);
+  --pop:#131c2f; --popsec:#182438; --popdrw:#1d2a41; --popfield:#0f1728;
   --ok:#34d399; --warn:#e0a53c; --err:#f87171; --na:#7c8ca3; --dim:#7d8fa6;
   --q:#22d3ee; --s:#f472b6; --read:#818cf8;
   --font-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
@@ -17,6 +18,7 @@ html[data-theme=light]{
      every token below was measured against #FFF/#EEF2F8 at >=4.5:1 for small text. */
   --bg1:#eef2f8; --bg2:#f8fafd; --fg:#111a2b; --muted:#44536a; --line:rgba(71,85,105,.30);
   --card:rgba(255,255,255,.88); --cardbg:#ffffff; --shadow:0 18px 44px -24px rgba(15,23,42,.30);
+  --pop:#ffffff; --popsec:#f3f7fc; --popdrw:#e9eff8; --popfield:#ffffff;
   --q:#0c7090; --s:#b03d72; --read:#4453c9;
   --ok:#0d6e46; --warn:#8f5d10; --err:#b93535; --na:#62718a; --dim:#59697f;
   --bgm1:rgba(238,242,248,.88); --bgm2:rgba(238,242,248,.62);
@@ -597,11 +599,11 @@ details.drawer .dbody .ptitle{display:none}
 .gearbtn:hover{color:var(--fg);border-color:var(--q)}
 #setpop{position:absolute;right:14px;top:calc(100% + 10px);width:min(380px,94vw);z-index:80;
   max-height:calc(100vh - 74px);overflow-y:auto;overscroll-behavior:contain;
-  display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);
+  display:flex;flex-direction:column;gap:10px;background:var(--pop);border:1px solid var(--line);
   border-radius:16px;padding:16px 18px;box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
   backdrop-filter:blur(14px);animation:rise .25s both}
 #setpop .sec{border:1px solid var(--line);border-radius:13px;padding:12px 13px;
-  display:flex;flex-direction:column;gap:9px;background:color-mix(in srgb,var(--card) 60%,transparent)}
+  display:flex;flex-direction:column;gap:9px;background:var(--popsec)}
 #setpop .sec.lite{border-style:dashed}
 #setpop .popsec{display:flex;flex-direction:column;gap:2px}
 #setpop .popsec b{font-size:.8rem;letter-spacing:.06em}
@@ -609,9 +611,9 @@ details.drawer .dbody .ptitle{display:none}
 #setpop .pnote{font-size:.66rem;color:var(--dim)}
 #setpop .poprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #setpop .poprow input[type=password],#setpop .poprow input[type=text],#setpop .poprow input[type=number]{flex:1;min-width:0;padding:.42rem .6rem;border-radius:var(--r-sm);
-  border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:.78rem}
+  border:1px solid var(--line);background:var(--popfield);color:var(--fg);font-size:.78rem}
 #setpop .poprow button{padding:.42rem .9rem;border-radius:9px;border:1px solid var(--line);
-  background:var(--card);color:var(--fg);cursor:pointer;font-size:.76rem}
+  background:var(--popsec);color:var(--fg);cursor:pointer;font-size:.76rem}
 #setpop .poprow button:hover{border-color:var(--q)}
 #setpop .plab{font-size:.74rem;color:var(--muted)}
 #setpop input[type=range]{flex:1;accent-color:var(--q)}
@@ -733,7 +735,7 @@ details.drawer .dbody .ptitle{display:none}
 .tags .none,.prose .none{border:0;background:none;padding:0;color:var(--dim);font-size:.74rem;font-style:italic}
 /* ux v8: train-page drawers */
 details.drw{border:1px solid var(--line);border-radius:12px;margin:0 0 10px;padding:0 0 4px;
-  background:color-mix(in srgb,var(--card) 50%,transparent)}
+  background:var(--popdrw)}
 details.drw summary{cursor:pointer;padding:10px 12px;font-size:.8rem;font-weight:700;color:var(--fg);
   list-style:none;display:flex;gap:8px;align-items:center}
 details.drw summary::-webkit-details-marker{display:none}
