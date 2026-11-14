@@ -14,8 +14,14 @@ Settings live in gateway.json under "gpu_free":
      "wait_s": 120,          # forced handover patience
      "gentle_wait_s": 8,     # the "free memory" button\'s evidence window
      "timeout_s": 10}        # per-request HTTP timeout
-Env overrides: GW_GPU_URLS (comma list), GW_GPU_FREE_TARGET, GW_GPU_FREE_WAIT,
-GW_GPU_FREE_TIMEOUT. The file is re-read per call (hot reload by design).
+     Queue-gate keys (the engine queues behind a working generator instead of
+     sharing the GPU):
+     "queue_gate": true,     # false disables the gate entirely
+     "queue_poll_s": 2,      # how often /queue is re-read while queued
+     "queue_max_wait_s": 1800}  # fail-open ceiling; a stuck holder never wedges
+     Env overrides: GW_GPU_URLS (comma list), GW_GPU_FREE_TARGET, GW_GPU_FREE_WAIT,
+     GW_GPU_FREE_TIMEOUT, GW_QUEUE_GATE, GW_QUEUE_POLL_S, GW_QUEUE_MAX_WAIT_S.
+     The file is re-read per call (hot reload by design).
 """
 from __future__ import annotations
 
@@ -34,6 +40,8 @@ DEFAULT_PROBE = ("http://127.0.0.1:8188", "http://127.0.0.1:8189")
 DEFAULT_WAIT_S = 120.0
 DEFAULT_GENTLE_WAIT_S = 8.0
 DEFAULT_TIMEOUT_S = 10.0
+DEFAULT_QUEUE_POLL_S = 2.0
+DEFAULT_QUEUE_MAX_WAIT_S = 1800.0
 
 
 class CardNotFree(Exception):
@@ -47,8 +55,10 @@ def settings() -> dict:
     sec = sec if isinstance(sec, dict) else {}
     urls = sec.get("urls")
     if not isinstance(urls, list) or not urls:
-        env = (config.env("GW_GPU_URLS", "") or "").strip()
-        urls = [u.strip() for u in env.split(",") if u.strip()] if env else list(DEFAULT_PROBE)
+        urls = list(DEFAULT_PROBE)
+    env_urls = (config.env("GW_GPU_URLS", "") or "").strip()
+    if env_urls:                       # the env is an OVERRIDE (docstring law),
+        urls = [u.strip() for u in env_urls.split(",") if u.strip()]  # not a fallback
     target = sec.get("target_mib")
     if not isinstance(target, int) or target < 0:
         target = int(config.env("GW_GPU_FREE_TARGET", "0") or 0)
@@ -224,6 +234,73 @@ def interrupt_and_clear(url: str, st: dict) -> int:
         _post(url, "/queue", {"delete": pending}, st["timeout_s"])
     _post(url, "/interrupt", {}, st["timeout_s"])
     return len(pending) + running
+
+
+def queue_busy(url: str, timeout: float) -> bool | None:
+    """True when the holder has a running or pending job; False when idle;
+    None when unreachable (nothing provably holds the card)."""
+    try:
+        q = _get(url, "/queue", timeout)
+        return bool(q.get("queue_running") or q.get("queue_pending"))
+    except (HTTPError, URLError, OSError, ValueError, TypeError):
+        return None
+
+
+def queue_settings() -> dict:
+    sec = config.gateway_cfg().get("gpu_free")
+    sec = sec if isinstance(sec, dict) else {}
+    gate = sec.get("queue_gate")
+    if gate is None:
+        gate = (config.env("GW_QUEUE_GATE", "1") or "1").strip().lower() not in ("0", "false", "off")
+    poll = sec.get("queue_poll_s")
+    if not isinstance(poll, (int, float)):
+        poll = float(config.env("GW_QUEUE_POLL_S", str(DEFAULT_QUEUE_POLL_S)) or DEFAULT_QUEUE_POLL_S)
+    mx = sec.get("queue_max_wait_s")
+    if not isinstance(mx, (int, float)):
+        mx = float(config.env("GW_QUEUE_MAX_WAIT_S", str(DEFAULT_QUEUE_MAX_WAIT_S)) or DEFAULT_QUEUE_MAX_WAIT_S)
+    return {"queue_gate": bool(gate), "queue_poll_s": max(0.2, float(poll)),
+            "queue_max_wait_s": max(1.0, float(mx))}
+
+
+_down_until = 0.0            # the holder was unreachable this recently; the
+                             # generation gate skips re-probing (a dead holder
+                             # costs ~2 s per refused connect on Windows)
+
+
+def wait_gen_queue() -> dict:
+    """Generation gate: hold an incoming engine request while the external
+    generator is working (a running OR pending job) so the two engines never
+    share the GPU. Idle or unreachable holder = go at once; a holder wedged
+    for longer than queue_max_wait_s fails OPEN so a request can never be
+    lost to a stuck queue. Returns {"gated", "waited_s", "gave_up"}."""
+    global _down_until
+    st = settings()
+    qst = queue_settings()
+    out = {"gated": False, "waited_s": 0, "gave_up": False}
+    if not qst["queue_gate"]:
+        return out
+    if time.time() < _down_until:
+        return out               # recently unreachable: do not re-probe per request
+    url, _ = discover(st)
+    if url is None:
+        _down_until = time.time() + 10.0
+        return out
+    _down_until = 0.0
+    busy = queue_busy(url, st["timeout_s"])
+    if not busy:
+        return out
+    t0 = time.time()
+    events.revent("gate", "外部生成器正在工作，引擎请求排队等待")
+    gave_up = False
+    while busy is not False:      # a failed probe (None) keeps the gate CLOSED
+        if time.time() - t0 >= qst["queue_max_wait_s"]:
+            gave_up = True
+            break
+        time.sleep(qst["queue_poll_s"])
+        busy = queue_busy(url, st["timeout_s"])
+    out.update({"gated": True, "waited_s": int(time.time() - t0), "gave_up": gave_up})
+    events.revent("gate", "引擎请求排队 %d 秒后执行%s" % (out["waited_s"], "（等待超时放行）" if gave_up else ""))
+    return out
 
 
 def ensure_card() -> bool:

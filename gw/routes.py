@@ -564,6 +564,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._forward_raw(backend, method, path[len("/router"):], body)
             return self._json(404, {"error": {"message": "unknown router endpoint"}})
         if method == "POST" and path in config.GEN_PATHS:
+            gpu_free.wait_gen_queue()      # queue behind a working external generator
             pre_res = backend.resident()
             backends.set_busy(backend.name, "load")   # a harness-triggered cold load shows
             try:                                     # on the console too, ring and all
