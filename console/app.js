@@ -1224,11 +1224,21 @@ var TILES=[
 ];
 var BANDS=[
   {label:tt("推理速度","inference"),keys:["decode","prefill","ctx"]},
-  {label:tt("GPU 与显存","GPU & VRAM"),keys:["gpu","vram","temp","power","pcie"]},
   {label:tt("主机","host"),keys:["cpu","ram","disk"]},
+  {label:tt("GPU 与显存","GPU & VRAM"),keys:["gpu","vram","temp","power","pcie"]},
   {label:tt("专家缓存","expert cache"),keys:["cache"]}
 ];
-function bandRows(by){var out=[];BANDS.forEach(function(b){out.push('<div class="mband">'+b.label+'</div>');b.keys.forEach(function(k){out.push(by[k])})});return out}
+function mgrp(b,by){
+  var t="";b.keys.forEach(function(k){t+=by[k]});
+  return '<div class="mgrp" style="--c:'+b.keys.length+'"><div class="mband">'+b.label+'</div>'+t+'</div>'
+}
+function bandRows(by){
+  var out=[];
+  for(var i=0;i<BANDS.length;i+=2){
+    out.push('<div class="mrow">'+mgrp(BANDS[i],by)+'<span class="mdiv"></span>'+mgrp(BANDS[i+1],by)+'</div>');
+  }
+  return out
+}
 var MONTS=0,HTEMP=90,HRAM=95,HPOW=95; /* at-a-glance worry thresholds: degC / % of system RAM / % of the GPU power cap */
 function paintHealth(d,hw,rp){
   var h=document.getElementById("mon-health");if(!h)return;
