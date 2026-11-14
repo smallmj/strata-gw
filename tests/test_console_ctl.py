@@ -394,6 +394,25 @@ _i18 = open(os.path.join(ROOT, "console", "i18n.js"), encoding="utf-8").read()
 ok("KV 复用 tok" in _i18 and "生成 tok" in _i18 and "gen tok" in _i18 and "reused tok" in _i18,
    "K35g the request table headers carry their units in both tongues")
 
+# ---- K36 (UI refresh S3): health summary strip — one verdict, flagged items,
+# freshness. The twelve tiles answer "what"; this answers "should I worry". ----
+ok('id="mon-health"' in html and 'role="status"' in js,
+   "K36a an at-a-glance health verdict sits under the monitor state bar, announced politely")
+ok("HTEMP=90" in js and "HRAM=95" in js and "HPOW=95" in js,
+   "K36b the worry thresholds (degC / RAM % / power % of cap) are named constants, not buried magic")
+_hb = re.search(r"\.hbadge\.h-ok\{([^}]*)\}", css)
+_hw = re.search(r"\.hbadge\.h-warn\{([^}]*)\}", css)
+_ha = re.search(r"\.hbadge\.h-alarm\{([^}]*)\}", css)
+ok(_hb and _hw and _ha and "var(--ok)" in _hb.group(1) and "var(--warn)" in _hw.group(1)
+   and "var(--err)" in _ha.group(1) and "#mon-health" in css,
+   "K36c the badge rides the same status ladder as everything else (ok/warn/alarm)")
+ok(_i18.count('"mon.h.tit"') == 2,
+   "K36d the strip explains its own thresholds in both tongues via one i18n title")
+ok("h._v!==vs" in js and "ag._t!==at" in js,
+   "K36e the verdict re-inks only when it changes; the ageing text is a lone textContent tick, never a repaint")
+ok("MONTS=Date.now()" in js and "Math.round((Date.now()-MONTS)/1000)" in js,
+   "K36f freshness is measured from the last good /metrics tick, never assumed")
+
 # ---- T7 (v0.2): the orphan card's grey state points the way; the burn-card
 # button's orphan-only visibility is load-bearing (master's zero-delete rule) --
 ok('tt("未入册","not enrolled")' in js, "T7a orphan labels read 未入册, not 未安装")
