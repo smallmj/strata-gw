@@ -127,8 +127,8 @@ Latin subset in the repo and served by the gateway itself — no CDN is ever con
 
 | | 下限 floor | 上限 ceiling (tested) |
 |---|---|---|
-| Strata (母软件 App/Terminal) | v0.2.x（母软件自己声明 `MIN_ENGINE=(0,1,46)`） | **v0.2.13** |
-| 引擎 engine | 0.1.46 | **0.1.59** |
+| Strata (母软件 App/Terminal) | v0.2.x（母软件自己声明 `MIN_ENGINE=(0,1,46)`） | **v0.2.14** |
+| 引擎 engine | 0.1.46 | **0.1.60** |
 
 上游约 2 天一版（实查 2026-10-19 → 11-07 共 12 版），绝大多数升级是增量：网关的向导实时读取
 装机 `setup.py`，新家族 / 新档位自动可见。硬耦合面（setup 的 15 个 CLI 参数 + 9 个引擎端点 +

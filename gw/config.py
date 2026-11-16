@@ -11,7 +11,7 @@ from urllib import request as urlrequest
 # the sim-kit protocol stamp in ONE release-day commit (T19), after the compat
 # canary reports the newest upstream tag diff-free. Advisory only: a newer
 # engine paints a yellow banner, it never blocks anything.
-TESTED_UP_TO = {"engine": "0.1.59", "strata": "v0.2.13"}
+TESTED_UP_TO = {"engine": "0.1.60", "strata": "v0.2.14"}
 
 # repo root (the directory holding strata-router.py; gw/ lives under it)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,7 +40,10 @@ def router_port() -> int:
 FIRST_BACKEND_PORT = int(os.environ.get("STRATA_FIRST_BACKEND_PORT", "18101"))
 PORTS_FILE = os.path.join(ROOT, "router-ports.json")
 SPAWN_COOLDOWN_S = 60.0
-LOAD_WAIT_S = 180.0           # a lazy backend's API comes up well inside this
+LOAD_WAIT_S = 300.0           # a lazy backend's API comes up well inside this;
+                              # 0.1.60 drafting may pull ~5.2 GB of speculative
+                              # draft weights on a box's first cold start (the
+                              # upstream issue log saw 450 s for that fetch)
 RESIDENT_TTL_S = 3.0          # how long a residency answer is trusted without re-asking
 GEN_PATHS = ("/v1/chat/completions", "/v1/completions", "/v1/responses",
              "/v1/messages", "/v1/embeddings", "/chat/completions", "/completions")

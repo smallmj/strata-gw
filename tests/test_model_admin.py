@@ -208,11 +208,31 @@ try:
     ok(s == 200 and cat.get("families", {}).get("simcore", {}).get("title") == "SimCore One"
        and cat.get("tiers", {}).get("Q4SIM", {}).get("download_gb") == 4.0,
        "T4a GET /router/setup/models reads the installed list")
-    tiers = (cat.get("families", {}).get("simmulti") or {}).get("tiers") or {}
-    ok(tiers.get("V2", {}).get("ram_gb") == 16,
-       "T4b multi-file family carries its own tiers")
+    ok("simmulti" not in (cat.get("families") or {}),
+       "T4b the v0.2.14 kit shape ships no MULTI_FILE_FAMILIES at all")
 finally:
     gw5.close()
+
+# ---- T4b2: a legacy install that STILL exports MULTI_FILE_FAMILIES keeps
+# its extra families in the catalog (the tolerant getattr merge branch) ----
+shome5c = tempfile.mkdtemp(prefix="gw-shome5c-")
+with open(os.path.join(shome5c, "setup.py"), "w") as f:
+    f.write('FAMILIES = {}\nPREVIEW_FAMILIES = {}\nMODELS = {}\n'
+            'MULTI_FILE_FAMILIES = {"oldmulti": {"title": "OldMulti", '
+            '"by": "legacy", "about": "old install", "name": "old-multi", '
+            '"tag": "", "vision": False, "models": {"T1": {"label": "T1", '
+            '"about": "", "ram_gb": 8}}}}\n')
+gw5c = Gateway([], [], extra_env=KIT_ENV(shome5c))
+try:
+    ok(up(gw5c), "T4b2 pre: legacy-shaped setup.py home boots")
+    s, h = gw5c.get("/router/setup/models")
+    fam = (json.loads(h).get("families", {}) if s == 200 else {}).get("oldmulti") or {}
+    ok(s == 200 and fam.get("title") == "OldMulti"
+       and (fam.get("tiers") or {}).get("T1", {}).get("ram_gb") == 8,
+       "T4b2 legacy MULTI_FILE_FAMILIES still merges into the catalog")
+finally:
+    gw5c.close()
+    shutil.rmtree(shome5c, ignore_errors=True)
 
 # T4c: no setup.py under the home -> 503 with a guide message.
 shome6 = tempfile.mkdtemp(prefix="gw-shome6-")

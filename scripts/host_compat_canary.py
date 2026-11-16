@@ -149,7 +149,7 @@ def main():
         probe = ('import json,sys; sys.path.insert(0, r"%s"); import setup as s; '
                  'print(json.dumps({"FAMILIES": sorted(s.FAMILIES), '
                  '"PREVIEW_FAMILIES": sorted(s.PREVIEW_FAMILIES), '
-                 '"MULTI_FILE_FAMILIES": sorted(s.MULTI_FILE_FAMILIES), '
+                 '"MULTI_FILE_FAMILIES": sorted(getattr(s, "MULTI_FILE_FAMILIES", [])), '
                  '"MODELS": sorted(s.MODELS)}))' % a.shome)
         py = os.path.join(a.shome, ".venv", "Scripts", "python.exe")
         if not a.ssh and not os.path.exists(py):

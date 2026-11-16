@@ -161,8 +161,8 @@ Latin subset in the repo and served by the gateway itself — no CDN is ever con
 
 | | floor | ceiling (tested) |
 |---|---|---|
-| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.13** |
-| engine | 0.1.46 | **0.1.59** |
+| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.14** |
+| engine | 0.1.46 | **0.1.60** |
 
 Upstream ships roughly two versions a week; most upgrades are additive and the
 gateway's wizard reads the installed `setup.py` live, so new families and tiers

@@ -45,7 +45,9 @@ for src in (s.FAMILIES, s.PREVIEW_FAMILIES):
         md = v.get("models") if isinstance(v, dict) else None
         if md:
             fams.setdefault(k, {})["tiers"] = lite(md, TKEEP)
-for k, v in s.MULTI_FILE_FAMILIES.items():
+# v0.2.14 deleted DeepSeek-V4.1 and the MULTI_FILE_FAMILIES constant with it:
+# read it tolerantly, a legacy install that still exports it keeps working.
+for k, v in (getattr(s, "MULTI_FILE_FAMILIES", None) or {}).items():
     d = {kk: (list(vv) if isinstance(vv, (tuple, list)) else vv)
          for kk, vv in v.items() if kk in KEEP}
     d["tiers"] = lite(dict(v.get("models") or {}), {"about", "ram_gb", "label"})
