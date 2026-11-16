@@ -1,4 +1,4 @@
-# protocol snapshot: Strata v0.2.13 / engine 0.1.59 (pinned 2026-11-14)
+# protocol snapshot: Strata v0.2.14 / engine 0.1.60 (pinned 2026-11-16)
 """sim-strata setup.py - the FAKE Strata install tool for the demo kit.
 
 Everything here is pretend: no downloads, no GPU, no inference. The kit lets
@@ -38,15 +38,9 @@ PREVIEW_FAMILIES = {
                               "ram_gb": 12, "arena_gb": 2},
                 }},
 }
-MULTI_FILE_FAMILIES = {
-    "simmulti": {"title": "SimMulti", "by": "strata-gw sim",
-                 "about": "demo multi-file family with its own tiers",
-                 "name": "simmulti-many", "tag": "", "vision": False,
-                 "models": {
-                     "V1": {"label": "V1 small demo", "about": "demo v1", "ram_gb": 8},
-                     "V2": {"label": "V2 big demo", "about": "demo v2", "ram_gb": 16},
-                 }},
-}
+# v0.2.14 removed DeepSeek-V4.1, the sole member of MULTI_FILE_FAMILIES,
+# and the constant itself with it. The kit mirrors the installed shape:
+# the wizard PROBE must tolerate the constant's absence (regression tripwire).
 MODELS = {
     "Q4SIM": {"about": "demo 4-bit", "download_gb": 4.0, "ram_gb": 8, "arena_gb": 2,
               "families": ["simcore", "simforge", "simvista", "simbeta"]},
@@ -92,7 +86,6 @@ def _pack(path, total_bytes, nshards):
 def _setup(a):
     fams = dict(FAMILIES)
     fams.update(PREVIEW_FAMILIES)
-    fams.update(MULTI_FILE_FAMILIES)
     if os.environ.get("SIM_ARGS_DUMP") == "1":   # tests assert param pass-through
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "args_dump.json"), "w") as f:
@@ -103,12 +96,8 @@ def _setup(a):
     if a.model in MODELS:
         spec = MODELS[a.model]
     else:
-        m = (MULTI_FILE_FAMILIES.get(a.family) or {}).get("models") or {}
-        if a.model in m:
-            spec = {"download_gb": 2.0, "ram_gb": m[a.model].get("ram_gb", 8)}
-        else:
-            print("sim: unknown model %r" % a.model, flush=True)
-            return 2
+        print("sim: unknown model %r" % a.model, flush=True)
+        return 2
     gb_per_mb = float(os.environ.get("SIM_STRATA_PACK_MB_PER_GB", "100"))
     steps = 5                                   # 3 pack shards + index + meta
     for i in range(steps):
