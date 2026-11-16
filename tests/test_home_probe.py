@@ -37,6 +37,10 @@ plant_broken(home2)
 gw = Gateway([], [], extra_env={
     "GW_HOME_CANDIDATES": home1 + ";" + home2,
     "STRATA_PYTHON": sys.executable,
+    # the harness injects STRATA_HOME=<test root> to keep stubs off the host's
+    # real configs (9e2f5f2); the home-source ladder this suite pins needs the
+    # env slot EMPTY, or "env" would always win over gateway.json and ROOT.
+    "STRATA_HOME": "",
 })
 try:
     up = False
