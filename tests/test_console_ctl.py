@@ -308,8 +308,8 @@ ok('askDlg(tt("自述出炉"' in js and "tg.value=(cur.tags||[]).join" in js and
 _cmdp=os.path.join(ROOT,"strata-gw.cmd")
 ok(os.path.isfile(_cmdp), "K31a the repo ships strata-gw.cmd — the launcher everyone keeps re-inventing")
 _ct=open(_cmdp,encoding="utf-8",errors="replace").read()
-ok("Stop-Process" in _ct and "Get-NetTCPConnection" in _ct and "(Get-Location).Path" in _ct,
-   "K31b the launcher sweeps its own old process tree and frees the port before starting — scoped to its own folder, a router living elsewhere never bleeds")
+ok("taskkill /F /T" in _ct and "Get-NetTCPConnection" in _ct and "(Get-Location).Path" in _ct,
+   "K31b the launcher sweeps its own old process tree (tree-kill via taskkill) and frees the port before starting — scoped to its own folder, a router living elsewhere never bleeds")
 ok("特工" in bk and "GEN_PROMPT_OTHER" in bk and "{subject}" in bk,
    "K31c both prompts speak operative: a self-report, and a ghost-write brief for an off-post colleague")
 ok("[:6]" in bk and "dossier[:lim]" in bk,
