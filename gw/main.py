@@ -62,6 +62,10 @@ def main() -> None:
     config.ROUTER_PORT = config.router_port()
     httpd = ThreadingHTTPServer(("0.0.0.0", config.ROUTER_PORT), routes.Handler)
     httpd.daemon_threads = True
+    # a surviving old router on the same port (boot sweep could not stop it:
+    # different account) must never go unnoticed - two listeners split the
+    # traffic and the adopted engines' logs stay in the other window.
+    sweep.warn_port_squatters(config.ROUTER_PORT)
     names = ", ".join(f"{b.name}(:{b.port})" for b in sorted(backends.BACKENDS.values(), key=lambda x: x.name))
     print(f"[router] ready on :{config.ROUTER_PORT}  models: {names or '(none yet)'}", flush=True)
     from . import events as _ev

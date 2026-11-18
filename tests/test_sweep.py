@@ -151,4 +151,35 @@ with open(os.path.join(REPO, "gw", "sweep.py"), encoding="utf-8") as f:
 ok("no sweep performed" in sweep_src, "SW10a an enumeration crash says so on the console")
 ok("enumeration returned no processes" in sweep_src, "SW10b an empty enumeration says so too")
 
+# ---- SW11: kill must be honest about WHO it could not kill ----------------
+ok("taskkill" in sweep_src and '"/F", "/T"' in sweep_src,
+   "SW11a the kill goes through taskkill /F /T (tree kill; SeDebugPrivilege is auto-enabled so SYSTEM-owned leftovers get a real chance)")
+ok("def parse_owners" in sweep_src, "SW11b process-owner names come from a pure parseable helper")
+try:
+    po = sweep.parse_owners("42400|NT AUTHORITY\\SYSTEM\n15272|ALAN-PC\\Administrator")
+    ok(po.get(42400) == "NT AUTHORITY\\SYSTEM" and po.get(15272) == "ALAN-PC\\Administrator",
+       "SW11c parse_owners maps pid to DOMAIN\\USER")
+except AttributeError:
+    ok(False, "SW11c parse_owners maps pid to DOMAIN\\USER")
+ok("different account" in sweep_src,
+   "SW11d a survivor message names the account/access problem and the exact fix command, not just 'survived'")
+
+# ---- SW12: the port must not quietly double-bind ---------------------------
+ok("def parse_listen_rows" in sweep_src, "SW12a port-listener enumeration is a pure parseable helper")
+try:
+    pl = sweep.parse_listen_rows("37632\n39412\n")
+    ok(pl == [37632, 39412], "SW12b parse_listen_rows reads one pid per line")
+except AttributeError:
+    ok(False, "SW12b parse_listen_rows reads one pid per line")
+i_bind = main_src.find("ThreadingHTTPServer")
+i_warn = main_src.find("sweep.warn_port_squatters")
+ok(i_bind != -1 and i_warn != -1 and i_warn > i_bind,
+   "SW12c the gateway warns on console AND events when another process still listens on our port (the 'ready' line must stop lying)")
+
+# ---- SW13: the shipped launcher verifies, refuses, never lies -------------
+ok("taskkill" in cmd_src, "SW13a the launcher kills with taskkill /F /T (Stop-Process silently fails on foreign-owner processes)")
+ok("STILL HELD" in cmd_src and "errorlevel" in cmd_src,
+   "SW13b the launcher re-checks the port after the kill and names the survivor (pid + owner)")
+ok("exit /b 1" in cmd_src, "SW13c a port that cannot be freed ABORTS the launcher instead of double-binding")
+
 print("ALL PASS")
