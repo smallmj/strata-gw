@@ -4,8 +4,10 @@ $ErrorActionPreference = 'SilentlyContinue'
 function Kill-Tree([int]$rootPid) {
     $kids = Get-CimInstance Win32_Process -Filter "ParentProcessId=$rootPid"
     foreach ($k in $kids) { Kill-Tree -rootPid ([int]$k.ProcessId) }
-    Write-Host ("[stop-gw]   kill pid {0}" -f $rootPid)
-    Stop-Process -Id $rootPid -Force
+    Write-Host ("[stop-gw]   taskkill /F /T pid {0}" -f $rootPid)
+    # taskkill, not Stop-Process: tree kill + auto SeDebugPrivilege, so
+    # leftovers owned by another account (e.g. SYSTEM) actually get killed
+    taskkill /F /T /PID $rootPid
 }
 
 $listeners = Get-NetTCPConnection -LocalPort $Port -State Listen
