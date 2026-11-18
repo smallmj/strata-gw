@@ -107,10 +107,19 @@ ok(sweep.enabled() is True, "SW6b STRATA_SWEEP=1 forces it back on")
 del os.environ["STRATA_SWEEP"]
 ok(sweep.enabled() is True, "SW6c default on")
 
-# ---- SW7: POSIX inertness (CI runs here) ---------------------------------
-res = sweep.sweep_boot()
-res2 = sweep.sweep_orphans()
-ok(res == [] and res2 == [], "SW7a on non-Windows both sweeps are inert no-ops")
+# ---- SW7: POSIX inertness (CI runs here) ----------------------------------
+# LIVE GUARD: on a real Windows box sweep_boot()/sweep_orphans() would reap
+# that box's running gateway and engines (learned the hard way 2026-11-18,
+# running this suite on D:\strata-gw killed the live tree). On Windows the
+# suite pins only the knob logic above and skips the live calls entirely.
+if os.name == "nt":
+    with open(os.path.join(REPO, "gw", "sweep.py"), encoding="utf-8") as f:
+        ok("os.name != \"nt\"" in f.read(),
+           "SW7a live sweep calls SKIPPED on Windows (this suite must never reap the box it runs on)")
+else:
+    res = sweep.sweep_boot()
+    res2 = sweep.sweep_orphans()
+    ok(res == [] and res2 == [], "SW7a on non-Windows both sweeps are inert no-ops")
 
 # ---- SW8: wiring pins ----------------------------------------------------
 with open(os.path.join(REPO, "gw", "main.py"), encoding="utf-8") as f:
