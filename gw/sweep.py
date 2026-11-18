@@ -198,13 +198,17 @@ def _enumerate() -> list[dict]:
 def _kill(plan: list[tuple[int, str, str]]) -> None:
     if not plan:
         return
-    ids = ",".join(str(pid) for pid, _n, _w in plan)
-    try:
-        subprocess.run(["powershell", "-NoProfile", "-Command",
-                        "Stop-Process -Id " + ids + " -Force -ErrorAction SilentlyContinue"],
-                       capture_output=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        pass
+    # taskkill, not Stop-Process: it tree-kills (venv stub + interpreter +
+    # children in one call) and it auto-enables SeDebugPrivilege, so a process
+    # owned by SYSTEM or another account gets a REAL chance to die. The old
+    # Stop-Process -ErrorAction SilentlyContinue path failed with a swallowed
+    # access-denied and the "survived the kill" line was the only trace.
+    for pid, _name, _why in plan:
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                           capture_output=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            pass
     # prove it: re-enumerate until the named pids are gone (or patience ends)
     wanted = {pid for pid, _n, _w in plan}
     deadline = time.time() + 10.0
@@ -214,8 +218,94 @@ def _kill(plan: list[tuple[int, str, str]]) -> None:
         time.sleep(0.5)
     still = wanted & {r["pid"] for r in _enumerate()}
     if still:
-        print(f"[router] sweep: {len(still)} process(es) survived the kill: "
-              f"{sorted(still)}", flush=True)
+        names = {pid: nm for pid, nm, _w in plan}
+        own = owners(sorted(still))
+        for pid in sorted(still):
+            o = own.get(pid, "?")
+            print(f"[router] sweep: pid {pid} ({names.get(pid, '?')}, owner {o}) "
+                  "survived the kill - access denied (it runs under a different "
+                  "account than this gateway) or it is wedged in a driver call. "
+                  f"Fix from an ELEVATED session: taskkill /F /T /PID {pid}",
+                  flush=True)
+        events.revent("boot", f"sweep could not stop {len(still)} process(es) "
+                              "(different account / access denied)")
+
+
+def parse_owners(text: str) -> dict[int, str]:
+    """'42400|NT AUTHORITY\\SYSTEM' lines -> {pid: 'DOMAIN\\USER'}."""
+    out: dict[int, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or "|" not in line:
+            continue
+        pid, own = line.split("|", 1)
+        try:
+            out[int(pid)] = own.strip()
+        except ValueError:
+            continue
+    return out
+
+
+def owners(pids: list[int]) -> dict[int, str]:
+    if not pids or os.name != "nt":
+        return {}
+    flt = " OR ".join(f"ProcessId={p}" for p in pids)
+    script = ('Get-CimInstance Win32_Process -Filter "' + flt + '" '
+              '| ForEach-Object { $o = $_ | Invoke-CimMethod -Name GetOwner '
+              '-ErrorAction SilentlyContinue; '
+              '"{0}|{1}\\{2}" -f $_.ProcessId, $o.Domain, $o.User }')
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-Command", script], capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    return parse_owners((r.stdout or b"").decode("utf-8", "replace"))
+
+
+def parse_listen_rows(text: str) -> list[int]:
+    """Get-NetTCPConnection enumeration: one pid per line."""
+    out: list[int] = []
+    for line in text.splitlines():
+        s = line.strip()
+        if s.isdigit():
+            out.append(int(s))
+    return out
+
+
+def listeners(port: int) -> list[int]:
+    if os.name != "nt":
+        return []
+    script = (f'Get-NetTCPConnection -LocalPort {port} -State Listen '
+              '-ErrorAction SilentlyContinue | '
+              'ForEach-Object { "{0}" -f $_.OwningProcess }')
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-Command", script], capture_output=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return parse_listen_rows((r.stdout or b"").decode("utf-8", "replace"))
+
+
+def warn_port_squatters(port: int) -> list[int]:
+    """After this router binds: anything ELSE still listening on our port means
+    the boot sweep could not stop it (different account) - two routers sharing
+    one port split traffic and hide engine logs in someone else's console. This
+    must never be silent: name pid + owner on the console and in the events."""
+    if os.name != "nt":
+        return []
+    others = [p for p in listeners(port) if p != os.getpid()]
+    if not others:
+        return []
+    own = owners(others)
+    for p in others:
+        print(f"[router] WARNING: pid {p} ({own.get(p, '?')}) is ALSO listening "
+              f"on :{port} - the boot sweep could not stop it, so this gateway "
+              "SHARES the port: requests split between the two routers and the "
+              "engines' logs stream into the OTHER window. Stop it from an "
+              f"ELEVATED session: taskkill /F /T /PID {p}", flush=True)
+    events.revent("boot", f"port :{port} is shared with surviving process(es) "
+                          f"{others} - stop them from an elevated session")
+    return others
 
 
 def _report(plan: list[tuple[int, str, str]], verb: str) -> None:
