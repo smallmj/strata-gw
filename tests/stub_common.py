@@ -54,6 +54,39 @@ def _conv_cache(mode):
             "last_reused": 640 if on else None, "last_prompt": 1800 if on else None}
 
 
+def _mcp_payload(mode):
+    """The v0.2.16 /mcp face (strata-face field set: servers[]:{name,transport,
+    status,tools:[{tool,description}],info,error} + total tools). T5 renders
+    against this: full = the three states one engine reports at once — a
+    connected server with 10 tools (past the card's 8-chip cap), an errored
+    server whose engine text carries escaping-hostile chars, and a disabled
+    one. Values fake, shape real. empty = configured, no servers; absent is
+    handled by the route (404), not by this factory."""
+    if mode != "full":
+        return {"servers": [], "tools": 0}
+    return {"servers": [
+        {"name": "strata-tools", "transport": "stdio", "status": "connected",
+         "info": "in-process bundle", "error": None,
+         "tools": [{"tool": "search_docs", "description": "full-text search over docs"},
+                   {"tool": "fetch_url", "description": 'GET a URL & parse "<html>"'},
+                   {"tool": "read_file", "description": "read one file"},
+                   {"tool": "list_cards", "description": "list enrolled cards"},
+                   {"tool": "tap_events", "description": "peek the event ring"},
+                   {"tool": "snap_state", "description": "dump one snapshot"},
+                   {"tool": "diff_bundle", "description": "diff two bundle dirs"},
+                   {"tool": "prune_logs", "description": "drop old log lines"},
+                   {"tool": "tail_live", "description": "follow live lines"},
+                   {"tool": "watch_deck", "description": "watch the card deck"}]},
+        {"name": "weather", "transport": "http", "status": "error",
+         "info": "", "error": 'upstream refused: <weather.example> "key" & more',
+         "tools": []},
+        {"name": "legacy-db", "transport": "sse", "status": "disabled",
+         "info": "", "error": None,
+         "tools": [{"tool": "query", "description": "run a saved query"},
+                   {"tool": "ping", "description": "server liveness"}]}],
+        "tools": 12}
+
+
 class Stub:
     """Fake lazy backend: /health, /v1/models, POST /load, POST /unload.
     v0.2.16 face (#16): '/' serves the HTML marker; /props /slots /api/expert-heat
@@ -66,6 +99,7 @@ class Stub:
         self.max_context = 524288
         self.cc_mode, self.heat = "on", True    # metrics cache tri-state / heat two-state
         self.par, self.adm = False, False       # live queue variants (T71): parallel slots / refusal counters
+        self.mcp_mode = "empty"                 # /mcp tri-state (T5): full / empty / absent(404)
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -92,7 +126,11 @@ class Stub:
                                                       "kind": "number"}],
                                             "note": "used from the next start"})
                 if p == "/mcp":
-                    return self._send(200, {"servers": [], "tools": 0})
+                    # tri-state switch (T5): full face / empty face / the old
+                    # engine's 404 — the MCP card degrades against these three.
+                    if outer.mcp_mode == "absent":
+                        return self._send(404, {"error": "no-such-endpoint: /mcp"})
+                    return self._send(200, _mcp_payload(outer.mcp_mode))
                 if p == "/status":
                     return self._send(200, {"busy": False, "who": outer.name})
                 if p == "/metrics":

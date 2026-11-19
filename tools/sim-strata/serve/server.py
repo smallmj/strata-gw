@@ -26,9 +26,12 @@ STATE = {"loaded": False, "name": "sim-model", "max_context": 131072,
 # truth-up switches (#16, mirrors tests/stub_common.py): the degraded faces
 # T3/T4/T7 render against. CCACHE=on|off|absent drives /metrics
 # conversation_cache; HEAT=on|off drives /api/expert-heat (off = 404,
-# exactly like a real serve with no expert profile configured).
+# exactly like a real serve with no expert profile configured); MCP=
+# full|empty|absent drives /mcp for the T5 card (empty is the face an
+# unconfigured serve answers; absent = 404, an old engine without the route).
 CCACHE_MODE = os.environ.get("SIM_STRATA_CCACHE", "on")
 HEAT_ON = os.environ.get("SIM_STRATA_HEAT", "on") != "off"
+MCP_MODE = os.environ.get("SIM_STRATA_MCP", "empty")
 HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # kit-shrunken (real box: 48x512), shape-true
 
 
@@ -48,6 +51,39 @@ def _conv_cache(mode):
             "last_refused": None, "requests": 40, "requests_reused": 14,
             "reused_tokens": 3100, "prompt_tokens": 9800,
             "last_reused": 640 if on else None, "last_prompt": 1800 if on else None}
+
+
+def _mcp_payload(mode):
+    """The v0.2.16 /mcp face (strata-face field set: servers[]:{name,transport,
+    status,tools:[{tool,description}],info,error} + total tools). T5 renders
+    against this: full = the three states one engine reports at once — a
+    connected server with 10 tools (past the card's 8-chip cap), an errored
+    server whose engine text carries escaping-hostile chars, and a disabled
+    one. Values fake, shape real. Byte-identical face to tests/stub_common.py;
+    absent is handled by the route (404), not by this factory."""
+    if mode != "full":
+        return {"servers": [], "tools": 0}
+    return {"servers": [
+        {"name": "strata-tools", "transport": "stdio", "status": "connected",
+         "info": "in-process bundle", "error": None,
+         "tools": [{"tool": "search_docs", "description": "full-text search over docs"},
+                   {"tool": "fetch_url", "description": 'GET a URL & parse "<html>"'},
+                   {"tool": "read_file", "description": "read one file"},
+                   {"tool": "list_cards", "description": "list enrolled cards"},
+                   {"tool": "tap_events", "description": "peek the event ring"},
+                   {"tool": "snap_state", "description": "dump one snapshot"},
+                   {"tool": "diff_bundle", "description": "diff two bundle dirs"},
+                   {"tool": "prune_logs", "description": "drop old log lines"},
+                   {"tool": "tail_live", "description": "follow live lines"},
+                   {"tool": "watch_deck", "description": "watch the card deck"}]},
+        {"name": "weather", "transport": "http", "status": "error",
+         "info": "", "error": 'upstream refused: <weather.example> "key" & more',
+         "tools": []},
+        {"name": "legacy-db", "transport": "sse", "status": "disabled",
+         "info": "", "error": None,
+         "tools": [{"tool": "query", "description": "run a saved query"},
+                   {"tool": "ping", "description": "server liveness"}]}],
+        "tools": 12}
 
 
 def _heat_payload():
@@ -113,7 +149,11 @@ class H(BaseHTTPRequestHandler):
         if p == "/status":
             return self._send(200, {"busy": False, "who": STATE["name"]})
         if p == "/mcp":
-            return self._send(200, {"servers": [], "tools": 0})
+            # tri-state switch (T5): SIM_STRATA_MCP=full answers the mixed
+            # servers face; =absent 404s like an old engine without the route.
+            if MCP_MODE == "absent":
+                return self._send(404, {"error": "no-such-endpoint: " + p})
+            return self._send(200, _mcp_payload(MCP_MODE))
         if p == "/metrics":
             t = time.time() % 600.0
             wave = (math.sin(t / 60.0 * 2 * math.pi) + 1) / 2
