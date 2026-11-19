@@ -1306,7 +1306,7 @@ function renderMonitor(){
     if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
     if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
-    paintHealth(null,null,0);phTiles();setTxt(strip,"");
+    paintHealth(null,null,0);phTiles();paintQueue();setTxt(strip,"");
     var pr0='<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>';if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
     setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
@@ -1426,6 +1426,7 @@ function renderMonitor(){
   var rh=rows.join("");if(tb._h!==rh){tb._h=rh;tb.innerHTML=rh}
   setTxt(hint,(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start")));
   paintHealth(d,hw,rp);
+  paintQueue();
 }
 function pollMetrics(){
   if(!selName)return;
@@ -1433,6 +1434,88 @@ function pollMetrics(){
     .then(function(r){return r.ok?r.json():Promise.reject(r.status)})
     .then(function(m){mon.data=m;MONTS=Date.now();renderMonitor()})
     .catch(function(){mon.data=null;renderMonitor()});
+  /* issue #18: in-flight + concurrency ride the SAME 2.5s tick — one extra
+     ~1KB proxied fetch (catch-all /v1/status), fail-and-stop: after one
+     404/401/network miss we never re-ask until the model switch. No new timer. */
+  if(!_v1fail){
+    fetch("v1/status?model="+encodeURIComponent(selName),{headers:hdrs(false)})
+      .then(function(r){return r.ok?r.json():Promise.reject(r.status)})
+      .then(function(v){_v1st=v;paintQueue()})
+      .catch(function(){_v1fail=1;_v1st=null;paintQueue()});
+  }
+}
+/* ---------------- engine queue panel (issue #18, T3) ----------------
+   ADR-0001 zero-synthesis: every number comes verbatim from a proxied
+   engine field (live.*, /v1/status.*, run-config max_queue) or from the
+   gateway's own generation-gate state; a missing field is a quiet dash,
+   NEVER an invented zero. queuePanel is pure: payload in, HTML out. */
+var _v1st=null,_v1fail=0,capMaxQ=null,GATE=null;
+function queuePanel(live,v1,cap,gate,loaded){
+  function stat(cls,val,k,sub,title){
+    return '<div class="stat'+(cls?" "+cls:"")+'"'+(title?' title="'+esc(title)+'"':"")+'>'+
+      '<span class="k">'+k+'</span><b>'+val+'</b>'+(sub?'<span class="s">'+sub+'</span>':"")+'</div>';
+  }
+  function gateLine(g){
+    return '<p class="mnote warn" role="status" title="'+esc(tt("外部出图任务仍占卡——引擎请求被挡在门外","an external image job still holds the card — engine requests are held at the door"))+'"><span class="sdot warn"></span>'+tt("出图闸等待中 · ","generation gate holding · ")+num(g.waited_s)+tt("秒","s")+'</p>';
+  }
+  var holding=(gate&&gate.waited_s!=null)?gateLine(gate):"";
+  if(!live||!loaded){
+    var ph=live&&!loaded?tt("引擎未驻留","engine off post")
+      :tt("排队信息在开工后点亮","queue lights up once the engine answers metrics");
+    var hs='<div class="qstats">'+
+      stat("na","\u2013",tt("排队","queued"))+
+      stat("na","\u2013",tt("在飞","in flight"))+
+      stat("na","\u2013",tt("并发","concurrency"))+'</div>'+
+      '<p class="mnote na">'+ph+'</p>'+holding;
+    return hs;
+  }
+  var h='<div class="qstats">';
+  var q=live.queued;
+  h+=stat(q==null?"na":(q>0?"warn":"na"),num(q),tt("排队","queued"),null,
+          q==null?tt("该引擎未报告这一字段","this engine does not report this field"):null);
+  var act=(v1&&v1.activity)||{},cn=(v1&&v1.concurrency)||{};
+  h+=stat(null,num(act.in_flight),tt("在飞","in flight"));
+  h+=stat(null,(cn.serving==null&&cn.requested==null)?"\u2013":num(cn.serving)+"/"+num(cn.requested),
+          tt("并发","concurrency"));
+  if(cap&&cap>0)
+    h+=stat(null,num(cap),tt("准入门槛","admission cap"),null,tt("超上限时 429 admission_full · 等待超时 429 queue_wait_timeout","over cap → 429 admission_full · wait timeout → 429 queue_wait_timeout"));
+  var adm=(live.admission&&typeof live.admission==="object")?live.admission:null;
+  if(adm)
+    h+=stat(adm.total>0?"warn":null,num(adm.total),tt("拒收","refused"),
+            tt("RAM 底线","RAM floor")+" "+num(adm.ram_floor)+tt(" · 预算 "," · budget ")+num(adm.budget));
+  var par=Array.isArray(live.slots);
+  if(par){
+    h+=stat(null,num(live.waiting),tt("等待","waiting"))+
+        stat(null,num(live.admitting),tt("准入中","admitting"));
+  }
+  h+='</div>';
+  if(par){
+    h+='<div class="lab lab2">'+tt("槽位","slots")+'</div><table class="qslots"><tr><th>'+
+      tt("槽","slot")+'</th><th>'+tt("状态","state")+'</th><th>'+tt("读入 tok","read tok")+
+      '</th><th>'+tt("生成 tok","generated tok")+'</th><th>'+tt("持有 tok","held tok")+'</th></tr>';
+    if(!live.slots.length)
+      h+='<tr class="t-empty"><td colspan="5">'+tt("并行槽位空闲","parallel slots idle")+'</td></tr>';
+    live.slots.forEach(function(r){
+      var idle=r&&r.state==="idle";
+      var stt=idle?tt("待机","idle"):(r&&r.state==="generating")?tt("生成中","generating"):esc((r&&r.state)||"\u2013");
+      h+='<tr><td>'+esc((r&&r.slot!=null)?String(r.slot):"\u2013")+'</td><td>'+stt+'</td>'+
+        '<td>'+(idle?"\u2013":num(r&&r.prompt_read))+'</td><td>'+(idle?"\u2013":num(r&&r.generated))+'</td>'+
+        '<td>'+(idle?num(r&&r.held_tokens):"\u2013")+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  if(gate&&gate.waited_s!=null)h+=gateLine(gate);
+  return h;
+}
+function paintQueue(){
+  var box=document.getElementById("mon-qbody");if(!box)return;
+  var live=(mon.data&&mon.data.live)||null;
+  var loaded=!!selName&&modelsList.some(function(b){return b.model===selName&&b.loaded});
+  var h=queuePanel(live,_v1st,capMaxQ,GATE,loaded);
+  if(box._h!==h){box._h=h;box.innerHTML=h}
+  var ag=document.getElementById("mon-qage");
+  if(ag){var at=(mon.data&&MONTS)?tt("更新于 ","updated ")+Math.max(0,Math.round((Date.now()-MONTS)/1000))+tt(" 秒前","s ago"):"";
+    if(ag._t!==at){ag._t=at;ag.textContent=at}}
 }
 
 /* ---------------- settings ---------------- */
@@ -1442,7 +1525,9 @@ var SAMP=[["temperature","stemp","ostemp",1],["top_p","stop_p","os-top_p",2],["t
 function selectModel(name,quiet){
   if(selName===name)return;
   selName=name;
-  mon.data=null;MONTS=0;pollMetrics();
+  mon.data=null;MONTS=0;
+  _v1st=null;_v1fail=0;capMaxQ=null;   // the queue face re-probes for the new model
+  pollMetrics();
   loadSettings();loadConfig();
 }
 function loadSettings(){
@@ -1564,6 +1649,14 @@ function loadConfig(){
   if(!selName)return;
   qs("router/config?model="+encodeURIComponent(selName),function(d){
     cfgKeys=d.keys||[];
+    /* admission truth for the queue panel: the run-config cap, captured here
+       (this payload is already fetched on model select — no extra request).
+       Absent or 0 → no cap stat ever rendered (the common case). */
+    capMaxQ=null;
+    cfgKeys.forEach(function(k){
+      if(k.key==="max_queue"&&typeof k.value==="number"&&k.value>0)capMaxQ=k.value;
+    });
+    paintQueue();
     document.getElementById("cfg-note").textContent=(d.note||CFGNOTE)+(d.file?(tt("（文件: ","(file: ")+d.file+"）"):"");
     var wrap=document.getElementById("cfg-list");wrap.innerHTML="";
     cfgKeys.forEach(function(k){
@@ -1707,7 +1800,7 @@ function renderArch(backends){
   g.innerHTML=defs+links+cl.svg+gw.svg+ms.map(function(m){return m.svg}).join("")+ext.svg;
 }
 
-var KIND={load:tt("开工","clock-in"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),switch:tt("切换","switch"),backend:tt("后端","backend"),keepalive:tt("续命","keep-alive"),boot:tt("苏醒","woke up"),error:tt("异常","stale")};
+var KIND={load:tt("开工","clock-in"),unload:tt("让位","yield"),gpu:tt("显存","VRAM"),gate:tt("出图闸","gate"),switch:tt("切换","switch"),backend:tt("后端","backend"),keepalive:tt("续命","keep-alive"),boot:tt("苏醒","woke up"),error:tt("异常","stale")};
 var evOpen=false;
 function loadEvents(){
   qs("router/events",function(d){
@@ -1772,6 +1865,11 @@ cforce.onclick=function(){
 };
 function fetchGpu(){
   fetch("router/gpu").then(function(r){return r.json()}).then(function(c){
+    /* the generation gate is gw's own state (ADR-0001 guards engine data
+       only): /router/gpu carries gen_gate.waited_s ONLY while the gate holds
+       an engine request behind an external generator — mirror it verbatim. */
+    GATE=(c.gen_gate&&typeof c.gen_gate.waited_s==="number")?c.gen_gate:null;
+    paintQueue();
     var el=document.getElementById("gpuhold"),bar=el.querySelector(".bar i"),lab=el.querySelector("b");
     var fr=null;
     if(cfreeBusy||c.freeing){
