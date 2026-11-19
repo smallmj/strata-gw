@@ -83,3 +83,17 @@ git commit -m "feat: ..." -m "Written-by: qwen3.8-flash-next-iq3_s via strata-gw
 
 If a session with different authorship lands a change, state it honestly in
 that commit's trailer instead of omitting the line.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues at `smallmj/strata-gw` (via `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary — the five canonical roles used as-is. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
