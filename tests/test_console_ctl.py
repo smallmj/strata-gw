@@ -716,4 +716,126 @@ ok('if(loaded&&lv.queued>0' not in js, "Q1 synthesized queued badge is gone from
 ok('queued:tt("排队中","queued")' in js and 'else if(state==="queued")' in js,
    "Q1b guard: the STATE queued entry + detail branch stay for the engine's own queued state")
 
+# Q2 the panel shell: right after #mon, before #mon-strip (design record §0.1)
+ok('id="mon-queue"' in html
+   and html.index('id="mon-queue"') > html.index('id="mon"')
+   and html.index('id="mon-queue"') < html.index('id="mon-strip"'),
+   "Q2 #mon-queue sits in the Monitor block between the bands and the strip")
+
+# Q3 the design-record §6 queue vocabulary ships as zh/en pairs (T13a parity)
+_qkeys = ("q.band q.queued q.inflight q.conc q.cap q.cap.tit q.refused q.ref.ram q.ref.bud "
+          "q.waiting q.admitting q.slots q.th.slot q.th.state q.th.read q.th.gen q.th.held "
+          "q.idle q.gate q.gate.tit q.ph q.off q.nofield q.slots.empty").split()
+_qt = _json.loads(i18njs[i18njs.index("{"):i18njs.rindex("}") + 1])
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _qkeys),
+   "Q3 all %d q.* keys present in both tongues" % len(_qkeys))
+
+# Q4 the queue renderer is a pure function; node runs it over every face variant
+_qp = _fn_src(js, "queuePanel")
+ok(bool(_qp), "Q4a queuePanel is extractable for a real run")
+if _qp:
+    import subprocess as _sqp
+    import tempfile as _tqp
+    _SHIM_ZH = r"""
+var LANG="zh";
+function tt(z,e){return LANG==="zh"?z:e}
+function num(v){if(v==null)return "\u2013";var s=""+Math.round(v);
+  return s.replace(/([0-9])(?=([0-9]{3})+$)/g,"$1,")}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+"""
+    def _qcase(args, lang="zh"):
+        """Run queuePanel(args...) in node over the shim; returns its HTML."""
+        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "qcase_%s.js" % lang)
+        with open(_tf, "w", encoding="utf-8") as _f:
+            _f.write(_SHIM_ZH.replace('var LANG="zh";', 'var LANG="%s";' % lang)
+                     + _qp + "\nconsole.log(JSON.stringify(queuePanel(%s)));" % args)
+        _r = _sqp.run(["node", _tf], capture_output=True, text=True, timeout=20)
+        if _r.returncode != 0:
+            ok(False, "queuePanel node run failed: " + _r.stderr[:200])
+            return ""
+        return _json.loads(_r.stdout)
+    # engine truth drives the numbers: live.queued from /metrics, verbatim
+    _h1 = _qcase('{"state":"idle","queued":3},null,null,null,true')
+    ok("排队" in _h1 and ">3<" in _h1, "Q4b queued count renders from engine live.queued")
+    # old engine without the field: a quiet dash, never an error
+    _h2 = _qcase('{"state":"idle"},null,null,null,true')
+    ok("\u2013" in _h2 and "该引擎未报告这一字段" in _h2,
+       "Q4c absent live.queued degrades to dash + q.nofield title")
+    # v1/status numbers: in flight + serving/requested concurrency, verbatim
+    _h3 = _qcase('{"state":"generating","queued":0},{"concurrency":{"serving":2,"requested":4},'
+                 '"activity":{"in_flight":5}},null,null,true')
+    ok("在飞" in _h3 and ">5<" in _h3 and "并发" in _h3 and "2/4" in _h3,
+       "Q4d in-flight and concurrency render from /v1/status")
+    # v1/status absent (old engine 404): both stats dash, no error text
+    _h4 = _qcase('{"state":"idle","queued":0},null,null,null,true')
+    ok("在飞" in _h4 and "并发" in _h4 and "2/4" not in _h4
+       and "429" not in _h4 and _h4.count(">–<") >= 2,
+       "Q4e /v1/status missing: in-flight/concurrency dash")
+    # admission cap: rendered only when set and >0; never a zero-cap
+    _h5 = _qcase('{"state":"idle","queued":0},null,32,null,true')
+    ok("准入门槛" in _h5 and ">32<" in _h5 and "429 admission_full" in _h5,
+       "Q4f cap renders only when set + the 429 legend rides its title")
+    for _caplit in ("null", "0"):
+        _h6 = _qcase('{"state":"idle","queued":0},null,%s,null,true' % _caplit)
+        ok("准入门槛" not in _h6, "Q4g no cap stat when unset(%s)" % _caplit)
+    # refusal counters render only when the payload carries live.admission
+    _h7 = _qcase('{"state":"idle","queued":0,"admission":{"total":9,"ram_floor":2,"budget":7}},null,null,null,true')
+    ok("拒收" in _h7 and ">9<" in _h7 and "RAM 底线 2" in _h7 and "预算 7" in _h7,
+       "Q4h refusal counters render verbatim from live.admission")
+    _h8 = _qcase('{"state":"idle","queued":0},null,null,null,true')
+    ok("拒收" not in _h8, "Q4i no refusal stat when the engine lacks the counters")
+    # parallel: slot table + waiting/admitting only when the engine reports slots
+    _h9 = _qcase('{"state":"generating","queued":1,"waiting":2,"admitting":1,'
+                 '"slots":[{"slot":0,"state":"generating","prompt_read":1204,"generated":512},'
+                 '{"slot":1,"state":"idle","held_tokens":8192}]},null,null,null,true')
+    ok("<table" in _h9 and "1,204" in _h9 and ">512<" in _h9 and "8,192" in _h9
+       and "待机" in _h9 and "等待" in _h9 and ">2<" in _h9 and "准入中" in _h9,
+       "Q4j parallel slots table renders engine rows verbatim")
+    _h10 = _qcase('{"state":"idle","queued":0},null,null,null,true')
+    ok("<table" not in _h10 and "并行槽位空闲" not in _h10 and "槽位" not in _h10,
+       "Q4k not parallel: no table, no 'no slots' text")
+    _h11 = _qcase('{"state":"idle","queued":0,"waiting":0,"admitting":0,"slots":[]},null,null,null,true')
+    ok("<table" in _h11 and "并行槽位空闲" in _h11,
+       "Q4l parallel but slots empty: single idle-row message")
+    # generation gate: the secondary line ONLY while holding — gw's own state
+    _h12 = _qcase('{"state":"idle","queued":0},null,null,{"waited_s":6},true')
+    ok("出图闸等待中" in _h12 and "6" in _h12 and 'role="status"' in _h12
+       and "被挡在门外" in _h12, "Q4m gate line renders only while gen_gate holds")
+    _h13 = _qcase('{"state":"idle","queued":0},null,null,null,true')
+    ok("出图闸" not in _h13, "Q4n no gate line when not holding (never a 'gate idle' row)")
+    # backend off: panel stays, stats dash, honest off-post note; no metrics: placeholder
+    _h14 = _qcase('{"state":"unloaded"},null,32,null,false')
+    ok("引擎未驻留" in _h14 and "准入门槛" not in _h14,
+       "Q4o backend off: stats dash + q.off note, panel stays")
+    _h15 = _qcase("null,null,32,null,true")
+    ok("排队信息在开工后点亮" in _h15 and "<table" not in _h15,
+       "Q4p no metrics yet: quiet placeholder")
+    # zero synthesis: the renderer never invents a number the payload lacks
+    _h16 = _qcase('{"state":"reading"},null,null,null,true')
+    ok(">0<" not in _h16 and "排队" in _h16, "Q4q zero-synthesis: missing fields never become fake numbers")
+    # EN mirror: the same payload speaks English
+    _h17 = _qcase('{"state":"generating","queued":3,"admission":{"total":1,"ram_floor":0,"budget":1}},'
+                  '{"concurrency":{"serving":1,"requested":1},"activity":{"in_flight":1}},2,'
+                  '{"waited_s":3},true', lang="en")
+    ok("queued" in _h17 and "in flight" in _h17 and "concurrency" in _h17
+       and "admission cap" in _h17 and "refused" in _h17 and "generation gate holding" in _h17,
+       "Q4r EN mirror of the whole panel")
+
+# Q5 polling discipline: the queue rides the 2.5s tick + one small v1/status
+# fetch with fail-and-stop; NO new timer is allowed anywhere (discipline guard:
+# the timer count must stay exactly what it is today - 5 page loops + 2
+# one-shot wizard/onboard ticks).
+ok(js.count("setInterval") == 7,
+   "Q5a zero new setInterval: the queue panel adds no timer to the existing seven")
+ok("v1/status" in js and "_v1fail" in js, "Q5b pollMetrics carries the v1/status fetch with fail-and-stop")
+
+# Q6 the event stream names the gate (kind chip + status-ladder color)
+ok('gate:tt("出图闸","gate")' in js, "Q6a KIND carries the canonical gate label")
+ok(".ev.gate .kind" in css and "var(--warn)" in css, "Q6b .ev.gate rides the warn rung")
+
+# Q7 the shared mcard primitives ship with the panel (design record §0.2)
+for _cls in (".mcard", ".stat", ".qstats", ".sdot", ".mnote"):
+    ok(_cls in css, "Q7 mcard primitive has a skin: " + _cls)
+
 sys.exit(0 if not F else 1)
