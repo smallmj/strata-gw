@@ -31,11 +31,19 @@ def _conv_cache(mode):
 
 HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # stub-shrunken but shape-true (real box: 48x512)
 
-def _heat_payload():
-    """/api/expert-heat configured variant. Layers/experts are shrunk 48x512 ->
-    4x8 for the stub, but the semantics stay true: rank[] is row-major,
-    rank[l*experts + e] = 0-based within-layer rank, 0 = hottest (design
-    record section 9.1). Formula (e+3l)%E keeps every layer a permutation."""
+def _heat_payload(configured=True):
+    """/api/expert-heat face (design record §5, strata-face field set). The
+    layers are stub/kit-shrunken 48x512 -> 4x8 but the semantics stay true:
+    rank[] is row-major, rank[l*experts + e] = 0-based within-layer rank,
+    0 = hottest (design record section 9.1); the formula (e+3l)%E keeps every
+    layer a permutation of 0..experts-1. configured=False is the SECOND hidden
+    face (#22, T7): the endpoint answers 200 but no expert profile is saved -
+    the console section stays hidden for it exactly as for the 404. tests/
+    stub_common.py and the sim kit carry this factory byte-identically
+    (the H-series byte-ident pin in test_console_ctl)."""
+    if not configured:
+        return {"configured": False, "every_min": 0, "saved_at": None,
+                "layers": 0, "experts": 0, "ranked": 0, "rank": []}
     L, E = HEAT_LAYERS, HEAT_EXPERTS
     return {"configured": True, "every_min": 10, "saved_at": 1763560000.0,
             "layers": L, "experts": E, "ranked": L * E,
@@ -81,7 +89,7 @@ class Stub:
         self.name, self.port, self.loaded = name, port, False
         self.load_calls, self.unload_calls = 0, 0
         self.shared, self.posts = {}, []
-        self.cc_mode, self.heat = "on", True    # metrics cache 三态 / heat 两态开关
+        self.cc_mode, self.heat = "on", "on"    # metrics cache 三态 / heat 三态 (on|false|off)
         self.par, self.adm = False, False       # metrics live 队列变体 (T71): parallel slots / 拒收计数
         self.mcp_mode = "empty"                 # /mcp 三态 (T72/T5): full / empty / absent(404)
         outer = self
@@ -198,11 +206,12 @@ class Stub:
                                             "activity": {"in_flight": 0},
                                             "last_timings": {}, "vram": {}, "machine": {}})
                 if p == "/api/expert-heat":
-                    # two-state switch (#16): unconfigured engine = 404,
-                    # exactly like the real serve with no expert profile.
-                    if not outer.heat:
+                    # tri-state switch (#16 + #22): "off" = the real serve with
+                    # no expert profile (404); "false" = the endpoint answers
+                    # 200 but reports configured:false; "on" = the grid face.
+                    if outer.heat == "off":
                         return self._send(404, {"error": "no expert profile configured"})
-                    return self._send(200, _heat_payload())
+                    return self._send(200, _heat_payload(outer.heat != "false"))
                 # v0.2.16 truth (#16): the real serve 404s every unknown path
                 # (no /monitor, no /queue, no /experts) - so must the stub.
                 return self._send(404, {"error": "no-such-endpoint: " + p})
@@ -839,11 +848,26 @@ try:
        "T70b rank[] is row-major layers x experts; every layer block a 0-based within-layer permutation")
     ok(rk[0] == 0 and rk[2 * HE + 3] == 1,
        "T70c known-cell pin: rank[2*8+3]==1 (row-major l*E+e, 0=hottest - design record §9.1)")
-    A.heat = False
+    A.heat = "off"    # the endpoint-absent face: like a serve with no profile
     s, h = req("GET", "/api/expert-heat?model=aaa-qwen")
     ok(s == 404,
-       "T70d heat two-state switch: unconfigured engine answers 404 on the same route")
-    A.heat = True
+       "T70d heat off-face switch: unconfigured engine answers 404 on the same route")
+    # (#22, T7) the SECOND hidden face: the endpoint exists and answers 200,
+    # but the engine reports configured:false - webui experts.js gates its tab
+    # on configured:true, and the console section must stay hidden the same way
+    # (design record §5 degraded table). stub_common and the sim kit carry the
+    # face byte-identically (H10 pin in test_console_ctl).
+    A.heat = "false"
+    s, h = req("GET", "/api/expert-heat?model=aaa-qwen")
+    fj = json.loads(h) if s == 200 else {}
+    ok(s == 200 and fj.get("configured") is False and fj.get("rank") == [],
+       "T70e configured:false face proxied verbatim: 200 + configured:false + empty rank")
+    ok(set(fj) == {"configured", "every_min", "saved_at", "layers", "experts", "ranked", "rank"},
+       "T70f the configured:false face keeps the full key set (no invented keys)")
+    A.heat = "on"
+    s, h = req("GET", "/gateway")
+    ok('id="experts-sec"' in h and 'id="heat-body"' in h and "api/expert-heat" in h,
+       "T70g the served console carries the hidden heat shell + the catch-all fetch path")
 
     # ---- T71 (issue #18, T3): the queue face over the wire ----
     # /v1/status via the catch-all: the console's second queue feed. The stub

@@ -25,11 +25,19 @@ ROUTER_PORT = int(os.environ.get("GW_TEST_PORT", "18090"))
 HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # stub-shrunken but shape-true (real box: 48x512)
 
 
-def _heat_payload():
-    """/api/expert-heat configured variant. Layers/experts are shrunk 48x512 ->
-    4x8 for the stub, but the semantics stay true: rank[] is row-major,
-    rank[l*experts + e] = 0-based within-layer rank, 0 = hottest (design
-    record section 9.1). Formula (e+3l)%E keeps every layer a permutation."""
+def _heat_payload(configured=True):
+    """/api/expert-heat face (design record §5, strata-face field set). The
+    layers are stub/kit-shrunken 48x512 -> 4x8 but the semantics stay true:
+    rank[] is row-major, rank[l*experts + e] = 0-based within-layer rank,
+    0 = hottest (design record section 9.1); the formula (e+3l)%E keeps every
+    layer a permutation of 0..experts-1. configured=False is the SECOND hidden
+    face (#22, T7): the endpoint answers 200 but no expert profile is saved -
+    the console section stays hidden for it exactly as for the 404. tests/
+    stub_common.py and the sim kit carry this factory byte-identically
+    (the H-series byte-ident pin in test_console_ctl)."""
+    if not configured:
+        return {"configured": False, "every_min": 0, "saved_at": None,
+                "layers": 0, "experts": 0, "ranked": 0, "rank": []}
     L, E = HEAT_LAYERS, HEAT_EXPERTS
     return {"configured": True, "every_min": 10, "saved_at": 1763560000.0,
             "layers": L, "experts": E, "ranked": L * E,
@@ -109,7 +117,7 @@ class Stub:
         self.load_calls, self.unload_calls = 0, 0
         self.shared, self.posts = {}, []
         self.max_context = 524288
-        self.cc_mode, self.heat = "on", True    # metrics cache tri-state / heat two-state
+        self.cc_mode, self.heat = "on", "on"    # metrics cache tri-state / heat tri-state (on|false|off)
         self.par, self.adm = False, False       # live queue variants (T71): parallel slots / refusal counters
         self.mcp_mode = "empty"                 # /mcp tri-state (T5): full / empty / absent(404)
         outer = self
@@ -223,11 +231,12 @@ class Stub:
                                             "activity": {"in_flight": 0},
                                             "last_timings": {}, "vram": {}, "machine": {}})
                 if p == "/api/expert-heat":
-                    # two-state switch (#16): unconfigured engine = 404,
-                    # exactly like the real serve with no expert profile.
-                    if not outer.heat:
+                    # tri-state switch (#16 + #22): "off" = the real serve with
+                    # no expert profile (404); "false" = the endpoint answers
+                    # 200 but reports configured:false; "on" = the grid face.
+                    if outer.heat == "off":
                         return self._send(404, {"error": "no expert profile configured"})
-                    return self._send(200, _heat_payload())
+                    return self._send(200, _heat_payload(outer.heat != "false"))
                 if p == "/":
                     return self._send(200, f"<html><body>stub:{outer.name}</body></html>", "text/html; charset=utf-8")
                 # v0.2.16 truth (#16): the real serve 404s every unknown path
