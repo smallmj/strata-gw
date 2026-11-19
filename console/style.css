@@ -476,6 +476,9 @@ html[data-theme=light] .acts .load{color:#fff}
 /* secondary lines (gate row, one-line degraded messages) */
 .mnote{font-size:.72rem;color:var(--muted);margin-top:8px}
 .mnote.warn{color:var(--warn)}.mnote.na{color:var(--na)}
+/* the budget bar inside a cache stat: the existing .pbar skin, widened to the
+   sub-line's text (design record §2: reuse .pbar + warm variant, no new skin) */
+.stat .pbar{margin-top:5px;min-width:110px}
 /* the parallel slot table: the request-table skin at half weight */
 .mcard .lab2{margin-top:10px}
 .qslots{width:100%;border-collapse:collapse;font-size:.73rem}

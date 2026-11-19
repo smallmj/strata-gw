@@ -1262,6 +1262,19 @@ function paintHealth(d,hw,rp){
 }
 function gbf(v,d){if(v==null||isNaN(v))return "–";var x=v/1073741824;return d?x.toFixed(d):""+(Math.round(x*10)/10)}
 function kfmt(v){if(v==null)return "–";if(v>=1000000)return (v/1000000).toFixed(2)+"M";if(v>=1000)return (v/1000).toFixed(1)+"K";return ""+v}
+/* §0.3 unit helpers (design record): the engine speaks MiB, so the console
+   labels MiB/GiB honestly — never reuse gbf()'s "GB" label for cache sizes. */
+function mib(v){if(v==null||isNaN(v))return "–";var g=v/1073741824;
+  return g>=1?g.toFixed(1)+" GiB":num(v/1048576)+" MiB"}
+function mibFromMiB(v){if(v==null||isNaN(v))return "–";
+  return v>=1024?(v/1024).toFixed(1)+" GiB":num(v)+" MiB"}
+/* age of an epoch-seconds field against the render clock — a FORMAT of
+   last_at/saved_at, never an invented number: <90s → N s, <2h → N min,
+   else the engine's own clock time HH:MM. */
+function relm(t){if(t==null||isNaN(t))return "–";var s=Date.now()/1000-t;
+  if(s<90)return num(Math.max(0,Math.round(s)))+tt(" 秒"," s");
+  if(s<7200)return num(Math.round(s/60))+tt(" 分"," min");
+  return tstr(t).slice(0,5)}
 function flatSpark(){return '<svg viewBox="0 0 100 32" preserveAspectRatio="none"><path class="line" d="M0,30L100,30" style="stroke-dasharray:3 3;opacity:.55"/></svg>'}
 function spark(arr,max){
   if(!arr||arr.length<2)return flatSpark();
@@ -1306,7 +1319,7 @@ function renderMonitor(){
     if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
     if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
-    paintHealth(null,null,0);phTiles();paintQueue();setTxt(strip,"");
+    paintHealth(null,null,0);phTiles();paintQueue();paintCache();setTxt(strip,"");
     var pr0='<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>';if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
     setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
@@ -1427,6 +1440,7 @@ function renderMonitor(){
   setTxt(hint,(d.requests_kept>TROWS)?(tt("留存 ","kept ")+d.requests_kept+tt(" 条 · 表内显示最近 "," rows · table shows the latest ")+TROWS+tt(" 条"," rows")):(requests.length?"":tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start")));
   paintHealth(d,hw,rp);
   paintQueue();
+  paintCache();
 }
 function pollMetrics(){
   if(!selName)return;
@@ -1515,6 +1529,69 @@ function paintQueue(){
   if(box._h!==h){box._h=h;box.innerHTML=h}
   var ag=document.getElementById("mon-qage");
   if(ag){var at=(mon.data&&MONTS)?tt("更新于 ","updated ")+Math.max(0,Math.round((Date.now()-MONTS)/1000))+tt(" 秒前","s ago"):"";
+    if(ag._t!==at){ag._t=at;ag.textContent=at}}
+}
+
+/* ---------------- conversation cache card (issue #19, T4) ----------------
+   ADR-0001 zero-synthesis: the card rides the SAME 2.5s pollMetrics payload —
+   d.conversation_cache rendered verbatim, zero new requests, zero invented
+   numbers; a missing field is a quiet dash, never a fabricated zero. The
+   engine offers no cache-clear operation, so nothing is invented here.
+   cachePanel is pure: payload in, HTML out. */
+function cachePanel(cc,have){
+  function stat(cls,val,k,sub,title,bar){
+    return '<div class="stat'+(cls?" "+cls:"")+'"'+(title?' title="'+esc(title)+'"':"")+'>'+
+      '<span class="k">'+k+'</span><b>'+val+'</b>'+(sub?'<span class="s">'+sub+'</span>':"")+
+      (bar||"")+'</div>';
+  }
+  /* the two old-engine / pre-load faces: a quiet one-liner each, the .mcard
+     shell itself is static markup so the card never vanishes and never errors
+     (design record §2, story 14). */
+  if(!have)return '<p class="mnote na">'+tt("停放缓存读数在开工后点亮","parking-cache readings light up once loaded")+'</p>';
+  if(!cc)return '<p class="mnote na">'+tt("引擎未上报会话停放缓存——较旧的引擎没有这些字段","engine does not report the conversation cache — older build, fields absent")+'</p>';
+  var h="";
+  if(cc.enabled===false)h+='<p class="mnote"><span class="sdot na"></span>'+
+    tt("未启用——引擎启动时未给停放预算","disabled — no parking budget was set at engine boot")+'</p>';
+  h+='<div class="qstats">';
+  h+=stat(null,(cc.parked==null||cc.slots==null)?"–":num(cc.parked)+"/"+num(cc.slots),
+          tt("停放","parked"));
+  var bud=(typeof cc.budget_mib==="number"&&cc.budget_mib>0)?cc.budget_mib:null;
+  var frac=(bud&&typeof cc.bytes==="number")?Math.min(100,100*cc.bytes/(bud*1048576)):0;
+  h+=stat(null,mib(cc.bytes),tt("停放大小","parked size"),
+          tt("预算 ","budget ")+mibFromMiB(cc.budget_mib),null,
+          '<div class="pbar warm'+(frac?"":" none")+'"><i style="width:'+frac.toFixed(1)+'%"></i></div>');
+  h+=stat(null,num(cc.parks),tt("停放次","parks"))+
+      stat(null,num(cc.restores),tt("接回次","restores"));
+  h+=stat(cc.evictions!=null&&cc.evictions>0&&cc.enabled!==false?"warn":null,
+          num(cc.evictions),tt("腾退","evictions"));
+  var rf=(cc.refused&&typeof cc.refused==="object")?cc.refused:null;
+  h+=stat(cc.refused_total==null?"na":(cc.refused_total>0?"warn":null),num(cc.refused_total),
+          tt("拒收","refused"),
+          (cc.refused_total&&rf)?tt("RAM 底线","RAM floor")+" "+num(rf.ram_floor)+
+            tt(" · 预算 "," · budget ")+num(rf.budget):null,
+          cc.refused_total==null?tt("该引擎未报告这一字段","this engine does not report this field"):null);
+  h+=stat(null,(cc.requests_reused==null||cc.requests==null)?"–":num(cc.requests_reused)+"/"+num(cc.requests),
+          tt("复用","reuse"),kfmt(cc.reused_tokens)+tt(" tok"," tok"));
+  h+='</div>';
+  /* last park/restore marker — correlates with the request table; the age is
+     a FORMAT of last_at, and last_prompt/last_reused never render (per-request
+     detail lives in the table). */
+  if(cc.last_at==null)h+='<p class="mnote">'+tt("尚未停放过会话","nothing parked yet")+'</p>';
+  else{
+    var ev=cc.last_event==="parked"?tt("停放","parked")
+        :cc.last_event==="restored"?tt("接回","restored"):esc(cc.last_event||"–");
+    h+='<p class="mnote">'+tt("最近事件：","last: ")+ev+" "+relm(cc.last_at)+
+      tt("前 · 上次 "," ago · ")+num(cc.last_tokens)+tt(" tok"," tok")+'</p>';
+  }
+  return h;
+}
+function paintCache(){
+  var box=document.getElementById("mon-cbody");if(!box)return;
+  var d=mon.data;
+  var h=cachePanel(d&&d.conversation_cache||null,!!d);
+  if(box._h!==h){box._h=h;box.innerHTML=h}
+  var ag=document.getElementById("mon-cage");
+  if(ag){var at=(d&&MONTS)?tt("更新于 ","updated ")+Math.max(0,Math.round((Date.now()-MONTS)/1000))+tt(" 秒前","s ago"):"";
     if(ag._t!==at){ag._t=at;ag.textContent=at}}
 }
 
