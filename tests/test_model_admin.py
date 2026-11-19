@@ -437,8 +437,11 @@ try:
     st16 = wait_done(gw16c)
     ok(s == 200 and st16 and st16.get("state") == "done" and st16.get("code") == 0,
        "T5e1 the recruit runs <home>/terminal/setup.py")
-    ok(any(x == "sim: cwd=" + os.path.join(shome16c, "terminal")
+    ok(any(x == "sim: cwd=" + os.path.realpath(os.path.join(shome16c, "terminal"))
            for x in ((st16 or {}).get("lines") or [])),
+       # realpath on the expected side only: setup.py prints os.getcwd(), which
+       # resolves symlinks (macOS /var -> /private/var); the comparison still
+       # pins that cwd is the installer folder, never the bare home.
        "T5e2 cwd follows the installer folder, not the bare home")
     ok(os.path.isfile(os.path.join(shome16c, "terminal", "strata-simcore-one-q4sim.json"))
        and not os.path.exists(os.path.join(shome16c, "strata-simcore-one-q4sim.json")),
