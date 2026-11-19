@@ -49,6 +49,7 @@ class Stub:
         self.load_calls, self.unload_calls = 0, 0
         self.shared, self.posts = {}, []
         self.cc_mode, self.heat = "on", True    # metrics cache 三态 / heat 两态开关
+        self.par, self.adm = False, False       # metrics live 队列变体 (T71): parallel slots / 拒收计数
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -69,7 +70,10 @@ class Stub:
                 if p == "/config":
                     return self._send(200, {"file": "strata-x.json",
                                             "keys": [{"key": "idle_unload_s", "value": 1800,
-                                                      "help": "unload after N idle seconds", "kind": "number"}],
+                                                      "help": "unload after N idle seconds", "kind": "number"},
+                                                     {"key": "max_queue", "value": 32,
+                                                      "help": "429 past this many waiting (0 = no cap)",
+                                                      "kind": "number"}],
                                             "note": "used from the next start"})
                 if p == "/mcp":
                     return self._send(200, {"servers": [], "tools": 0})
@@ -80,10 +84,17 @@ class Stub:
                         "engine": {"model": outer.name, "max_context": 524288, "version": "0.1.56",
                                    "expert_slots": 7711, "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
                         "stub_tag": f"stub:{outer.name}",
-                        "live": {"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
+                        "live": dict({"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,
                                  "max_tokens": None, "elapsed_s": None, "tok_s": None,
                                  "reused": 0, "tok_s_mean": None, "prefill_tok_s_mean": None},
+                                **({} if not outer.par else
+                                   {"parallel": True, "running": 1, "waiting": 1, "admitting": 1,
+                                    "slots": [{"slot": 0, "state": "generating", "prompt_read": 1204,
+                                               "generated": 512, "elapsed_s": 3.0, "tok_s": 41.0},
+                                              {"slot": 1, "state": "idle", "held_tokens": 8192}]}),
+                                **({} if not outer.adm else
+                                   {"admission": {"total": 9, "ram_floor": 2, "budget": 7}})),
                         "requests": [{"id": "r1", "time": 111.0, "duration_s": 3.0, "finish": "stop",
                                       "prompt_tokens": 100, "reused": 40, "prompt_ms": 60.0,
                                       "output_tokens": 50, "decode_tok_s": 83.0, "hit_rate": 0.873,
@@ -135,6 +146,19 @@ class Stub:
                         return self._send(200, [])
                     return self._send(200, [{"id": 0, "n_ctx": 8192, "is_processing": False,
                                              "n_prompt_tokens": 0}])
+                if p == "/v1/status":
+                    # real v0.2.16 face (compat-baseline console_routes pin):
+                    # honest ~1KB subset; every top-level key the console reads.
+                    return self._send(200, {"service": "strata", "model": outer.name,
+                                            "loaded": outer.loaded, "auto_load": True,
+                                            "structured_output": True, "engine": "0.1.56",
+                                            "uptime_s": 123.0, "cache_max_tokens": 8192,
+                                            "context": {"n_ctx": 524288},
+                                            "concurrency": {"serving": 1, "requested": 1},
+                                            "dialects": ["chat"], "vision": True,
+                                            "image_generation": True,
+                                            "activity": {"in_flight": 0},
+                                            "last_timings": {}, "vram": {}, "machine": {}})
                 if p == "/api/expert-heat":
                     # two-state switch (#16): unconfigured engine = 404,
                     # exactly like the real serve with no expert profile.
@@ -782,6 +806,40 @@ try:
     ok(s == 404,
        "T70d heat two-state switch: unconfigured engine answers 404 on the same route")
     A.heat = True
+
+    # ---- T71 (issue #18, T3): the queue face over the wire ----
+    # /v1/status via the catch-all: the console's second queue feed. The stub
+    # kit speaks the REAL v0.2.16 face (compat-baseline console_routes pin),
+    # so the catch-all must mirror it 200, and the queue variants must be
+    # switchable: parallel slots present/absent, admission set/unset.
+    s, h = req("GET", "/v1/status?model=aaa-qwen")
+    try:
+        v1j = json.loads(h)
+    except ValueError:
+        v1j = {}
+    ok(s == 200 and isinstance(v1j.get("concurrency"), dict)
+       and {"serving", "requested"} <= set(v1j["concurrency"])
+       and "in_flight" in (v1j.get("activity") or {})
+       and v1j.get("model") == "aaa-qwen",
+       "T71a catch-all /v1/status answers the real concurrency+activity face")
+    A.par, A.adm = True, True
+    mj = json.loads(req("GET", "/router/metrics?model=aaa-qwen")[1])
+    lvp = mj.get("live", {})
+    ok(isinstance(lvp.get("slots"), list) and lvp.get("slots")
+       and {"slot", "state"} <= set(lvp["slots"][0])
+       and lvp.get("waiting") is not None and lvp.get("admitting") is not None,
+       "T71b parallel variant: live carries slots[]+waiting+admitting (shape per strata-face)")
+    ok(lvp.get("admission") == {"total": 9, "ram_floor": 2, "budget": 7},
+       "T71c admission variant: live.admission {total,ram_floor,budget} verbatim")
+    A.par, A.adm = False, False
+    lv0 = json.loads(req("GET", "/router/metrics?model=aaa-qwen")[1])["live"]
+    ok("slots" not in lv0 and "waiting" not in lv0 and "admission" not in lv0,
+       "T71d default variant: no slots/waiting/admission keys at all (old-engine degrade path)")
+    ck = [k["key"] for k in json.loads(req("GET", "/router/config?model=aaa-qwen")[1])["keys"]]
+    ok("max_queue" in ck, "T71e run-config exposes max_queue so the cap stat can light up")
+    s, h = req("GET", "/gateway")
+    ok('id="mon-queue"' in h and "q.slots.empty" in h and "429 admission_full" in h,
+       "T71f the served console carries the queue panel shell + cap legend + slot strings")
 
     # ---- T50 (Phase 11): /router/version + engine-root resolution ----
     s, h = req("GET", "/router/version")

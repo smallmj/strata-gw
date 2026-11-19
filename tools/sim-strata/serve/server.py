@@ -170,6 +170,19 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, [])
             return self._send(200, [{"id": 0, "n_ctx": 8192, "is_processing": False,
                                      "n_prompt_tokens": 0}])
+        if p == "/v1/status":
+            # real v0.2.16 face (#18 pin: the queue panel's second feed) —
+            # same shape the serve docs name, honest subset for the kit.
+            return self._send(200, {"service": "strata", "model": STATE["name"],
+                                    "loaded": STATE["loaded"], "auto_load": True,
+                                    "structured_output": True, "engine": STATE["version"],
+                                    "uptime_s": 123.0, "cache_max_tokens": 8192,
+                                    "context": {"n_ctx": STATE["max_context"]},
+                                    "concurrency": {"serving": 1, "requested": 1},
+                                    "dialects": ["chat"], "vision": True,
+                                    "image_generation": True,
+                                    "activity": {"in_flight": 0},
+                                    "last_timings": {}, "vram": {}, "machine": {}})
         if p == "/api/expert-heat":
             # two-state switch (#16): SIM_STRATA_HEAT=off -> 404, exactly like
             # a real serve with no expert profile configured.
