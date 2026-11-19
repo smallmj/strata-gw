@@ -82,6 +82,18 @@ def _mcp_payload(mode):
         "tools": 12}
 
 
+def _facts_engine():
+    """engine.* face for the About facts block (#21, design record §4): the
+    optional fields riding on top of kv/max_context/spec (which both faces
+    already carry). Values fake, shape real — kv_resident is pinned to the
+    ratio face ∈[0,1] (the formatter falls back to MiB above 1), arena/
+    vram_free ride plain MiB ints, pool/cap plain ints. tests/stub_common.py
+    and the sim kit carry this factory byte-identically (F4d pin); both
+    merge it into their /metrics engine dict via **_facts_engine()."""
+    return {"kv_resident": 0.92, "mtp_max": 2, "arena_mib": 512,
+            "vram_free_mib": 22000, "pool_workers": 12, "prefill_cap": 4096}
+
+
 class Stub:
     """假后端: /health、/v1/models、POST /load、POST /unload;"/" 回 HTML 标记,
     v0.2.16 face (#16): /props /slots /api/expert-heat 真形状,未知路径 404(真 serve 没有 /monitor)。"""
@@ -128,7 +140,8 @@ class Stub:
                 if p == "/metrics":
                     _m = {
                         "engine": {"model": outer.name, "max_context": 524288, "version": "0.1.56",
-                                   "expert_slots": 7711, "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
+                                   "expert_slots": 7711, "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4,
+                                   **_facts_engine()},
                         "stub_tag": f"stub:{outer.name}",
                         "live": dict({"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,
@@ -140,6 +153,9 @@ class Stub:
                                                "generated": 512, "elapsed_s": 3.0, "tok_s": 41.0},
                                               {"slot": 1, "state": "idle", "held_tokens": 8192}]}),
                                 **({} if not outer.adm else
+                                   # SPECULATIVE 形状，非 v0.2.16 所有 —— strata-face 的
+                                   # live 表没有 admission 对象；开关只为让面板的
+                                   # 渲染/降级面有真实输入（T71）
                                    {"admission": {"total": 9, "ram_floor": 2, "budget": 7}})),
                         "requests": [{"id": "r1", "time": 111.0, "duration_s": 3.0, "finish": "stop",
                                       "prompt_tokens": 100, "reused": 40, "prompt_ms": 60.0,
@@ -900,7 +916,9 @@ try:
     ck = [k["key"] for k in json.loads(req("GET", "/router/config?model=aaa-qwen")[1])["keys"]]
     ok("max_queue" in ck, "T71e run-config exposes max_queue so the cap stat can light up")
     s, h = req("GET", "/gateway")
-    ok('id="mon-queue"' in h and "q.slots.empty" in h and "429 admission_full" in h,
+    # (review fix #4: the shipped page carries screen COPY, not dead q.* key
+    # names — app.js is inlined, so the tt literals are the face on the wire)
+    ok('id="mon-queue"' in h and "并行槽位空闲" in h and "429 admission_full" in h,
        "T71f the served console carries the queue panel shell + cap legend + slot strings")
 
     # ---- T72 (#20, T5): /mcp rides the existing proxy in three faces -------

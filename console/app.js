@@ -175,8 +175,12 @@ document.getElementById("save").onclick=function(){
   try{localStorage.setItem("stratagw.key",keyEl.value.trim())}catch(e){}
   paintKeyChip();
   say(tt("Token 已保存在本浏览器。","token saved in this browser."),"");
+  _v1fail=0;      // §0.4 fail-and-stop RESUMES on events: the saved token
+                  // re-arms the queue probe (Q8b) before this same pollMetrics
   pollMetrics();
   if(_mcp1)fetchMcp();   // a just-saved token can unlock the mcp.nodata face
+  _heat1=0;              // heat face too (Q8c): the next scroll-in re-probes —
+                         // a 401/no-token hidden face is a recovery face
 };
 document.getElementById("mon-keycta").onclick=function(){openSettings(true)};
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
@@ -1195,6 +1199,9 @@ function refresh(){
 }
 function act(op,name){
   if(ops[name])return;
+  _v1fail=0;   // a lifecycle op re-arms the queue probe (Q8a): selecting an
+               // off-post card 502-latches the catch-all; clocking in must
+               // light in-flight/concurrency again on the next tick (§0.4)
   ops[name]={op:op,t0:Date.now()};
   refresh();
   fetch(op,{method:"POST",headers:hdrs(true),body:JSON.stringify({model:name})})
@@ -1451,8 +1458,9 @@ function pollMetrics(){
     .then(function(m){mon.data=m;MONTS=Date.now();renderMonitor()})
     .catch(function(){mon.data=null;renderMonitor()});
   /* issue #18: in-flight + concurrency ride the SAME 2.5s tick — one extra
-     ~1KB proxied fetch (catch-all /v1/status), fail-and-stop: after one
-     404/401/network miss we never re-ask until the model switch. No new timer. */
+     ~1KB proxied fetch (catch-all /v1/status), fail-and-stop: one miss
+     (404/401/502/network) stops the asking until an event RESUMES it —
+     model switch, clock in/out (act()), token save. No new timer. */
   if(!_v1fail){
     fetch("v1/status?model="+encodeURIComponent(selName),{headers:hdrs(false)})
       .then(function(r){return r.ok?r.json():Promise.reject(r.status)})
@@ -1682,7 +1690,9 @@ function fetchMcp(){
    through the pinned heatPos/heatAlpha formulas; meta/digest rows carry
    layers/experts/every_min/saved_at verbatim. heatCard/heatGate/heatPos/
    heatAlpha are pure (node-eval: H-series pins). */
-var _heat1=0,_heatin=0,_heatarmed=0,_heattimer=0,_heatdata=null,_heatstale=0,_heatshow=0,_heatTimer=null;
+var _heat1=0,_heatin=0,_heatarmed=0,_heattimer=0,_heatdata=null,_heatstale=0,_heatshow=0,_heatTimerFn=null;
+// _heattimer = the one 30 s interval's id; _heatTimerFn = the loop hook heatIo injects
+// (review #7: the old _heatTimer vs _heattimer pair read as one name in two cases)
 function heatGate(code,d){return(code===200&&d&&d.configured===true)?1:0}
 function heatPos(i,E){return{l:Math.floor(i/E),e:i%E}}   // row-major (design §9.1)
 function heatAlpha(r,E){if(E<2)return 1;                  // §5 power ramp, hand-pinned in H5b
@@ -1693,8 +1703,11 @@ function heatRGB(hx){hx=String(hx).trim();if(hx.charAt(0)==="#")hx=hx.slice(1);
 function heatCard(d,stale){
   d=d||{};
   var L=d.layers||0,E=d.experts||0,rk=d.rank||[];
-  var hmeta='<p class="hmeta">'+L+"\u00d7"+E+" \u00b7 "+tt("档案存档 ","profile saved ")+tstr(d.saved_at||0)+
-    " \u00b7 "+tt("约每 ","auto-saves every ~")+(d.every_min||"?")+tt(" 分自动存档"," min")+
+  var Lv=num(L),Ev=num(E);                                  // §0.3/§0.4 discipline: engine numbers ride num() into HTML+aria (H6i)
+  var sv=d.saved_at!=null?" \u00b7 "+tt("档案存档 ","profile saved ")+tstr(d.saved_at)
+    :"";                                                    // absent saved_at: the segment is OMITTED — never an epoch face (H6h)
+  var hmeta='<p class="hmeta">'+Lv+"\u00d7"+Ev+sv+
+    " \u00b7 "+tt("约每 ","auto-saves every ~")+esc(d.every_min!=null?d.every_min:"?")+tt(" 分自动存档"," min")+
     (stale?' <span class="hstale">'+tt("· 刷新失败，显示上次数据","· refresh failed, showing last read")+"</span>":"")+"</p>";
   if(L<1||E<1||rk.length<L*E)
     return hmeta+'<p class="mnote warn">'+tt("热度数据不完整，等待下一次存档","heat data incomplete \u2014 waiting for the next save")+"</p>";
@@ -1711,7 +1724,8 @@ function heatCard(d,stale){
   for(k=0;k<L;k+=sy)ax+='<span class="hax" style="left:0;top:'+((gutT+k*cell)/H*100).toFixed(2)+'%;width:'+(gutL-6)/W*100+'%;text-align:right">L'+k+"</span>";
   for(t=0;t<E;t+=sx)ax+='<span class="hax" style="left:'+((gutL+t*cell)/W*100).toFixed(2)+'%;top:'+((H-gutB+3)/H*100).toFixed(2)+'%">E'+t+"</span>";
   if((E-1)%sx)ax+='<span class="hax" style="left:'+((gutL+(E-1)*cell)/W*100).toFixed(2)+'%;top:'+((H-gutB+3)/H*100).toFixed(2)+'%">E'+(E-1)+"</span>";
-  var cvx='<canvas id="heatgrid" role="img" aria-label="'+L+"\u00d7"+E+" \u00b7 "+tt("专家热度档案存档于 ","expert heat profile saved ")+tstr(d.saved_at||0)+'"></canvas>';
+  var cvx='<canvas id="heatgrid" role="img" aria-label="'+Lv+"\u00d7"+Ev+
+    (d.saved_at!=null?" \u00b7 "+tt("专家热度档案存档于 ","expert heat profile saved ")+tstr(d.saved_at):"")+'"></canvas>';
   var legend='<p class="hlegend">'+tt("最亮=该层第 1 热 · 越暗排名越靠后 · 透明=无档案","brightest = rank 1 in its layer \u00b7 dimmer = later \u00b7 clear = unranked")+"</p>";
   var read='<p id="heat-read">'+tt("滑到格上读该层的保温排名","hover a cell to read its rank in its layer")+"</p>";
   return hmeta+hdig+'<div class="hgrid">'+cvx+ax+"</div>"+legend+read;
@@ -1766,7 +1780,7 @@ function heatApply(code,d){
   else if(code===200){_heatshow=0;_heatdata=null;_heatstale=0}   // configured:false = hidden face
   else if(_heatshow){_heatstale=1}                               // refresh fail after shown: keep grid
   paintHeat();
-  if(_heatTimer)_heatTimer(!!_heatin&&!!_heatshow);
+  if(_heatTimerFn)_heatTimerFn(!!_heatin&&!!_heatshow);
 }
 function fetchHeat(){
   if(!selName)return;
@@ -1781,7 +1795,7 @@ function heatIo(){
   function heatTimer(on){                       // the ONE heat loop (Q5a's eighth, H7d's pair)
     if(on&&!_heattimer)_heattimer=setInterval(_heatTick,30000);
     else if(!on&&_heattimer){clearInterval(_heattimer);_heattimer=0}}
-  _heatTimer=heatTimer;
+  _heatTimerFn=heatTimer;
   try{var hio=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){
     var t=es[i].target,on=es[i].isIntersecting;
     if(t===anchor&&on&&!_heat1){_heat1=1;fetchHeat();hio.observe(sec)}
