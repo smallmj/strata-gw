@@ -86,6 +86,18 @@ def _mcp_payload(mode):
         "tools": 12}
 
 
+def _facts_engine():
+    """engine.* face for the About facts block (#21, design record §4): the
+    optional fields riding on top of kv/max_context/spec (which both faces
+    already carry). Values fake, shape real — kv_resident is pinned to the
+    ratio face ∈[0,1] (the formatter falls back to MiB above 1), arena/
+    vram_free ride plain MiB ints, pool/cap plain ints. tests/stub_common.py
+    and the sim kit carry this factory byte-identically (F4d pin); both
+    merge it into their /metrics engine dict via **_facts_engine()."""
+    return {"kv_resident": 0.92, "mtp_max": 2, "arena_mib": 512,
+            "vram_free_mib": 22000, "pool_workers": 12, "prefill_cap": 4096}
+
+
 def _heat_payload():
     """configured /api/expert-heat. rank[] is row-major: rank[l*experts + e] =
     0-based within-layer rank, 0 = hottest (design record section 9.1
@@ -160,7 +172,8 @@ class H(BaseHTTPRequestHandler):
             _m = {
                 "engine": {"model": STATE["name"], "max_context": STATE["max_context"],
                            "version": STATE["version"], "expert_slots": 4096,
-                           "expert_cache_mib": 512, "kv": "k8v4", "spec": 4},
+                           "expert_cache_mib": 512, "kv": "k8v4", "spec": 4,
+                           **_facts_engine()},
                 "sim_tag": "sim-strata",
                 "live": {"state": "idle" if not STATE["loaded"] else "ready",
                          "queued": 0, "phase": None, "prompt_tokens": None,
