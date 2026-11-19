@@ -825,9 +825,10 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
 # Q5 polling discipline: the queue rides the 2.5s tick + one small v1/status
 # fetch with fail-and-stop; NO new timer is allowed anywhere (discipline guard:
 # the timer count must stay exactly what it is today - 5 page loops + 2
-# one-shot wizard/onboard ticks).
-ok(js.count("setInterval") == 7,
-   "Q5a zero new setInterval: the queue panel adds no timer to the existing seven")
+# one-shot wizard/onboard ticks + the ONE heat 30 s timer (#22/T7), which the
+# H-series pins as uniquely paired with its clearInterval and IO-scoped).
+ok(js.count("setInterval") == 8,
+   "Q5a the eight setInterval: page loops + wizard ticks + the single paired heat timer")
 ok("v1/status" in js and "_v1fail" in js, "Q5b pollMetrics carries the v1/status fetch with fail-and-stop")
 
 # Q6 the event stream names the gate (kind chip + status-ladder color)
@@ -1093,8 +1094,8 @@ function tt(z,e){return LANG==="zh"?z:e}
 # selector; event-driven only — IO first-in-view (_mcp1), model switch, token
 # save; fail-and-stop (_mcp404) until the next event; NO new timer.
 ok('router/mcp?model=' in js, "M4a fetch rides the existing /router/mcp proxy with the model selector")
-ok(js.count("IntersectionObserver") == 2 and "_mcp1" in js,
-   "M4b exactly one more IO instance (the disk map keeps its own) gates the first fetch")
+ok(js.count("IntersectionObserver") == 3 and "_mcp1" in js,
+   "M4b IO instances (disk map, MCP card, +1 heat section — #22 legitimate bump) gate the first fetch")
 ok("_mcp404" in js and "_mcp404=0" in js,
    "M4c fail-and-stop flag: one failure ends the round, reset only by an event")
 _sm = _fn_src(js, "selectModel")
@@ -1107,8 +1108,8 @@ ok(bool(_pm) and "_h!==" in _pm and "fetch" not in _pm,
 _fm = _fn_src(js, "fetchMcp")
 ok(bool(_fm) and ".catch(" in _fm and "setInterval" not in _fm,
    "M4g the one fetch carries its .catch (S7 balance) — no timer inside")
-ok(js.count("setInterval") == 7,
-   "M4h zero new setInterval: the MCP card adds nothing to the seven (Q5a holds)")
+ok(js.count("setInterval") == 8,
+   "M4h zero new setInterval: the MCP card adds nothing (Q5a's eight holds)")
 ok('data-i18n="mcp.band"' in html and 'data-i18n-title="mcp.tit"' in html,
    "M4i card label + read-only tooltip ship as static i18n")
 ok(".srvrow{" in css and ".srvrow:first-child{border-top:0}" in css,
@@ -1260,5 +1261,162 @@ ok("**_facts_engine()" in _ok_st and "**_facts_engine()" in _ok_kt,
 # MiB/GiB locally (design rule 3 — values verbatim through mibFromMiB/num).
 ok("mibFromMiB" in _fp and "GiB" not in _fp and " MiB" not in _fp,
    "F5a factsPanel has no local MiB/GiB formatting fork (mibFromMiB only)")
+
+# =====================================================================
+# H series (issue #22, ticket T7): the 专家热度 section.
+# Design record §5/§6/§9; strata-face §51 (webui experts.js probe
+# semantics: show iff 200 AND configured:true). The gateway gains NO
+# route (decided deviation from the spec's /router/expert-heat mapping —
+# the console rides the catch-all with the engine path verbatim; the
+# comment lands in gw/routes.py and by the fetch here).
+# =====================================================================
+
+# H1 the heat factory stays byte-ident stub<->kit (F4e pattern) — the
+# tri-state configured arg (#22) must not fork the two faces.
+def _hbody(src):
+    i = src.index("def _heat_payload")
+    j = min(src.index(x, i + 1) for x in ("\ndef ", "\nclass ") if x in src[i + 1:])
+    return src[i:j]
+ok(_hbody(_ok_st) == _hbody(_ok_kt),
+   "H1 stub_common and the kit carry _heat_payload byte-identically (no drift)")
+ok('SIM_STRATA_HEAT", "on"' in _ok_kt and 'HEAT_MODE == "off"' in _ok_kt
+   and '_heat_payload(HEAT_MODE != "false")' in _ok_kt,
+   "H1b kit SIM_STRATA_HEAT speaks the same tri-state on|false|off as the stub")
+
+# H2 §6 heat vocabulary ships as zh/en pairs
+_hkeys = ("sec.experts heat.meta heat.warm heat.legend heat.hint heat.cell "
+          "heat.cell.none heat.stale heat.bad").split()
+_okt = _json.loads(i18njs[i18njs.index("{"):i18njs.rindex("}") + 1])
+ok(all(k in _okt.get("zh", {}) and k in _okt.get("en", {}) for k in _hkeys),
+   "H2 all %d heat keys present in both tongues" % len(_hkeys))
+
+# H3 the shell: hidden whole-section wrapper between the MCP card and the
+# dynamic section (design §0.1 order); a 1px in-flow sentinel is the IO
+# anchor — a display:none target never intersects, so the probe needs an
+# always-visible neighbour at the section's position.
+ok('id="experts-sec"' in html and 'id="experts-io"' in html
+   and 'style="display:none"' in html[html.index('id="experts-sec"'):html.index('id="experts-sec"') + 90],
+   "H3a #experts-sec ships hidden with an in-flow #experts-io sentinel")
+ok('data-i18n="sec.experts"' in html and 'id="heat-body"' in html,
+   "H3b section label is an i18n key and the card body is #heat-body")
+ok(0 <= html.find('id="experts-sec"') and html.find('id="experts-sec"') > html.find('id="mcp-card"')
+   and html.find('id="experts-sec"') < html.find('id="sec-dyn"'),
+   "H3c experts sits after the monitor block and before 动态 (design §0.1)")
+
+# H4 the gate is a pure function — hidden faces mirror the degraded table:
+# 404 hidden, 200 configured:false hidden, 401 hidden, network error
+# hidden; only 200+configured:true shows (§5 + strata-face probe semantics).
+_hg = _fn_src(js, "heatGate")
+ok(bool(_hg), "H4a heatGate is extractable for a real run")
+if _hg:
+    import subprocess as _sc_h
+    import json as _js_h
+    _SHIM_H = r"""
+var LANG="zh";
+function tt(z,e){return LANG==="zh"?z:e}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+"""
+    def _hcase(fnexpr, lang="zh", extra=""):
+        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "hcase_%s.js" % lang)
+        with open(_tf, "w", encoding="utf-8") as _f:
+            _f.write(_SHIM_H.replace('var LANG="zh";', 'var LANG="%s";' % lang)
+                     + extra + "\n" + _hg + "\n"
+                     + (_fn_src(js, "heatPos") or "") + "\n"
+                     + (_fn_src(js, "heatAlpha") or "") + "\n"
+                     + (_fn_src(js, "heatCard") or "") + "\n"
+                     + "console.log(JSON.stringify(%s));" % fnexpr)
+        _r = _sc_h.run(["node", _tf], capture_output=True, text=True, timeout=20)
+        if _r.returncode != 0:
+            ok(False, "heat node run failed: " + _r.stderr[:300])
+            return None
+        return _js_h.loads(_r.stdout)
+    ok(_hcase("heatGate(404,null)") == 0, "H4b 404 face: hidden (never dead UI)")
+    ok(_hcase("heatGate(200,{configured:false,ranks:0,rank:[]})") == 0,
+       "H4c 200 configured:false face: hidden exactly like the 404 (T70e twin)")
+    ok(_hcase("heatGate(401,null)") == 0 and _hcase("heatGate(0,null)") == 0,
+       "H4d 401/no-token and a failed fetch also gate closed")
+    ok(_hcase("heatGate(200,{configured:true})") == 1, "H4e only 200+configured:true opens")
+
+    # H5 pure formulas, pinned against hand-computed literals (design §5):
+    # heatPos is the row-major index->cell map (§9.1 / T70c: rank[19]=1 on
+    # the 4x8 face sits at l=2,e=3); heatAlpha is the 0.06+0.94*(1-r/(E-1))^2.2
+    # ramp — r0 opaque, r1 ~0.730, tail washes to 0.060.
+    _pos = _hcase("heatPos(19,8)")
+    ok(_pos == {"l": 2, "e": 3},
+       "H5a heatPos(19,8) -> l2 e3: row-major rank[19] face (T70c twin)")
+    ok(_hcase("heatAlpha(0,8).toFixed(3)") == "1.000"
+       and _hcase("heatAlpha(1,8).toFixed(3)") == "0.730"
+       and _hcase("heatAlpha(7,8).toFixed(3)") == "0.060",
+       "H5b heatAlpha known values: rank0=1.000 rank1=0.730 rank7=0.060 (E=8, exponent 2.2)")
+
+    # H6 the card renderer is pure over the stub payload (kit-shrunken 4x8,
+    # rank (e+3l)%8): meta carries L x E + every_min; digest counts rank<=1
+    # per expert (E0 sits top-2 in 2 layers); legend + hover hint ship as
+    # the text fallback (never colour alone); a malformed payload degrades
+    # in place of the canvas with heat.bad (§5 table), and the stale flag
+    # only appends to the meta row.
+    import stub_common as _stub_h
+    _hp = _stub_h._heat_payload()
+    _hc = _hcase("heatCard(%s,0)" % _js_h.dumps(_hp)) or ""
+    ok(_hc is not None and "4\u00d78" in _hc and "10" in _hc,
+       "H6a meta row renders layers x experts + every_min verbatim")
+    ok("E0\u00d72" in _hc and "最热常驻" in _hc and "E1\u00d71" in _hc and "E2\u00d71" in _hc
+       and "E3\u00d71" not in _hc,
+       "H6b digest: rank<=1 count per expert, top 3 (E0x2,E1x1,E2x1), zh copy")
+    ok('id="heatgrid"' in _hc and 'id="heat-read"' in _hc
+       and "滑到格上" in _hc and "最亮=" in _hc,
+       "H6c canvas + readout + legend/hint text fallback in one card")
+    _hcE = _hcase("heatCard(%s,0)" % _js_h.dumps(_hp), lang="en") or ""
+    ok("warmest" in _hcE and "hover a cell" in _hcE and "brightest" in _hcE,
+       "H6d EN mirror of the whole card")
+    _hcB = _hcase("heatCard({configured:true,every_min:10,saved_at:1763560000.0,"
+                  "layers:4,experts:8,ranked:0,rank:[]},0)") or ""
+    ok("热度数据不完整" in _hcB and 'id="heatgrid"' not in _hcB,
+       "H6e malformed payload: heat.bad in place of the canvas, no empty shell")
+    _hcS = _hcase("heatCard(%s,1)" % _js_h.dumps(_hp)) or ""
+    ok("刷新失败" in _hcS and "4\u00d78" in _hcS,
+       "H6f stale flag appends heat.stale and keeps the grid")
+
+# H7 fetch seam: the catch-all path verbatim with the model selector (the
+# decided deviation — NOT a /router/expert-heat mapping; gw/routes.py
+# carries the matching comment). First probe on first intersect (_heat1),
+# model switch re-probes like the MCP card; one fetch, one .catch (S7).
+ok("api/expert-heat?model=" in js and 'router/expert-heat' not in js,
+   "H7a the probe rides the catch-all (api/expert-heat?model=) — zero new gateway route")
+ok("_heat1" in js and '"experts-io"' in js and '"experts-sec"' in js,
+   "H7b IO gates the first probe off the in-flow sentinel then follows the section")
+_hio = _fn_src(js, "heatIo")
+ok(bool(_hio) and "isIntersecting" in _hio and "_heat1" in _hio
+   and "setInterval(_heatTick,30000)" in _hio and "clearInterval(_heattimer)" in _hio,
+   "H7c the 30 s timer lives ONLY inside the IO lifecycle (start on enter, clearInterval on leave)")
+ok(js.count("setInterval(_heatTick,30000)") == 1 and "clearInterval(_heattimer)" in js
+   and "clearInterval(_heattimer)" in _hio,
+   "H7d the one new timer is uniquely paired with its clearInterval (Q5a's eight)")
+_htk = _fn_src(js, "heatTick")
+ok(bool(_htk) and "fetchHeat" in _htk and "setInterval" not in _htk and "IntersectionObserver" not in _htk,
+   "H7e heatTick only re-fetches — no IO, no timer inside the tick")
+_fh2 = _fn_src(js, "fetchHeat")
+ok(bool(_fh2) and ".catch(" in _fh2 and "setInterval" not in _fh2,
+   "H7f the one heat fetch carries its .catch (S7 balance) — no timer inside")
+_sm3 = _fn_src(js, "selectModel")
+ok(bool(_sm3) and "fetchHeat()" in _sm3, "H7g model switch re-probes the heat face (per-model truth)")
+
+# H8 zero synthesis: the grid paints ONLY the engine rank[] cells through
+# the pinned formulas — layers/experts/rank read from the payload, nothing
+# is invented (ADR-0001).
+_hd = _fn_src(js, "heatDraw")
+ok(bool(_hd) and "heatAlpha(" in _hd and "d.layers" in _hd and "d.experts" in _hd
+   and "rank" in _hd,
+   "H8a heatDraw consumes d.layers/d.experts/d.rank via heatAlpha — engine array only")
+_ph = _fn_src(js, "paintHeat")
+ok(bool(_ph) and "_h!==" in _ph and "fetch" not in _ph,
+   "H8b paintHeat repaints under the K27 guard and touches no fetch")
+_hr = _fn_src(js, "heatRepaint")
+ok(bool(_hr), "H8c heatRepaint exists for the theme/lang canvas re-read (--s)")
+ok('applyTheme(root.dataset.theme==="dark"?"light":"dark")' in js
+   and re.search(r'getElementById\("theme"\)\.onclick=function\(\)\{[^}]*heatRepaint', js)
+   and re.search(r'function applyLang\(\)\{.*heatRepaint\(\);', js, re.S),
+   "H8d repaint is hooked next to the theme click and applyLang (design §5)")
 
 sys.exit(0 if not F else 1)
