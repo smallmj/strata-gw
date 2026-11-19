@@ -53,6 +53,27 @@ try:
     dt = time.time() - t0
     ok(s == 200 and dt >= 1.0, "Q3 pending job: the request queued %.1f s then ran" % dt)
 
+    # QG1/QG2 (issue #18): the gate's own hold is honest on /router/gpu —
+    # present while the gate holds, gone the moment it stops (gw reporting
+    # its OWN state is legal per ADR-0001; the engine fields never are).
+    H.running = [{"prompt_id": "holdme"}]
+    clear_soon("running", 2.0)
+    _gt = threading.Thread(target=lambda: gw.post("/v1/chat/completions",
+                                                  {"model": MA, "messages": []}),
+                           daemon=True)
+    _gt.start()
+    time.sleep(0.8)
+    s, h = gw.get("/router/gpu")
+    gj = json.loads(h)
+    ok(s == 200 and isinstance(gj.get("gen_gate"), dict)
+       and gj["gen_gate"].get("waited_s", -1) >= 0,
+       "QG1 while the gate holds, /router/gpu carries gen_gate.waited_s")
+    _gt.join(timeout=15)
+    gj = json.loads(gw.get("/router/gpu")[1])
+    H.running, H.pending = [], []
+    ok("gen_gate" not in gj,
+       "QG2 no hold, no gen_gate key on /router/gpu (never an idle-gate line)")
+
     # Q4 non-generation routes are never gated
     H.running = [{"prompt_id": "still"}]
     t0 = time.time()

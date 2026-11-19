@@ -183,6 +183,9 @@ def smi_holders() -> list[tuple[str, str]]:
 
 
 _free_inflight: dict = {}     # release-in-flight {"op","since"}: spinners survive a refresh
+_gen_gate_t0 = 0.0            # generation-gate hold start (0 = not holding); the
+                              # gate's own state on /router/gpu (gw reporting ITSELF
+                              # is legal — ADR-0001 only guards engine data)
 
 
 def gpu_stats() -> dict:
@@ -191,6 +194,8 @@ def gpu_stats() -> dict:
     st = settings()
     out = {"running": False, "source": None, "vram_total_mib": None, "vram_free_mib": None,
            "free_target_mib": None, "auto_target_mib": None, "freeing": None}
+    if _gen_gate_t0:                 # the gate holds a request right now (gw's own
+        out["gen_gate"] = {"waited_s": int(time.time() - _gen_gate_t0)}   # state, not engine data
     if _free_inflight:
         out["freeing"] = {"op": _free_inflight.get("op"),
                           "elapsed_s": int(time.time() - _free_inflight.get("since", time.time()))}
@@ -272,8 +277,11 @@ def wait_gen_queue() -> dict:
     generator is working (a running OR pending job) so the two engines never
     share the GPU. Idle or unreachable holder = go at once; a holder wedged
     for longer than queue_max_wait_s fails OPEN so a request can never be
-    lost to a stuck queue. Returns {"gated", "waited_s", "gave_up"}."""
-    global _down_until
+    lost to a stuck queue. Returns {"gated", "waited_s", "gave_up"}. The hold
+    itself is also reported live on /router/gpu (gpu_stats "gen_gate") while
+    this loop runs, so the console can explain backpressure the moment it
+    happens (issue #18)."""
+    global _down_until, _gen_gate_t0
     st = settings()
     qst = queue_settings()
     out = {"gated": False, "waited_s": 0, "gave_up": False}
@@ -290,14 +298,18 @@ def wait_gen_queue() -> dict:
     if not busy:
         return out
     t0 = time.time()
+    _gen_gate_t0 = t0
     events.revent("gate", "外部生成器正在工作，引擎请求排队等待")
     gave_up = False
-    while busy is not False:      # a failed probe (None) keeps the gate CLOSED
-        if time.time() - t0 >= qst["queue_max_wait_s"]:
-            gave_up = True
-            break
-        time.sleep(qst["queue_poll_s"])
-        busy = queue_busy(url, st["timeout_s"])
+    try:
+        while busy is not False:  # a failed probe (None) keeps the gate CLOSED
+            if time.time() - t0 >= qst["queue_max_wait_s"]:
+                gave_up = True
+                break
+            time.sleep(qst["queue_poll_s"])
+            busy = queue_busy(url, st["timeout_s"])
+    finally:
+        _gen_gate_t0 = 0.0
     out.update({"gated": True, "waited_s": int(time.time() - t0), "gave_up": gave_up})
     events.revent("gate", "引擎请求排队 %d 秒后执行%s" % (out["waited_s"], "（等待超时放行）" if gave_up else ""))
     return out
