@@ -185,6 +185,11 @@ class H(BaseHTTPRequestHandler):
                            "expert_cache_mib": 512, "kv": "k8v4", "spec": 4,
                            **_facts_engine()},
                 "sim_tag": "sim-strata",
+                # queue variants EXEMPT from the kit (review #5): live.parallel
+                # and live.admission are stub-only switches (T71) — the kit
+                # speaks the v0.2.16 single face (strata-face live table has
+                # no admission object at all; parallel is off-single-slot).
+                # The panel's variant faces are pinned at the stub seam instead.
                 "live": {"state": "idle" if not STATE["loaded"] else "ready",
                          "queued": 0, "phase": None, "prompt_tokens": None,
                          "prompt_read": None, "prompt_total": None,

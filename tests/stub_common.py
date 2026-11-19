@@ -171,6 +171,10 @@ class Stub:
                                                "generated": 512, "elapsed_s": 3.0, "tok_s": 41.0},
                                               {"slot": 1, "state": "idle", "held_tokens": 8192}]}),
                                 **({} if not outer.adm else
+                                   # SPECULATIVE shape, not in v0.2.16 — the
+                                   # strata-face live table has no admission
+                                   # object; the switch exists to exercise the
+                                   # panel's render/degrade face (T71)
                                    {"admission": {"total": 9, "ram_floor": 2, "budget": 7}})),
                         "requests": [], "requests_kept": 0,
                         "totals": {"requests": 0, "prompt_tokens": 0, "reused": 0, "output_tokens": 0,

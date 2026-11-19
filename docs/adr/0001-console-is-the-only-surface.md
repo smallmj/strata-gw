@@ -14,3 +14,9 @@ Consequence: each Strata upgrade grows the proxy set deliberately — one commit
 re-pins the compat three-set (baseline, TESTED_UP_TO, sim-kit stamp) and extends
 the sim kit so the new face is red-pinned before it is drawn. gw never
 synthesizes engine data.
+
+Legacy exemption (frozen, T-pinned — do not "fix"): `/` still forwards the
+engine's own page when a backend is resident (bookmarks from before the
+console), and 302s to `/gateway` when none is. New panels never ride that
+forward — every console surface enters through `/router/*` proxies or the
+catch-all; the `/` exception is kept purely for those old bookmarks.

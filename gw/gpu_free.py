@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import threading
 import time
 
 from urllib import request as urlrequest
@@ -186,6 +187,10 @@ _free_inflight: dict = {}     # release-in-flight {"op","since"}: spinners survi
 _gen_gate_t0 = 0.0            # generation-gate hold start (0 = not holding); the
                               # gate's own state on /router/gpu (gw reporting ITSELF
                               # is legal — ADR-0001 only guards engine data)
+_gen_gate_holds = 0           # how many requests wait on the gate RIGHT NOW —
+_gen_gate_lock = threading.Lock()   # the gateway answers over ThreadingHTTPServer,
+                                    # so loops interleave: a single t0 let the first
+                                    # loop out erase the still-held gate (review #3)
 
 
 def gpu_stats() -> dict:
@@ -281,7 +286,7 @@ def wait_gen_queue() -> dict:
     itself is also reported live on /router/gpu (gpu_stats "gen_gate") while
     this loop runs, so the console can explain backpressure the moment it
     happens (issue #18)."""
-    global _down_until, _gen_gate_t0
+    global _down_until, _gen_gate_t0, _gen_gate_holds
     st = settings()
     qst = queue_settings()
     out = {"gated": False, "waited_s": 0, "gave_up": False}
@@ -298,7 +303,10 @@ def wait_gen_queue() -> dict:
     if not busy:
         return out
     t0 = time.time()
-    _gen_gate_t0 = t0
+    with _gen_gate_lock:
+        if _gen_gate_holds == 0:
+            _gen_gate_t0 = t0    # first hold opens the gate's live window
+        _gen_gate_holds += 1
     events.revent("gate", "外部生成器正在工作，引擎请求排队等待")
     gave_up = False
     try:
@@ -309,7 +317,10 @@ def wait_gen_queue() -> dict:
             time.sleep(qst["queue_poll_s"])
             busy = queue_busy(url, st["timeout_s"])
     finally:
-        _gen_gate_t0 = 0.0
+        with _gen_gate_lock:
+            _gen_gate_holds -= 1
+            if _gen_gate_holds == 0:
+                _gen_gate_t0 = 0.0   # only the LAST hold out closes the window
     out.update({"gated": True, "waited_s": int(time.time() - t0), "gave_up": gave_up})
     events.revent("gate", "引擎请求排队 %d 秒后执行%s" % (out["waited_s"], "（等待超时放行）" if gave_up else ""))
     return out
