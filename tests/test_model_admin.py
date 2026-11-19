@@ -639,10 +639,12 @@ finally:
 
 # K-SIM5 (T15 protocol-drift tripwire): the in-test Stub and the kit engine
 # must speak the exact same endpoint set - fix one side, the other goes red.
+# The class carries '-' (review fix #5): without it /api/expert-heat — the
+# one hyphenated endpoint — was invisible to the tripwire on BOTH sides.
 def _endpoints(src):
-    out = set(re.findall(r'p == "(/[a-z0-9/_]*)"', src))
+    out = set(re.findall(r'p == "(/[a-z0-9/_-]*)"', src))
     for tup in re.findall(r'p in \(([^)]*)\)', src):
-        out |= set(re.findall(r'"(/[a-z0-9/_]*)"', tup))
+        out |= set(re.findall(r'"(/[a-z0-9/_-]*)"', tup))
     return out
 _st = open(os.path.join(REPO, "tests", "stub_common.py"), encoding="utf-8").read()
 _stub_src = _st[_st.index("class Stub:"): _st.index("class StubHolder")]
