@@ -87,6 +87,18 @@ def _mcp_payload(mode):
         "tools": 12}
 
 
+def _facts_engine():
+    """engine.* face for the About facts block (#21, design record §4): the
+    optional fields riding on top of kv/max_context/spec (which both faces
+    already carry). Values fake, shape real — kv_resident is pinned to the
+    ratio face ∈[0,1] (the formatter falls back to MiB above 1), arena/
+    vram_free ride plain MiB ints, pool/cap plain ints. tests/stub_common.py
+    and the sim kit carry this factory byte-identically (F4d pin); both
+    merge it into their /metrics engine dict via **_facts_engine()."""
+    return {"kv_resident": 0.92, "mtp_max": 2, "arena_mib": 512,
+            "vram_free_mib": 22000, "pool_workers": 12, "prefill_cap": 4096}
+
+
 class Stub:
     """Fake lazy backend: /health, /v1/models, POST /load, POST /unload.
     v0.2.16 face (#16): '/' serves the HTML marker; /props /slots /api/expert-heat
@@ -137,7 +149,8 @@ class Stub:
                     _m = {
                         "engine": {"model": outer.name, "max_context": outer.max_context,
                                    "version": "0.1.56", "expert_slots": 7711,
-                                   "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
+                                   "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4,
+                                   **_facts_engine()},
                         "stub_tag": f"stub:{outer.name}",
                         "live": dict({"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,

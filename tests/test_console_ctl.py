@@ -1116,4 +1116,149 @@ ok(".srvrow{" in css and ".srvrow:first-child{border-top:0}" in css,
 ok("mcp-box" not in js + html and "loadMcp" not in js,
    "M4k negative pin: the retired MCP drawer's names never come back (T43 family)")
 
+# ---- F: About engine facts (issue #21, T6) --------------------------------
+# Design record §4: the About tab-0 card grows a SECOND .kvbar (#eng-facts)
+# under the existing #eng-kv dossier. Chips ride d.engine.* off the SAME 2.5s
+# pollMetrics payload — zero new fetches, zero new timers — and every field
+# degrades individually: a missing fact omits its chip, never the block,
+# never an error. factsPanel is pure: engine object in, chip HTML out.
+
+# F1 the shell: #eng-facts is the second kvbar INSIDE tab 0, after #eng-kv
+ok('id="eng-facts"' in html
+   and html.index('id="eng-kv"') < html.index('id="eng-facts"')
+   and html.index('id="eng-facts"') < html.index('id="dsk"'),
+   "F1 #eng-facts sits in About tab 0 under #eng-kv and before tab 1's disk map")
+ok(html.count('<div class="kvbar">') == 2 and 'data-i18n="about.facts"' in html,
+   "F1b exactly two .kvbar blocks now; the new header rides about.facts")
+ok('getElementById("eng-kv").innerHTML' in js,
+   "F1c the legacy #eng-kv dossier keeps rendering from loadInfo (block untouched)")
+
+# F2 §6 facts vocabulary ships as zh/en pairs (T13a parity covers equality)
+_fkeys = ("about.facts fact.kv fact.kvres fact.spec fact.ctx fact.headroom "
+          "fact.arena facts.nodata").split()
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _fkeys),
+   "F2 all %d facts keys present in both tongues" % len(_fkeys))
+
+# F3 the renderer is a pure function; node runs it over the stub's engine
+# face — tests/stub_common.py _facts_engine is the kit-mirrored field set,
+# kv_resident pinned as the ratio face 0.92 there (design §4: the kit pins
+# which face kv_resident speaks; the formatter's MiB fallback gets its own pin).
+_fp = _fn_src(js, "factsPanel")
+ok(bool(_fp), "F3a factsPanel is extractable for a real run")
+if _fp:
+    import subprocess as _sc_f
+    import tempfile as _tc_f
+    import stub_common as _stub_f
+    _HELP_F = "\n".join(filter(None, (_fn_src(js, _f) for _f in ("num", "mibFromMiB"))))
+    _SHIM_F = r"""
+var LANG="zh";
+function tt(z,e){return LANG==="zh"?z:e}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+"""
+    def _fcase(eng, lang="zh"):
+        """Run factsPanel(eng) in node over the shim; returns its HTML."""
+        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "fcase_%s.js" % lang)
+        with open(_tf, "w", encoding="utf-8") as _f:
+            _f.write(_SHIM_F.replace('var LANG="zh";', 'var LANG="%s";' % lang)
+                     + _HELP_F + "\n" + _fp
+                     + "\nconsole.log(JSON.stringify(factsPanel(%s)));" % _json.dumps(eng))
+        _r = _sc_f.run(["node", _tf], capture_output=True, text=True, timeout=20)
+        if _r.returncode != 0:
+            ok(False, "factsPanel node run failed: " + _r.stderr[:300])
+            return ""
+        return _json.loads(_r.stdout)
+
+    # the full stub face: eight chips in §4 order, values verbatim
+    _fe = dict(_stub_f._facts_engine(), kv="k8v4", spec=4, max_context=524288)
+    _hf = _fcase(_fe)
+    ok(_hf.count('class="kvchip"') == 8, "F3b the full stub face renders eight .kvchip")
+    ok(">k8v4<" in _hf and "KV 布局" in _hf, "F3c kv renders raw")
+    ok(">92%<" in _hf and "KV 常驻" in _hf,
+       "F3d kv_resident 0.92 (the stub-pinned ratio face) → 92%")
+    ok(">4 (MTP×2)<" in _hf and "投机解码" in _hf,
+       "F3e spec+mtp_max merge into one chip: 4 (MTP×2)")
+    ok(">512K tok<" in _hf and "上下文" in _hf,
+       "F3f max_context rides the existing ctx-tile K-tok idiom")
+    ok(">21.5 GiB<" in _hf and "显存余量" in _hf and ">512 MiB<" in _hf and "显存竞技场" in _hf,
+       "F3g vram_free_mib/arena_mib render through mibFromMiB (22000→GiB, 512→MiB)")
+    ok(">12<" in _hf and "线程池" in _hf and ">4,096<" in _hf and "预填上限" in _hf,
+       "F3h pool_workers/prefill_cap render through num()")
+    _ord = ["KV 布局", "KV 常驻", "投机解码", "上下文", "显存余量",
+            "显存竞技场", "线程池", "预填上限"]
+    ok(all(_hf.index(a) < _hf.index(b) for a, b in zip(_ord, _ord[1:])),
+       "F3i chip order matches the §4 table exactly")
+    # per-field degrade, evidenced on the stub face: drop ONE key at a time —
+    # only that chip is omitted, the other seven survive, the block never dies
+    for _fld, _lab in (("kv", "KV 布局"), ("kv_resident", "KV 常驻"),
+                       ("spec", "投机解码"), ("max_context", "上下文"),
+                       ("vram_free_mib", "显存余量"), ("arena_mib", "显存竞技场"),
+                       ("pool_workers", "线程池"), ("prefill_cap", "预填上限")):
+        _hd = _fcase({k: v for k, v in _fe.items() if k != _fld})
+        ok(_lab not in _hd and _hd.count('class="kvchip"') == 7,
+           "F3j stub without engine.%s → that chip alone is omitted" % _fld)
+    # spec absent but mtp_max present: the chip keys on spec, still omitted
+    _hs = _fcase({k: v for k, v in _fe.items() if k != "spec"})
+    ok("投机解码" not in _hs and "MTP" not in _hs and _hs.count('class="kvchip"') == 7,
+       "F3k mtp_max without spec invents no speculation chip")
+    # mtp_max absent: spec survives alone, no MTP suffix
+    _hn = _fcase({k: v for k, v in _fe.items() if k != "mtp_max"})
+    ok(">4<" in _hn and "MTP" not in _hn and _hn.count('class="kvchip"') == 8,
+       "F3l mtp_max absent → the speculation chip survives without the suffix")
+    # zero is data: an explicit 0 renders, it is NOT a missing field
+    _hz = _fcase(dict(_fe, vram_free_mib=0, spec=0))
+    ok(">0 MiB<" in _hz and "显存余量" in _hz and "投机解码" in _hz
+       and _hz.count('class="kvchip"') == 8,
+       "F3m zero values (vram_free_mib=0, spec=0) render — never treated as absent")
+    # kv_resident fallback face: >1 goes through mibFromMiB (kit pins ratio as primary)
+    ok(">14.1 GiB<" in _fcase(dict(_fe, kv_resident=14451)),
+       "F3n kv_resident above 1 falls back to mibFromMiB (14451 → 14.1 GiB)")
+    # engine object absent / empty → one nodata chip, nothing else, no error
+    for _nul in ({}, None):
+        _ho = _fcase(_nul)
+        ok("引擎未上报运行事实" in _ho and _ho.count('class="kvchip"') == 1
+           and "<error" not in _ho.lower() and "报错" not in _ho,
+           "F3o engine %s → facts.nodata chip only — quiet, never an error" % (_nul,))
+    # engine strings are escaped on the way in (kv is engine-produced text)
+    _hx = _fcase(dict(_fe, kv='a<b&"c'))
+    ok("a&lt;b&amp;&quot;c" in _hx and 'a<b&"c' not in _hx,
+       "F3p kv value escapes — engine text never injects markup")
+    # EN mirror of the whole face (labels from the §6 copy)
+    _he = _fcase(_fe, lang="en")
+    ok(all(x in _he for x in ("KV layout", "KV resident", "speculation", "context",
+                              "VRAM headroom", "VRAM arena", "pool workers", "prefill cap"))
+       and ">k8v4<" in _he and ">92%<" in _he,
+       "F3q EN mirror carries the final §6 labels, values unchanged")
+    ok("engine reports no runtime facts" in _fcase({}, lang="en"),
+       "F3r EN nodata is the §6 final copy")
+
+# F4 paint discipline: the block rides the existing 2.5s tick — paintFacts
+# touches no fetch, repaints only when the chip HTML string changed (K27),
+# and renderMonitor calls it on BOTH the no-data and data paths.
+_pf = _fn_src(js, "paintFacts")
+ok(bool(_pf) and "fetch" not in _pf and "setInterval" not in _pf,
+   "F4a zero new requests, zero new timers: paintFacts touches no fetch/setInterval")
+ok(bool(_pf) and "_h!==" in _pf,
+   "F4b repaint guarded by a single facts-HTML-changed compare (K27 anti-flicker)")
+ok(bool(_pf) and 'getElementById("eng-facts")' in _pf and "factsPanel(" in _pf,
+   "F4c paintFacts bridges mon.data engine into factsPanel")
+ok(js.count("paintFacts()") >= 2,
+   "F4d renderMonitor repaints facts on both the no-data and data paths")
+_ok_st = open(os.path.join(ROOT, "tests", "stub_common.py"), encoding="utf-8").read()
+_ok_kt = open(os.path.join(ROOT, "tools", "sim-strata", "serve", "server.py"),
+              encoding="utf-8").read()
+def _fbody(src):
+    i = src.index("def _facts_engine")
+    j = min(src.index(x, i + 1) for x in ("\ndef ", "\nclass ") if x in src[i + 1:])
+    return src[i:j]
+ok(_fbody(_ok_st) == _fbody(_ok_kt),
+   "F4e stub_common and the kit carry _facts_engine byte-identically (no drift)")
+ok("**_facts_engine()" in _ok_st and "**_facts_engine()" in _ok_kt,
+   "F4f both faces merge the fact fields into their /metrics engine dict")
+
+# F5 no formatting fork: the chips reuse the §0.3 helpers, they never format
+# MiB/GiB locally (design rule 3 — values verbatim through mibFromMiB/num).
+ok("mibFromMiB" in _fp and "GiB" not in _fp and " MiB" not in _fp,
+   "F5a factsPanel has no local MiB/GiB formatting fork (mibFromMiB only)")
+
 sys.exit(0 if not F else 1)
