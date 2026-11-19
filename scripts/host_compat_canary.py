@@ -32,6 +32,13 @@ UPSTREAM_REPO = "https://github.com/Niko1221/Strata"
 CRITICAL_JSON_KEYS = ("model_name", "args")     # what backends/ actually reads
 WIZARD_FLAGS = ("--setup", "--family", "--model", "--context", "--kv",
                 "--vision", "--data-dir", "--gguf-dir", "--no-start", "--yes")
+# The serve route literals the baseline can pin: the nine classic routes plus
+# the five the v0.2.16 console surfaces ride on (#16 truth-up: /props /slots
+# /mcp /v1/status /api/expert-heat). One regex, used by BOTH scan modes, so a
+# route pinned in the baseline is always readable by the tripwire.
+ROUTES_RE = (r'["\'](/health|/v1/models|/v1/chat/completions|/load|/unload'
+             r'|/metrics|/settings|/config|/status'
+             r'|/props|/slots|/mcp|/v1/status|/api/expert-heat)["\']')
 
 fails = []
 
@@ -81,8 +88,7 @@ def scan_py_dir(root):
             if f == "setup.py" or "setup" in os.path.basename(dp):
                 cli.update(re.findall(r'add_argument\(\s*["\'](--[a-z][a-z-]*)', src))
             if "serve" in dp or f in ("server.py", "api.py"):
-                routes.update(re.findall(r'["\'](/health|/v1/models|/v1/chat/completions'
-                                         r'|/load|/unload|/metrics|/settings|/config|/status)["\']', src))
+                routes.update(re.findall(ROUTES_RE, src))
     for _ in range(4):        # resolve alias graphs (PREVIEW_FAMILIES = OWN_PATH_FAMILIES)
         for nm, srcs in alias.items():
             for s in srcs:
@@ -109,6 +115,9 @@ def compare(b, cons, cli, routes, jkeys):
         str(sorted(want)), str(sorted(cli & want)) if cli else "no setup.py surface scanned")
     want = set(b["engine_routes"])
     say(want <= routes, "engine_routes", "nine-routes", str(sorted(want)), str(sorted(routes & want)))
+    want = set(b.get("console_routes", []))
+    say(want <= routes, "console_routes", "five-console-routes",
+        str(sorted(want)), str(sorted(routes & want)))
     for k in CRITICAL_JSON_KEYS:
         say(k in jkeys, "model_json_keys", k, "present", "present" if k in jkeys else "MISSING")
 
@@ -229,8 +238,7 @@ def main():
             # answers little at all. The source is the contract; the socket is not.
             srv = read((os.path.join("terminal", "serve", "server.py"),
                         os.path.join("serve", "server.py")))
-            routes = set(re.findall(r'["\'](/health|/v1/models|/v1/chat/completions'
-                                    r'|/load|/unload|/metrics|/settings|/config|/status)["\']', srv or ""))
+            routes = set(re.findall(ROUTES_RE, srv or ""))
             compare(b, cons, cli, routes, jkeys)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

@@ -150,6 +150,19 @@ ok("n_got >= n_want" in _can and "say(n_want == n_got" not in _can,
 ok("Invoke-WebRequest" not in _can,
    "P9 the live route check never pokes running engines over HTTP - it reads serve/server.py statically")
 
+# ---- P11 (#16 truth-up): the console-surface route pin is in the three-set --
+# The v0.2.16 console bundle rides five more engine routes than the nine that
+# were pinned at v0.2.9: /props /slots /mcp /v1/status /api/expert-heat
+# (/status was already pinned by engine_routes). The baseline must name them,
+# and the canary must be able to READ them in both scan modes - a baseline
+# the tripwire cannot check is a wish, not a contract.
+ok(all(r in bl.get("console_routes", [])
+       for r in ("/props", "/slots", "/mcp", "/v1/status", "/api/expert-heat")),
+   "P11a compat-baseline declares console_routes with all five new console-surface routes")
+ok("console_routes" in _can and all(
+       lit in _can for lit in ('/props', '/slots', '/mcp', '/v1/status', '/api/expert-heat')),
+   "P11b the canary scans the five new routes too (static regex + live regex read them)")
+
 # ---- P10: the tripwire must itself be able to READ both host layouts --------
 # A fake install is generated straight from tests/compat-baseline.json (all four
 # faces), planted once at the top level (legacy) and once under terminal/ (the
@@ -173,7 +186,8 @@ def _plant_install(root, sub):
         fh.write("import argparse\np = argparse.ArgumentParser()\n"
                  + "\n".join(lines) + "\n")
     with open(os.path.join(d, "serve", "server.py"), "w", encoding="utf-8") as fh:
-        fh.write("ROUTES = [%s]\n" % ", ".join('"%s"' % r for r in _b10["engine_routes"]))
+        fh.write("ROUTES = [%s]\n" % ", ".join(
+            '"%s"' % r for r in list(_b10["engine_routes"]) + list(_b10.get("console_routes", []))))
     vbin = os.path.join(d, ".venv", "bin")
     os.makedirs(vbin, exist_ok=True)
     if not os.path.exists(os.path.join(vbin, "python")):
