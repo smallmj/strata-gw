@@ -1317,7 +1317,6 @@ function renderMonitor(){
   var requests=d.requests||[],last=requests[0]||null;
   var loaded=modelsList.some(function(b){return b.model===selName&&b.loaded});
   var state=lv.state||"unloaded";
-  if(loaded&&lv.queued>0&&state!=="generating"&&state!=="reading")state="queued";
   var STATE={idle:tt("待机","standby"),reading:tt("读提示词","prompt decode"),generating:tt("生成中","generating"),queued:tt("排队中","queued"),unloaded:tt("已卸载","offloaded"),error:tt("异常","stale")};
   if(!loaded)state="unloaded";
   ctext=STATE[state]||state;

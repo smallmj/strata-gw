@@ -708,4 +708,12 @@ console.log(ok ? "RESUME-MONOTONIC" : "BAD " + JSON.stringify([a, b]));
     ok("RESUME-MONOTONIC" in _r.stdout,
        "T32a parseProg reads resumed-download lines as standing where they are, not 0%")
 
+# ---- Q series (issue #18, T3): the engine queue panel in Monitor ------------
+# Q1 the frontend-synthesized "queued" badge is RETIRED — ADR-0001's one
+# exception finally closes: the chip follows the engine's own live.state,
+# the panel carries engine-reported counts, nothing is invented.
+ok('if(loaded&&lv.queued>0' not in js, "Q1 synthesized queued badge is gone from app.js")
+ok('queued:tt("排队中","queued")' in js and 'else if(state==="queued")' in js,
+   "Q1b guard: the STATE queued entry + detail branch stay for the engine's own queued state")
+
 sys.exit(0 if not F else 1)
