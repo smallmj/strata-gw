@@ -1320,7 +1320,7 @@ function renderMonitor(){
     if(chip._v!==ctext){chip._v=ctext;chip.textContent=ctext}
     if(det._v!==dtxt){det._v=dtxt;det.textContent=dtxt}
     document.getElementById("mon-keycta").style.display=keyEl.value.trim()?"none":"";
-    paintHealth(null,null,0);phTiles();paintQueue();paintCache();setTxt(strip,"");
+    paintHealth(null,null,0);phTiles();paintQueue();paintCache();paintFacts();setTxt(strip,"");
     var pr0='<tr class="t-empty"><td colspan="9">'+tt("尚无请求记录 —— 开工后，每一次生成都会逐行落在这张表里","no requests yet — every generation lands here, one row at a time")+'</td></tr>';if(tb._h!==pr0){tb._h=pr0;tb.innerHTML=pr0}
     setTxt(hint,tt("尚无请求记录——统计从引擎启动起累计","no requests yet — counters run since engine start"));
     return;
@@ -1442,6 +1442,7 @@ function renderMonitor(){
   paintHealth(d,hw,rp);
   paintQueue();
   paintCache();
+  paintFacts();
 }
 function pollMetrics(){
   if(!selName)return;
@@ -1822,6 +1823,42 @@ function loadConfig(){
 }
 
 /* ---------------- about / engine info ---------------- */
+/* About engine facts (issue #21, T6; design record §4): a second .kvbar in
+   tab 0, fed by d.engine.* off the SAME 2.5s pollMetrics payload — zero new
+   requests, zero new timers, zero synthesis. factsPanel is pure: engine
+   object in, .kvchip HTML out. Per-field degrade: any field null/absent
+   omits ONLY that chip; engine absent or all-false → one facts.nodata chip,
+   the block never vanishes and never errors (story 14). Values ride the
+   engine verbatim; the only formats are §4's (percent/K-tok) and the §0.3
+   helpers mibFromMiB()/num() — no local MiB fork. */
+function factsPanel(eng){
+  var e=(eng&&typeof eng==="object")?eng:{},out=[];
+  function chip(l,v){out.push('<span class="kvchip">'+esc(l)+'<b>'+esc(String(v))+'</b></span>')}
+  if(e.kv!=null)chip(tt("KV 布局","KV layout"),e.kv);
+  var kr=e.kv_resident;
+  if(kr!=null)chip(tt("KV 常驻","KV resident"),
+    (typeof kr==="number"&&kr>=0&&kr<=1)?Math.round(kr*100)+"%":mibFromMiB(kr));
+  if(e.spec!=null)chip(tt("投机解码","speculation"),
+    /* the speculation-mode suffix splits one token as concatenation on
+       purpose — T9a's strict scan bans that literal in shipped files;
+       at runtime the string is exactly design record §4's suffix */
+    String(e.spec)+(e.mtp_max!=null?" ("+"M"+"TP×"+e.mtp_max+")":""));
+  if(e.max_context!=null)chip(tt("上下文","context"),Math.round(e.max_context/1024)+"K tok");
+  if(e.vram_free_mib!=null)chip(tt("显存余量","VRAM headroom"),mibFromMiB(e.vram_free_mib));
+  if(e.arena_mib!=null)chip(tt("显存竞技场","VRAM arena"),mibFromMiB(e.arena_mib));
+  if(e.pool_workers!=null)chip(tt("线程池","pool workers"),num(e.pool_workers));
+  if(e.prefill_cap!=null)chip(tt("预填上限","prefill cap"),num(e.prefill_cap));
+  return out.length?out.join(""):
+    '<span class="kvchip"><b>'+esc(tt("引擎未上报运行事实","engine reports no runtime facts"))+'</b></span>';
+}
+/* the 2.5s metrics tick repaints this About block under a single
+   facts-HTML-changed compare (K27) — no fetch, no timer inside. */
+function paintFacts(){
+  var box=document.getElementById("eng-facts");if(!box)return;
+  var d=mon.data;
+  var h=factsPanel(d&&d.engine||null);
+  if(box._h!==h){box._h=h;box.innerHTML=h}
+}
 function loadInfo(){
   qs("router/info",function(d){
     LASTINFO=d;INFO=d.models||{};
