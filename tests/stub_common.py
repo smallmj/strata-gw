@@ -65,6 +65,7 @@ class Stub:
         self.shared, self.posts = {}, []
         self.max_context = 524288
         self.cc_mode, self.heat = "on", True    # metrics cache tri-state / heat two-state
+        self.par, self.adm = False, False       # live queue variants (T71): parallel slots / refusal counters
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -85,7 +86,10 @@ class Stub:
                 if p == "/config":
                     return self._send(200, {"file": "strata-x.json",
                                             "keys": [{"key": "idle_unload_s", "value": 1800,
-                                                      "help": "unload after N idle seconds", "kind": "number"}],
+                                                      "help": "unload after N idle seconds", "kind": "number"},
+                                                     {"key": "max_queue", "value": 32,
+                                                      "help": "429 past this many waiting (0 = no cap)",
+                                                      "kind": "number"}],
                                             "note": "used from the next start"})
                 if p == "/mcp":
                     return self._send(200, {"servers": [], "tools": 0})
@@ -97,11 +101,18 @@ class Stub:
                                    "version": "0.1.56", "expert_slots": 7711,
                                    "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
                         "stub_tag": f"stub:{outer.name}",
-                        "live": {"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
+                        "live": dict({"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,
                                  "max_tokens": None, "elapsed_s": None, "tok_s": None,
                                  "reused": 0, "tok_s_mean": None,
                                  "prefill_tok_s_mean": None},
+                                **({} if not outer.par else
+                                   {"parallel": True, "running": 1, "waiting": 1, "admitting": 1,
+                                    "slots": [{"slot": 0, "state": "generating", "prompt_read": 1204,
+                                               "generated": 512, "elapsed_s": 3.0, "tok_s": 41.0},
+                                              {"slot": 1, "state": "idle", "held_tokens": 8192}]}),
+                                **({} if not outer.adm else
+                                   {"admission": {"total": 9, "ram_floor": 2, "budget": 7}})),
                         "requests": [], "requests_kept": 0,
                         "totals": {"requests": 0, "prompt_tokens": 0, "reused": 0, "output_tokens": 0,
                                    "prompt_ms": 0.0, "decode_ms": 0.0, "since": 100.0,
@@ -147,6 +158,19 @@ class Stub:
                         return self._send(200, [])
                     return self._send(200, [{"id": 0, "n_ctx": 8192, "is_processing": False,
                                              "n_prompt_tokens": 0}])
+                if p == "/v1/status":
+                    # real v0.2.16 face (compat-baseline console_routes pin):
+                    # honest ~1KB subset; every top-level key the console reads.
+                    return self._send(200, {"service": "strata", "model": outer.name,
+                                            "loaded": outer.loaded, "auto_load": True,
+                                            "structured_output": True, "engine": "0.1.56",
+                                            "uptime_s": 123.0, "cache_max_tokens": 8192,
+                                            "context": {"n_ctx": outer.max_context},
+                                            "concurrency": {"serving": 1, "requested": 1},
+                                            "dialects": ["chat"], "vision": True,
+                                            "image_generation": True,
+                                            "activity": {"in_flight": 0},
+                                            "last_timings": {}, "vram": {}, "machine": {}})
                 if p == "/api/expert-heat":
                     # two-state switch (#16): unconfigured engine = 404,
                     # exactly like the real serve with no expert profile.
