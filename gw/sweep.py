@@ -160,7 +160,7 @@ def plan_orphans(rows: list[dict], me: set[int],
     in service - even when another gateway runs it side by side - and is left
     alone."""
     live = {r["pid"] for r in rows}
-    sp = server_py if server_py is not None else config.SERVER_PY
+    sp = server_py if server_py is not None else config.server_py()
     plan = []
     for r in rows:
         if r["pid"] in me:
@@ -322,7 +322,7 @@ def sweep_boot() -> list[tuple[int, str, str]]:
     rows = _enumerate()
     if not rows:
         return []
-    plan = plan_boot(rows, ancestors(rows, os.getpid()), config.ROOT, config.SERVER_PY)
+    plan = plan_boot(rows, ancestors(rows, os.getpid()), config.ROOT, config.server_py())
     if not plan:
         print("[router] boot sweep: no old strata processes found (clean boot)", flush=True)
         return []

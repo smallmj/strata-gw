@@ -146,14 +146,32 @@ def main():
                                           text=True, errors="ignore").stdout) if a.ssh else \
               (lambda cmd: subprocess.run(cmd, shell=True, capture_output=True,
                                           text=True, errors="ignore").stdout)
-        probe = ('import json,sys; sys.path.insert(0, r"%s"); import setup as s; '
+        # v0.2.16 moved the install under <shome>/terminal/ (setup.py, the venv,
+        # serve/, strata-*.json). The probe gets BOTH folders on sys.path, so it
+        # imports whichever setup.py exists without anyone guessing the layout.
+        subs = ("", "terminal")                       # insert order: terminal last = first on path
+        probe = ('import json,sys; '
+                 + "".join('sys.path.insert(0, r"%s"); '
+                           % os.path.join(a.shome, s if s else ".") for s in subs)
+                 + 'import setup as s; '
                  'print(json.dumps({"FAMILIES": sorted(s.FAMILIES), '
                  '"PREVIEW_FAMILIES": sorted(s.PREVIEW_FAMILIES), '
                  '"MULTI_FILE_FAMILIES": sorted(getattr(s, "MULTI_FILE_FAMILIES", [])), '
-                 '"MODELS": sorted(s.MODELS)}))' % a.shome)
-        py = os.path.join(a.shome, ".venv", "Scripts", "python.exe")
-        if not a.ssh and not os.path.exists(py):
-            py = os.path.join(a.shome, ".venv", "bin", "python")
+                 '"MODELS": sorted(s.MODELS)}))')
+        cands = [os.path.join(a.shome, s, ".venv", leaf)
+                 for s in ("terminal", "")
+                 for leaf in (os.path.join("Scripts", "python.exe"),
+                              "bin/python", "bin/python3")]
+        py = ""
+        if a.ssh:
+            _ps = ("$c=@(%s); foreach($p in $c){ if(Test-Path $p){ Write-Output $p; break } }"
+                   % ",".join("'%s'" % c.replace("\\", "/") for c in cands))
+            py = ((run('powershell -NoProfile -Command "%s"' % _ps) or "").strip()
+                  .splitlines() or [""])[0]
+        else:
+            py = next((c for c in cands if os.path.exists(c)), "")
+        if not py:
+            py = cands[-3] if len(cands) >= 3 else cands[-1]
         try:
             cons = {k: set(v) for k, v in
                     json.loads(run('"%s" -c "%s"' % (py, probe.replace('"', "'"))).strip() or "{}").items()}
@@ -166,39 +184,51 @@ def main():
         tmp = tempfile.mkdtemp(prefix="canary-live-")
         try:
             def read(rel):
-                if a.ssh:
-                    src = "%s:%s" % (a.ssh, os.path.join(a.shome.replace("\\", "/"), rel).replace("\\", "/"))
-                    subprocess.run(["scp", "-q", src, os.path.join(tmp, os.path.basename(rel))],
-                                   capture_output=True)
-                    f = os.path.join(tmp, os.path.basename(rel))
-                else:
-                    f = os.path.join(a.shome, rel)
-                try:
-                    return open(f, encoding="utf-8", errors="ignore").read()
-                except OSError:
-                    return ""
-            setup_src = read("setup.py")
+                """First non-empty read among the candidate relative paths."""
+                for cr in ((rel,) if isinstance(rel, str) else tuple(rel)):
+                    fwd = cr.replace("\\", "/")
+                    if a.ssh:
+                        src = "%s:%s" % (a.ssh, os.path.join(
+                            a.shome.replace("\\", "/"), fwd).replace("\\", "/"))
+                        f = os.path.join(tmp, fwd.replace("/", "-").replace(":", ""))
+                        subprocess.run(["scp", "-q", src, f], capture_output=True)
+                    else:
+                        f = os.path.join(a.shome, cr)
+                    try:
+                        txt = open(f, encoding="utf-8", errors="ignore").read()
+                    except OSError:
+                        continue
+                    if txt:
+                        return txt
+                return ""
+            setup_src = read((os.path.join("terminal", "setup.py"), "setup.py"))
             cli = set(re.findall(r'add_argument\(\s*["\'](--[a-z][a-z-]*)', setup_src or ""))
             jkeys = set()
-            if a.ssh:
-                names = run('powershell -NoProfile -Command "Get-ChildItem \'%s\\strata-*.json\' -Name"' % a.shome)
-                for nm in (names or "").split():
-                    subprocess.run(["scp", "-q", "%s:%s" % (a.ssh, a.shome.replace("\\", "/") + "/" + nm),
-                                    os.path.join(tmp, "j-" + nm)], capture_output=True)
-                    try:
+            for sub in ("", "terminal"):
+                d16 = os.path.join(a.shome, sub) if sub else a.shome
+                if a.ssh:
+                    fwd16 = d16.replace("\\", "/")
+                    names = run('powershell -NoProfile -Command "Get-ChildItem \'%s\\strata-*.json\' -Name"'
+                                % fwd16)
+                    for i, nm in enumerate((names or "").split()):
+                        dst = os.path.join(tmp, "j-%s-%d-%s" % (sub or "root", i, nm))
+                        subprocess.run(["scp", "-q", "%s:%s" % (a.ssh, fwd16 + "/" + nm), dst],
+                                       capture_output=True)
+                        try:
+                            jkeys.update(re.findall(r'"([a-z_]+)"\s*:',
+                                       open(dst, encoding="utf-8", errors="ignore").read()))
+                        except OSError:
+                            pass
+                else:
+                    import glob as _g
+                    for f in _g.glob(os.path.join(d16, "strata-*.json")):
                         jkeys.update(re.findall(r'"([a-z_]+)"\s*:',
-                                    open(os.path.join(tmp, "j-" + nm), encoding="utf-8", errors="ignore").read()))
-                    except OSError:
-                        pass
-            else:
-                import glob as _g
-                for f in _g.glob(os.path.join(a.shome, "strata-*.json")):
-                    jkeys.update(re.findall(r'"([a-z_]+)"\s*:',
-                               open(f, encoding="utf-8", errors="ignore").read()))
+                                   open(f, encoding="utf-8", errors="ignore").read()))
             # routes: read the engine's own source text. HTTP probing a live box
             # false-alarms - POST endpoints answer 405 to GET and a cold engine
             # answers little at all. The source is the contract; the socket is not.
-            srv = read(os.path.join("serve", "server.py"))
+            srv = read((os.path.join("terminal", "serve", "server.py"),
+                        os.path.join("serve", "server.py")))
             routes = set(re.findall(r'["\'](/health|/v1/models|/v1/chat/completions'
                                     r'|/load|/unload|/metrics|/settings|/config|/status)["\']', srv or ""))
             compare(b, cons, cli, routes, jkeys)

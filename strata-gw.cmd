@@ -18,7 +18,8 @@ rem =====================================================================
 setlocal
 cd /d "%~dp0"
 if "%GATEWAY_PORT%"=="" set GATEWAY_PORT=18075
-set "GATEWAY_PY=D:\Strata\.venv\Scripts\python.exe"
+set "GATEWAY_PY=D:\Strata\terminal\.venv\Scripts\python.exe"
+if not exist "%GATEWAY_PY%" set "GATEWAY_PY=D:\Strata\.venv\Scripts\python.exe"
 if not exist "%GATEWAY_PY%" set "GATEWAY_PY=python"
 
 net session >nul 2>&1 || echo NOTE: this window is NOT elevated - processes owned by another account (e.g. SYSTEM) cannot be stopped from here

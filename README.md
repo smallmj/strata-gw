@@ -127,11 +127,13 @@ Latin subset in the repo and served by the gateway itself — no CDN is ever con
 
 | | 下限 floor | 上限 ceiling (tested) |
 |---|---|---|
-| Strata (母软件 App/Terminal) | v0.2.x（母软件自己声明 `MIN_ENGINE=(0,1,46)`） | **v0.2.14** |
-| 引擎 engine | 0.1.46 | **0.1.60** |
+| Strata (母软件 App/Terminal) | v0.2.x（母软件自己声明 `MIN_ENGINE=(0,1,46)`） | **v0.2.16** |
+| 引擎 engine | 0.1.46 | **0.1.62** |
 
 上游约 2 天一版（实查 2026-10-19 → 11-07 共 12 版），绝大多数升级是增量：网关的向导实时读取
-装机 `setup.py`，新家族 / 新档位自动可见。硬耦合面（setup 的 15 个 CLI 参数 + 9 个引擎端点 +
+装机 `setup.py`，新家族 / 新档位自动可见。v0.2.16 把整套安装（`setup.py`、`serve/`、
+`.venv`、模型 json、`engine/BUILD.json`）挪进了 `<引擎目录>/terminal/`——网关按目录形状认，
+两种布局都吃（新布局优先）。硬耦合面（setup 的 15 个 CLI 参数 + 9 个引擎端点 +
 模型 json 键形）成文在 `tests/compat-baseline.json`，`scripts/host_compat_canary.py` 机器对账——
 它是漂移绊线，不是对任何人升级纪律的要求。引擎比上限新时顶栏亮一枚黄色提示（不拦截），
 发版上限见 release notes。

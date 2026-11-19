@@ -123,8 +123,10 @@ class Backend:
                 return
             self.last_spawn = time.time()
             py = config.resolve_python()
-            if not os.path.isfile(config.SERVER_PY):
-                print("[router] cannot spawn %s: serve/server.py missing under %s - "
+            srv = config.server_py()
+            if not os.path.isfile(srv):
+                print("[router] cannot spawn %s: serve/server.py missing under %s "
+                      "(v0.2.16 keeps it under <home>/terminal/serve/) - "
                       "Strata engine not found; set STRATA_HOME or gateway.json \"strata_home\" "
                       "(未找到 Strata 引擎，请配置 STRATA_HOME / gateway.json)"
                       % (self.name, config.strata_home()), flush=True)
@@ -141,7 +143,7 @@ class Backend:
             # ends the router - Ctrl+C, the window's X, taskkill, a crash - the
             # job's kill-on-close takes the whole tree with it.
             self.proc = subprocess.Popen(
-                [py, config.SERVER_PY, "--engine", "strata", "--config", self.cfg_path,
+                [py, srv, "--engine", "strata", "--config", self.cfg_path,
                  "--host", "0.0.0.0", "--port", str(self.port),
                  "--api-key", self.key, "--lazy"],
                 cwd=config.ROOT, stdin=subprocess.DEVNULL)
@@ -335,9 +337,18 @@ class Backend:
 
 def scan_dirs() -> list[str]:
     """Config homes in trust order: the Strata install first (where setup.py
-    writes), then the gateway ROOT (embedded installs, legacy copies)."""
+    writes), then the gateway ROOT (embedded installs, legacy copies). v0.2.16
+    moved the install one level down under terminal/, so each home's terminal/
+    subfolder is scanned too - AFTER the home itself, which keeps the old
+    layout's higher trust when the same config sits in both places."""
     out, seen = [], set()
+    homes: list[str] = []
     for d in (config.strata_home(), config.ROOT):
+        homes.append(d)
+        sub = os.path.join(d, "terminal")
+        if os.path.isdir(sub):
+            homes.append(sub)
+    for d in homes:
         try:
             rp = os.path.realpath(d)
         except OSError:
@@ -586,9 +597,12 @@ def app_version() -> dict:
 
 
 def router_info() -> dict:
-    """/router/info: the engine BUILD.json plus a per-backend /health snapshot."""
+    """/router/info: the engine BUILD.json plus a per-backend /health snapshot.
+    An embedded install reads the stamp from its own tree; v0.2.16 puts it under
+    terminal/engine/, older installs at engine/ (a non-embedded deployment's
+    launcher copies it into the gateway tree every start)."""
     build = None
-    for cand in ("engine/BUILD.json", "BUILD.json"):
+    for cand in ("terminal/engine/BUILD.json", "engine/BUILD.json", "BUILD.json"):
         p = os.path.join(config.ROOT, cand)
         if os.path.isfile(p):
             try:

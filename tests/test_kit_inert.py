@@ -150,5 +150,51 @@ ok("n_got >= n_want" in _can and "say(n_want == n_got" not in _can,
 ok("Invoke-WebRequest" not in _can,
    "P9 the live route check never pokes running engines over HTTP - it reads serve/server.py statically")
 
+# ---- P10: the tripwire must itself be able to READ both host layouts --------
+# A fake install is generated straight from tests/compat-baseline.json (all four
+# faces), planted once at the top level (legacy) and once under terminal/ (the
+# v0.2.16 layout). canary --live has to agree with the baseline in BOTH shapes -
+# a tripwire that goes blind on the new layout is worse than no tripwire.
+_b10 = json.load(open(os.path.join(REPO, "tests", "compat-baseline.json"), encoding="utf-8"))
+
+
+def _plant_install(root, sub):
+    d = os.path.join(root, sub) if sub else root
+    os.makedirs(os.path.join(d, "serve"), exist_ok=True)
+    lines = []
+    for nm in ("FAMILIES", "PREVIEW_FAMILIES", "MULTI_FILE_FAMILIES"):
+        lines.append("%s = {%s}" % (nm, ", ".join(
+            '"%s": 1' % k for k in (_b10["constants"].get(nm) or []))))
+    n10 = int(_b10["constants"].get("MODELS_n") or 0)
+    lines.append("MODELS = {%s}" % ", ".join('"m%03d": 1' % i for i in range(max(n10, 1))))
+    for flag in _b10["setup_cli"]:
+        lines.append('p.add_argument("%s", help="x")' % flag)
+    with open(os.path.join(d, "setup.py"), "w", encoding="utf-8") as fh:
+        fh.write("import argparse\np = argparse.ArgumentParser()\n"
+                 + "\n".join(lines) + "\n")
+    with open(os.path.join(d, "serve", "server.py"), "w", encoding="utf-8") as fh:
+        fh.write("ROUTES = [%s]\n" % ", ".join('"%s"' % r for r in _b10["engine_routes"]))
+    vbin = os.path.join(d, ".venv", "bin")
+    os.makedirs(vbin, exist_ok=True)
+    if not os.path.exists(os.path.join(vbin, "python")):
+        os.symlink(sys.executable, os.path.join(vbin, "python"))
+    with open(os.path.join(d, "strata-pinned.json"), "w", encoding="utf-8") as fh:
+        json.dump({"model_name": "pinned-model", "args": ["--max-context", "8192"]}, fh)
+
+
+for _sub in ("", "terminal"):
+    _tmp10 = tempfile.mkdtemp(prefix="canary-layout-")
+    try:
+        _plant_install(_tmp10, _sub)
+        _r10 = subprocess.run([sys.executable, os.path.join(REPO, "scripts", "host_compat_canary.py"),
+                               "--live", "--shome", _tmp10],
+                              capture_output=True, text=True, timeout=180)
+        _tail10 = ((_r10.stdout or "") + (_r10.stderr or "")).strip().splitlines()
+        ok(_r10.returncode == 0,
+           "P10 canary --live reads the %s host layout and agrees with the baseline (%s)"
+           % (_sub or "legacy", (_tail10[-1] if _tail10 else "no output")))
+    finally:
+        shutil.rmtree(_tmp10, ignore_errors=True)
+
 print("ALL PASS")
 

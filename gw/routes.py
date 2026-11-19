@@ -362,7 +362,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {"error": "no Strata install found to adopt; point at one manually"})
             h = home_probe.set_home(p)
             if not h:
-                return self._json(400, {"error": "not a Strata engine root: needs setup.py plus serve/server.py or an engine/ folder", "path": p})
+                return self._json(400, {"error": "not a Strata engine root: needs setup.py plus serve/server.py (v0.2.16 keeps both under terminal/), or an engine binary under engine/", "path": p})
             setup_wizard._CHECK.update(state="idle", ok=None, summary=None)
             backends.rescan()
             return self._json(200, {"home": h, "valid": True})

@@ -59,19 +59,48 @@ json.dump({"families": fams, "tiers": lite(dict(s.MODELS), TKEEP)},
 _cache: dict = {"key": "", "cat": None}
 
 
+def setup_py():
+    """Where the installer script lives: v0.2.16 keeps the whole install under
+    <home>/terminal/, older installs at the top of the home. New layout first,
+    then legacy; None when neither exists (no Strata mounted)."""
+    home = config.strata_home()
+    for cand in (os.path.join(home, "terminal", "setup.py"),
+                 os.path.join(home, "setup.py")):
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+def build_stamp(base: str):
+    """The engine BUILD.json stamp: <base>/terminal/engine/, <base>/engine/, or
+    <base>/BUILD.json (a deployment that copied it up). Newest layout first."""
+    for cand in ("terminal/engine/BUILD.json", "engine/BUILD.json", "BUILD.json"):
+        p = os.path.join(base, cand)
+        if os.path.isfile(p):
+            try:
+                with open(p, encoding="utf-8-sig") as f:
+                    return json.load(f)
+            except (OSError, ValueError):
+                return None
+    return None
+
+
 def catalog() -> tuple[int, dict]:
     home = config.strata_home()
     py = config.resolve_python()
-    setup_py = os.path.join(home, "setup.py")
-    if not py or not os.path.isfile(setup_py):
+    setup_py_path = setup_py()
+    if not py or not setup_py_path:
         return 503, {"error": {"message":
             "Strata setup not found under %s - install Strata first, or point "
             "gateway.json \"strata_home\" at it (未找到 Strata 安装，请先装 Strata 引擎)" % home}}
-    key = "%s|%s" % (setup_py, os.path.getmtime(setup_py))
+    key = "%s|%s" % (setup_py_path, os.path.getmtime(setup_py_path))
     if _cache["key"] == key and _cache["cat"] is not None:
         return 200, _cache["cat"]
     try:
-        r = subprocess.run([py, "-c", PROBE, home], capture_output=True,
+        # the probe imports setup.py, so the folder HOLDING the installer goes
+        # on sys.path - on v0.2.16 that is <home>/terminal, not <home>
+        r = subprocess.run([py, "-c", PROBE, os.path.dirname(setup_py_path)],
+                           capture_output=True,
                            text=True, timeout=60, stdin=subprocess.DEVNULL)
         if r.returncode != 0:
             return 503, {"error": {"message": "setup list probe failed: "
@@ -317,8 +346,8 @@ def start(body) -> tuple[int, dict]:
     if bad or argv is None:
         return 400, _err(bad or "bad params")
     py, home = config.resolve_python(), config.strata_home()
-    setup_py = os.path.join(home, "setup.py")
-    if not py or not os.path.isfile(setup_py):
+    setup_py_path = setup_py()
+    if not py or not setup_py_path:
         return 503, _err("Strata setup not found under %s (未找到 Strata 安装)" % home)
     with _run_lock:
         if _RUN is not None and _RUN["state"] == "running":
@@ -333,7 +362,11 @@ def start(body) -> tuple[int, dict]:
         """setup.py's stdout goes straight into the log ring - zero parsing,
         the official output may drift shape and this never breaks."""
         try:
-            p = subprocess.Popen([py, "-u", setup_py] + argv, cwd=home,
+            # cwd = the installer's own folder: setup.py roots itself on its
+            # parent (v0.2.16 lives under <home>/terminal/) and writes its
+            # config next to itself.
+            p = subprocess.Popen([py, "-u", setup_py_path] + argv,
+                                 cwd=os.path.dirname(setup_py_path),
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  text=True, stdin=subprocess.DEVNULL, bufsize=1)
         except OSError as e:
@@ -406,18 +439,9 @@ _CHECK: dict = {"state": "idle"}
 def onboard(want_check: bool) -> dict:
     home = config.strata_home()
     py = config.resolve_python()
-    setup_py = os.path.join(home, "setup.py")
-    build = None
-    for cand in ("engine/BUILD.json", "BUILD.json"):
-        p = os.path.join(home, cand)
-        if os.path.isfile(p):
-            try:
-                with open(p, encoding="utf-8-sig") as f:
-                    build = json.load(f)
-            except (OSError, ValueError):
-                pass
-            break
-    out = {"engine": {"found": bool(py and os.path.isfile(setup_py)),
+    setup_py_path = setup_py()
+    build = build_stamp(home)
+    out = {"engine": {"found": bool(py and setup_py_path),
                       "home": home, "python": bool(py),
                       "version": (build or {}).get("version"),
                       # P5 (T15b): a -sim version = the demo kit is mounted -
@@ -429,12 +453,14 @@ def onboard(want_check: bool) -> dict:
                           _vtuple((build or {}).get("version")) >
                           _vtuple(config.TESTED_UP_TO.get("engine")))},
            "models": len(backends.BACKENDS)}
-    if want_check and _CHECK["state"] == "idle" and out["engine"]["found"]:
+    if want_check and _CHECK["state"] == "idle" and out["engine"]["found"] and py and setup_py_path:
         _CHECK.update(state="running")
+        _py, _sp = py, setup_py_path      # narrowed locals for the worker closure
 
         def run_check():
             try:
-                r = subprocess.run([py, setup_py, "--check"], cwd=home,
+                r = subprocess.run([_py, _sp, "--check"],
+                                   cwd=os.path.dirname(_sp),
                                    capture_output=True, text=True, timeout=180,
                                    stdin=subprocess.DEVNULL)
                 lines = [x for x in (r.stdout or "").splitlines() if x.strip()]
