@@ -452,7 +452,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"ok": True, "deleted": name})
             except OSError:
                 return self._json(404, {"error": {"message": "no such upload"}})
-        if method == "GET" and path in ("/", "/monitor"):
+        if method == "GET" and path == "/monitor":
+            # v0.2.16 truth-up (#16): the engine serve has no /monitor -
+            # a bookmark there must land on the console's Monitor section,
+            # unconditionally, never forwarded to a backend.
+            self.send_response(302)
+            self.send_header("Location", "/gateway#sec-monitor")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if method == "GET" and path == "/":
             if not backends.any_resident():
                 self.send_response(302)
                 self.send_header("Location", "/gateway")

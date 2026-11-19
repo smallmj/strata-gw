@@ -408,14 +408,22 @@ try:
     ok(res and res[0][0] == 200 and bb["loaded"] is True and bb.get("busy") is None,
        "T17 load finished: loaded true, busy cleared")
 
+    # T1 truth-up (#16): the engine has no /monitor in v0.2.16 - the gateway
+    # must never forward it. One unconditional 302 to the console's Monitor
+    # anchor, resident or not.
     st, h, loc = raw("GET", "/monitor")
-    ok(st == 200 and "stub:bbb-sc117" in h and "strataGatewayWatch" in h,
-       "T18 /monitor served with watch while resident")
+    ok(st == 302 and loc == "/gateway#sec-monitor" and "stub:bbb-sc117" not in h,
+       "T18 /monitor with a model resident: 302 to the console Monitor anchor, no engine forward")
 
     s, h = req("POST", "/unload", {"model": "bbb-sc117"})
     time.sleep(3.5)                                    # 等 3s 驻留缓存过期
     st, h, loc = raw("GET", "/monitor")
-    ok(st == 302 and loc == "/gateway", "T19 /monitor bounces to gateway after unload")
+    ok(st == 302 and loc == "/gateway#sec-monitor",
+       "T19 /monitor bounces to the same anchor after unload (no residency branch)")
+    _rt = open(os.path.join(ROOT, "gw", "routes.py"), encoding="utf-8").read()
+    ok('/monitor")' not in _rt and '"/gateway#sec-monitor"' in _rt,
+       "T19b old structure is gone: routes.py no longer pairs '/' with '/monitor' "
+       "and carries the anchored Location literally (negative pin, T43 style)")
 
     # ---- 外部显存让卡按钮（free-memory 语义）----
     CF.vram_free, CF.ram_used, CF.mode = 2000, 40000, "drops"
