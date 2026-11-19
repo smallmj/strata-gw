@@ -1322,6 +1322,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_H.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + extra + "\n" + _hg + "\n"
+                     + (_fn_src(js, "tstr") or "") + "\n"
                      + (_fn_src(js, "heatPos") or "") + "\n"
                      + (_fn_src(js, "heatAlpha") or "") + "\n"
                      + (_fn_src(js, "heatCard") or "") + "\n"

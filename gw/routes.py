@@ -633,6 +633,16 @@ class Handler(BaseHTTPRequestHandler):
                 return status
             finally:
                 backends.clear_busy(backend.name)
+        # Catch-all: every non-/router path forwards to the backend verbatim
+        # (pet chat set the precedent with v1/chat/completions; the queue
+        # panel rides v1/status). The expert-heat probe (#22, T7) rides THIS
+        # seam too — the console asks api/expert-heat?model= directly.
+        # Spec deviation (decided in #22): spec-v0216 planned one new mapping
+        # /router/expert-heat -> engine heat endpoint with a rewrite; we ship
+        # zero new routes instead, because the catch-all already reaches the
+        # endpoint verbatim and the path pair is pinned in
+        # tests/compat-baseline.json (console_routes) + the canary — a
+        # rewrite here would duplicate a working seam for no benefit.
         return self._forward_raw(backend, method, self.path, body)
 
     def do_GET(self):

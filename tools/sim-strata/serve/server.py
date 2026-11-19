@@ -25,12 +25,13 @@ STATE = {"loaded": False, "name": "sim-model", "max_context": 131072,
 
 # truth-up switches (#16, mirrors tests/stub_common.py): the degraded faces
 # T3/T4/T7 render against. CCACHE=on|off|absent drives /metrics
-# conversation_cache; HEAT=on|off drives /api/expert-heat (off = 404,
-# exactly like a real serve with no expert profile configured); MCP=
+# conversation_cache; HEAT=on|false|off drives /api/expert-heat (off = 404,
+# exactly like a real serve with no expert profile configured; false = 200
+# with configured:false and an empty rank - the SECOND hidden face, #22); MCP=
 # full|empty|absent drives /mcp for the T5 card (empty is the face an
 # unconfigured serve answers; absent = 404, an old engine without the route).
 CCACHE_MODE = os.environ.get("SIM_STRATA_CCACHE", "on")
-HEAT_ON = os.environ.get("SIM_STRATA_HEAT", "on") != "off"
+HEAT_MODE = os.environ.get("SIM_STRATA_HEAT", "on")
 MCP_MODE = os.environ.get("SIM_STRATA_MCP", "empty")
 HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # kit-shrunken (real box: 48x512), shape-true
 
@@ -98,10 +99,19 @@ def _facts_engine():
             "vram_free_mib": 22000, "pool_workers": 12, "prefill_cap": 4096}
 
 
-def _heat_payload():
-    """configured /api/expert-heat. rank[] is row-major: rank[l*experts + e] =
-    0-based within-layer rank, 0 = hottest (design record section 9.1
-    convention); (e+3l)%E keeps every layer a permutation of 0..experts-1."""
+def _heat_payload(configured=True):
+    """/api/expert-heat face (design record §5, strata-face field set). The
+    layers are stub/kit-shrunken 48x512 -> 4x8 but the semantics stay true:
+    rank[] is row-major, rank[l*experts + e] = 0-based within-layer rank,
+    0 = hottest (design record section 9.1); the formula (e+3l)%E keeps every
+    layer a permutation of 0..experts-1. configured=False is the SECOND hidden
+    face (#22, T7): the endpoint answers 200 but no expert profile is saved -
+    the console section stays hidden for it exactly as for the 404. tests/
+    stub_common.py and the sim kit carry this factory byte-identically
+    (the H-series byte-ident pin in test_console_ctl)."""
+    if not configured:
+        return {"configured": False, "every_min": 0, "saved_at": None,
+                "layers": 0, "experts": 0, "ranked": 0, "rank": []}
     L, E = HEAT_LAYERS, HEAT_EXPERTS
     return {"configured": True, "every_min": 10, "saved_at": 1763560000.0,
             "layers": L, "experts": E, "ranked": L * E,
@@ -237,11 +247,12 @@ class H(BaseHTTPRequestHandler):
                                     "activity": {"in_flight": 0},
                                     "last_timings": {}, "vram": {}, "machine": {}})
         if p == "/api/expert-heat":
-            # two-state switch (#16): SIM_STRATA_HEAT=off -> 404, exactly like
-            # a real serve with no expert profile configured.
-            if not HEAT_ON:
+            # tri-state switch (#16 + #22): SIM_STRATA_HEAT=off -> 404 (no
+            # profile configured); false -> 200 configured:false empty rank;
+            # anything else -> the grid face. Mirrors tests/stub_common.py.
+            if HEAT_MODE == "off":
                 return self._send(404, {"error": "no expert profile configured"})
-            return self._send(200, _heat_payload())
+            return self._send(200, _heat_payload(HEAT_MODE != "false"))
         if p == "/":
             return self._send(200, "<html><body>sim engine on :%d</body></html>"
                               % STATE["port"], "text/html; charset=utf-8")

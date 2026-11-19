@@ -40,7 +40,8 @@ every step in view. All ports (gateway 18175, engines 18201+, image service
 - 假引擎：只会说 canned 台词（自我介绍/翻译/代笔三种分支），`/metrics`
   是一条正弦缓漂的假曲线——监视盘有形状，但没有任何计算。v0.2.16 面（#16）：
   `/props` `/slots` `/api/expert-heat` 回真形状，没有假 `/monitor` 页（真 serve
-  就没有）；降级态开关 `SIM_STRATA_HEAT=off`（heat 404）与
+  就没有）；降级态开关 `SIM_STRATA_HEAT=off|false`（heat 404 / 200 configured:false
+  空 rank，两个隐藏面，#22）与
   `SIM_STRATA_CCACHE=off|absent`（停放缓存 enabled:false / 整键缺失）供后续票打桩。
 - 假出图服务：`/free` 后假装让出显卡 30 秒，60 秒后回占——显存读数会动。
 - `FAILSIM` 档在约 60% 处故意摔线（exit 3），专门用来演示「重新入册」。
