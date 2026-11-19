@@ -74,6 +74,43 @@ try:
     ok("gen_gate" not in gj,
        "QG2 no hold, no gen_gate key on /router/gpu (never an idle-gate line)")
 
+    # QG3 (review fix #3, red first): TWO requests hold the gate at once —
+    # the gateway answers over ThreadingHTTPServer, so two wait_gen_queue
+    # loops interleave. The /router/gpu gen_gate key is the gate's state,
+    # not one request's: it must follow the LAST holder out. A single-value
+    # t0 let the first loop's finally erase the still-held gate (the panel
+    # lied: "gate gone" while a request still waits). Long poll interval +
+    # staggered arrival = the leave window is wide and deterministic:
+    # req1's next poll is ~2.5 s after it entered, req2's ~1.0 s later.
+    with open(os.path.join(gw.root, "gateway.json"), "w") as f:
+        json.dump({"gpu_free": {"urls": ["http://127.0.0.1:18097"],
+                                "queue_poll_s": 2.5, "queue_max_wait_s": 30}}, f)
+    H.running, H.pending = [{"prompt_id": "two1"}], []
+    _q1 = []
+    _qt1 = threading.Thread(target=lambda: _q1.append(
+        gw.post("/v1/chat/completions", {"model": MA, "messages": []})), daemon=True)
+    _qt1.start()
+    time.sleep(1.0)
+    _q2 = []
+    _qt2 = threading.Thread(target=lambda: _q2.append(
+        gw.post("/v1/chat/completions", {"model": MA, "messages": []})), daemon=True)
+    _qt2.start()
+    time.sleep(1.0)                     # both loops are inside the gate
+    gj = json.loads(gw.get("/router/gpu")[1])
+    ok(isinstance(gj.get("gen_gate"), dict),
+       "QG3a two holds, one gate: gen_gate present while both wait")
+    H.running = []                      # holder goes idle; each loop leaves on its own poll
+    _qt1.join(timeout=15)               # req1 is through (next poll ~2.5 s after entry)
+    gj = json.loads(gw.get("/router/gpu")[1])
+    ok(isinstance(gj.get("gen_gate"), dict) and gj["gen_gate"].get("waited_s", -1) >= 0,
+       "QG3b first hold left while the second still waits: gen_gate STILL honest")
+    _qt2.join(timeout=15)
+    gj = json.loads(gw.get("/router/gpu")[1])
+    ok("gen_gate" not in gj,
+       "QG3c last hold left: gen_gate gone (the counter must not stick)")
+    ok(len(_q1) == 1 and len(_q2) == 1 and _q1[0][0] == 200 and _q2[0][0] == 200,
+       "QG3d both gated requests completed normally (payload shape untouched)")
+
     # Q4 non-generation routes are never gated
     H.running = [{"prompt_id": "still"}]
     t0 = time.time()

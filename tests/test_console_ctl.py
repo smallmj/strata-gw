@@ -722,13 +722,53 @@ ok('id="mon-queue"' in html
    and html.index('id="mon-queue"') < html.index('id="mon-strip"'),
    "Q2 #mon-queue sits in the Monitor block between the bands and the strip")
 
-# Q3 the design-record §6 queue vocabulary ships as zh/en pairs (T13a parity)
-_qkeys = ("q.band q.queued q.inflight q.conc q.cap q.cap.tit q.refused q.ref.ram q.ref.bud "
-          "q.waiting q.admitting q.slots q.th.slot q.th.state q.th.read q.th.gen q.th.held "
-          "q.idle q.gate q.gate.tit q.ph q.off q.nofield q.slots.empty").split()
+# Q3 (review fix #4 — single source): the queue screen copy lives ONLY as
+# tt() literals in queuePanel; the i18n table keeps what data-i18n consumes
+# (q.band). Pins: every zh/en pair on screen exists as a literal at the
+# panel seam, and the dead table copies are gone (a table label nobody
+# renders is a second source waiting to drift).
 _qt = _json.loads(i18njs[i18njs.index("{"):i18njs.rindex("}") + 1])
-ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _qkeys),
-   "Q3 all %d q.* keys present in both tongues" % len(_qkeys))
+def _tpairs(src, pairs):
+    return all('tt("%s","%s")' % p in src for p in pairs)
+_qcopy = (("排队", "queued"), ("在飞", "in flight"), ("并发", "concurrency"),
+          ("准入门槛", "admission cap"),
+          ("超上限时 429 admission_full · 等待超时 429 queue_wait_timeout",
+           "over cap → 429 admission_full · wait timeout → 429 queue_wait_timeout"),
+          ("拒收", "refused"), ("RAM 底线", "RAM floor"), (" · 预算 ", " · budget "),
+          ("等待", "waiting"), ("准入中", "admitting"), ("槽位", "slots"),
+          ("槽", "slot"), ("状态", "state"), ("读入 tok", "read tok"),
+          ("生成 tok", "generated tok"), ("持有 tok", "held tok"),
+          ("待机", "idle"), ("生成中", "generating"),
+          ("并行槽位空闲", "parallel slots idle"), ("引擎未驻留", "engine off post"),
+          ("排队信息在开工后点亮", "queue lights up once the engine answers metrics"),
+          ("出图闸等待中 · ", "generation gate holding · "), ("秒", "s"),
+          ("该引擎未报告这一字段", "this engine does not report this field"),
+          ("外部出图任务仍占卡——引擎请求被挡在门外",
+           "an external image job still holds the card — engine requests are held at the door"))
+_qdead = sorted(k for k in _qt.get("zh", {}) if k.startswith("q.") and k != "q.band")
+ok("q.band" in _qt.get("zh", {}) and "q.band" in _qt.get("en", {}),
+   "Q3a the live data-i18n key (q.band) stays a zh/en pair")
+ok(_tpairs(_fn_src(js, "queuePanel"), _qcopy),
+   "Q3b all %d queue screen pairs ride tt() literals in queuePanel" % len(_qcopy))
+ok(not _qdead, "Q3c dead q.* table copies removed (%d left over)" % len(_qdead))
+
+# Q8 (review fix #1, red first): the fail-and-stop latch is a PAUSE, not a
+# final stop. The default flow — open page, select an off-post card, clock
+# in — must light in-flight/concurrency again; design §0.4 keeps the stop on
+# failure but the RESUME is event-driven, like the MCP card's (:179). act()
+# (clock in/out) and a saved token both re-arm the v1/status probe.
+_act = _fn_src(js, "act")
+ok(bool(_act) and "_v1fail=0" in _act,
+   "Q8a clocking in/out re-arms the v1/status probe: act() resets the fail latch")
+_svh = re.search(r'getElementById\("save"\)\.onclick=function\(\)\{(.*?)\n\};', js, re.S)
+ok(bool(_svh) and "_v1fail=0" in _svh.group(1),
+   "Q8b a saved token re-arms the v1/status probe (a 401 latch must not outlive the token)")
+
+# Q8c (review fix #2, same event): the heat latch _heat1 mirrors the MCP
+# line — a saved token releases it so the next scroll-in re-probes (the
+# 401/no-token hidden face is a recovery face, not a permanent one).
+ok(bool(_svh) and "_heat1=0" in _svh.group(1),
+   "Q8c a saved token releases the heat latch: next scroll-in re-probes (the :179 event)")
 
 # Q4 the queue renderer is a pure function; node runs it over every face variant
 _qp = _fn_src(js, "queuePanel")
@@ -852,12 +892,27 @@ ok('id="mon-cache"' in html
    and html.index('id="mon-cache"') < html.index('id="mon-strip"'),
    "C1 #mon-cache sits in the Monitor block right after #mon-queue")
 
-# C2 the design-record §6 cache vocabulary ships as zh/en pairs (T13a parity)
-_ckeys = ("cc.band cc.tit cc.parked cc.size cc.budget cc.parks cc.restores cc.evict "
-          "cc.refused cc.reuse cc.last cc.ev.park cc.ev.restore cc.disabled "
-          "cc.nodata cc.ph cc.never").split()
-ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _ckeys),
-   "C2 all %d cc.* keys present in both tongues" % len(_ckeys))
+# C2 (review fix #4): single source — the cache card's labels are tt()
+# literals in cachePanel; the table keeps only what data-i18n consumes
+# (cc.band label + cc.tit tooltip).
+_ccopy = (("停放缓存读数在开工后点亮", "parking-cache readings light up once loaded"),
+          ("引擎未上报会话停放缓存——较旧的引擎没有这些字段",
+           "engine does not report the conversation cache — older build, fields absent"),
+          ("未启用——引擎启动时未给停放预算",
+           "disabled — no parking budget was set at engine boot"),
+          ("停放", "parked"), ("停放大小", "parked size"), ("预算 ", "budget "),
+          ("停放次", "parks"), ("接回次", "restores"), ("腾退", "evictions"),
+          ("拒收", "refused"), ("RAM 底线", "RAM floor"), ("复用", "reuse"),
+          (" tok", " tok"), ("尚未停放过会话", "nothing parked yet"),
+          ("接回", "restored"), ("最近事件：", "last: "), ("前 · 上次 ", " ago · "),
+          ("该引擎未报告这一字段", "this engine does not report this field"))
+_cdead = sorted(k for k in _qt.get("zh", {}) if k.startswith("cc.")
+                and k not in ("cc.band", "cc.tit"))
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in ("cc.band", "cc.tit")),
+   "C2a the live cache keys (label + tooltip) stay zh/en pairs")
+ok(_tpairs(_fn_src(js, "cachePanel"), _ccopy),
+   "C2b all %d cache screen pairs ride tt() literals in cachePanel" % len(_ccopy))
+ok(not _cdead, "C2c dead cc.* table copies removed (%d left over)" % len(_cdead))
 
 # C3 the cache renderer is a pure function; node runs it over the stub faces.
 # Helpers are extracted from app.js itself (not re-implemented here) so the
@@ -970,7 +1025,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
        "C3w EN degraded strings are the final §6 copy")
 
 # C4 polling discipline: the card rides the EXISTING payload, adds no request
-# and no timer (design §0.4 row 2; Q5a already pins setInterval==7).
+# and no timer (design §0.4 row 2; Q5a already pins setInterval==8).
 _pc = _fn_src(js, "paintCache")
 ok(bool(_pc) and "fetch" not in _pc,
    "C4a zero new requests: paintCache touches no fetch")
@@ -997,11 +1052,20 @@ ok('id="mcp-card"' in html
    and html.index('id="mcp-card"') < html.index('id="train-src"'),
    "M1 #mcp-card sits at the end of the Monitor block, after #mon-hint")
 
-# M2 the design-record §6 MCP vocabulary ships as zh/en pairs (T13a parity)
-_mkeys = ("mcp.band mcp.tools mcp.st.ok mcp.st.err mcp.st.off mcp.tit "
-          "mcp.nodata mcp.none mcp.load").split()
-ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _mkeys),
-   "M2 all %d mcp.* keys present in both tongues" % len(_mkeys))
+# M2 (review fix #4): single source — the card body labels are tt()
+# literals in mcpPanel; the table keeps mcp.band + mcp.tit (data-i18n).
+_mcopy = (("引擎未提供 MCP 清单（或需要 token）", "engine exposes no MCP list (or needs the token)"),
+          ("读取 MCP 清单…", "reading MCP list…"),
+          ("未配置 MCP 服务器", "no MCP servers configured"),
+          ("已连接", "connected"), ("错误", "failed"), ("已禁用", "disabled"),
+          ("工具", "tools"))
+_mdead = sorted(k for k in _qt.get("zh", {}) if k.startswith("mcp.")
+                and k not in ("mcp.band", "mcp.tit"))
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in ("mcp.band", "mcp.tit")),
+   "M2a the live MCP keys (label + tooltip) stay zh/en pairs")
+ok(_tpairs(_fn_src(js, "mcpPanel"), _mcopy),
+   "M2b all %d MCP screen pairs ride tt() literals in mcpPanel" % len(_mcopy))
+ok(not _mdead, "M2c dead mcp.* table copies removed (%d left over)" % len(_mdead))
 
 # M3 the MCP renderer is a pure function; node runs it over the stub faces
 # (tests/stub_common.py _mcp_payload — the same face the gateway proxies,
@@ -1134,11 +1198,19 @@ ok(html.count('<div class="kvbar">') == 2 and 'data-i18n="about.facts"' in html,
 ok('getElementById("eng-kv").innerHTML' in js,
    "F1c the legacy #eng-kv dossier keeps rendering from loadInfo (block untouched)")
 
-# F2 §6 facts vocabulary ships as zh/en pairs (T13a parity covers equality)
-_fkeys = ("about.facts fact.kv fact.kvres fact.spec fact.ctx fact.headroom "
-          "fact.arena facts.nodata").split()
-ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _fkeys),
-   "F2 all %d facts keys present in both tongues" % len(_fkeys))
+# F2 (review fix #4): single source — the fact chips' labels are tt()
+# literals in factsPanel; the table keeps about.facts (data-i18n header).
+_fcopy = (("KV 布局", "KV layout"), ("KV 常驻", "KV resident"),
+          ("投机解码", "speculation"), ("上下文", "context"),
+          ("显存余量", "VRAM headroom"), ("显存竞技场", "VRAM arena"),
+          ("线程池", "pool workers"), ("预填上限", "prefill cap"),
+          ("引擎未上报运行事实", "engine reports no runtime facts"))
+_fdead = sorted(k for k in _qt.get("zh", {}) if k.startswith("fact"))
+ok("about.facts" in _qt.get("zh", {}) and "about.facts" in _qt.get("en", {}),
+   "F2a the live facts header key stays a zh/en pair (F1b pins the data-i18n use)")
+ok(_tpairs(_fn_src(js, "factsPanel"), _fcopy),
+   "F2b all %d facts chip pairs ride tt() literals in factsPanel" % len(_fcopy))
+ok(not _fdead, "F2c dead fact.*/facts.* table copies removed (%d left over)" % len(_fdead))
 
 # F3 the renderer is a pure function; node runs it over the stub's engine
 # face — tests/stub_common.py _facts_engine is the kit-mirrored field set,
@@ -1256,6 +1328,14 @@ ok(_fbody(_ok_st) == _fbody(_ok_kt),
    "F4e stub_common and the kit carry _facts_engine byte-identically (no drift)")
 ok("**_facts_engine()" in _ok_st and "**_facts_engine()" in _ok_kt,
    "F4f both faces merge the fact fields into their /metrics engine dict")
+# F4g/h (review fix #5): the gw suite's OWN inline Stub is the third copy —
+# it must carry and merge the same factory, or the two suites drift silently.
+_ok_gw = open(os.path.join(ROOT, "tests", "test_gateway_switch.py"), encoding="utf-8").read()
+ok("def _facts_engine" in _ok_gw and "**_facts_engine()" in _ok_gw,
+   "F4g the gw suite inline Stub defines AND merges _facts_engine (three copies, one face)")
+if "def _facts_engine" in _ok_gw:
+    ok(_fbody(_ok_gw) == _fbody(_ok_st),
+       "F4h the gw-suite _facts_engine copy is byte-ident (stub_common / kit / gw suite)")
 
 # F5 no formatting fork: the chips reuse the §0.3 helpers, they never format
 # MiB/GiB locally (design rule 3 — values verbatim through mibFromMiB/num).
@@ -1283,12 +1363,26 @@ ok('SIM_STRATA_HEAT", "on"' in _ok_kt and 'HEAT_MODE == "off"' in _ok_kt
    and '_heat_payload(HEAT_MODE != "false")' in _ok_kt,
    "H1b kit SIM_STRATA_HEAT speaks the same tri-state on|false|off as the stub")
 
-# H2 §6 heat vocabulary ships as zh/en pairs
-_hkeys = ("sec.experts heat.meta heat.warm heat.legend heat.hint heat.cell "
-          "heat.cell.none heat.stale heat.bad").split()
-_okt = _json.loads(i18njs[i18njs.index("{"):i18njs.rindex("}") + 1])
-ok(all(k in _okt.get("zh", {}) and k in _okt.get("en", {}) for k in _hkeys),
-   "H2 all %d heat keys present in both tongues" % len(_hkeys))
+# H2 (review fix #4): single source — the heat card/hover copy is tt()
+# literals in heatCard/heatHover; the table keeps sec.experts (data-i18n).
+_hcopy = (("档案存档 ", "profile saved "), ("约每 ", "auto-saves every ~"),
+          (" 分自动存档", " min"),
+          ("· 刷新失败，显示上次数据", "· refresh failed, showing last read"),
+          ("热度数据不完整，等待下一次存档",
+           "heat data incomplete \\u2014 waiting for the next save"),
+          ("最热常驻", "warmest"), ("层", " layers"),
+          ("专家热度档案存档于 ", "expert heat profile saved "),
+          ("最亮=该层第 1 热 · 越暗排名越靠后 · 透明=无档案",
+           "brightest = rank 1 in its layer \\u00b7 dimmer = later \\u00b7 clear = unranked"),
+          ("滑到格上读该层的保温排名", "hover a cell to read its rank in its layer"),
+          ("无档案", "no rank"), ("层 ", "layer "), (" · 专家 ", " · expert "),
+          (" · 该层排名 ", " · rank "), ("", " in layer"))
+_hdead = sorted(k for k in _qt.get("zh", {}) if k.startswith("heat."))
+ok("sec.experts" in _qt.get("zh", {}) and "sec.experts" in _qt.get("en", {}),
+   "H2a the live section-label key stays a zh/en pair (H3b pins the data-i18n use)")
+ok(_tpairs((_fn_src(js, "heatCard") or "") + (_fn_src(js, "heatHover") or ""), _hcopy),
+   "H2b all %d heat screen pairs ride tt() literals in heatCard/heatHover" % len(_hcopy))
+ok(not _hdead, "H2c dead heat.* table copies removed (%d left over)" % len(_hdead))
 
 # H3 the shell: hidden whole-section wrapper between the MCP card and the
 # dynamic section (design §0.1 order); a 1px in-flow sentinel is the IO
@@ -1325,6 +1419,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
                      + (_fn_src(js, "tstr") or "") + "\n"
                      + (_fn_src(js, "heatPos") or "") + "\n"
                      + (_fn_src(js, "heatAlpha") or "") + "\n"
+                     + (_fn_src(js, "num") or "") + "\n"
                      + (_fn_src(js, "heatCard") or "") + "\n"
                      + "console.log(JSON.stringify(%s));" % fnexpr)
         _r = _sc_h.run(["node", _tf], capture_output=True, text=True, timeout=20)
@@ -1378,6 +1473,26 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
     _hcS = _hcase("heatCard(%s,1)" % _js_h.dumps(_hp)) or ""
     ok("刷新失败" in _hcS and "4\u00d78" in _hcS,
        "H6f stale flag appends heat.stale and keeps the grid")
+    # H6g (review fix #6, red first): engine-sourced numbers never ride
+    # HTML/aria raw — every_min is esc()'d, an escaping-hostile payload
+    # cannot break out of the meta row (dgEsc discipline, heat's seam).
+    _hcX = _hcase("heatCard({configured:true,every_min:'<i>x</i>',saved_at:1763560000.0,"
+                  "layers:4,experts:8,ranked:32,rank:new Array(32).fill(0)},0)") or ""
+    ok("<i>x</i>" not in _hcX and "&lt;i&gt;x&lt;/i&gt;" in _hcX,
+       "H6g every_min is escaped into the meta row (no HTML injection)")
+    # H6h (review fix #7, red first): a configured payload WITHOUT saved_at
+    # omits the saved segment entirely — never the epoch's local clock
+    # printed as fake truth (ADR-0001: absent field = silence, not a zero).
+    _hcN = _hcase("heatCard({configured:true,every_min:10,layers:4,experts:8,ranked:32,"
+                  "rank:new Array(32).fill(0)},0)") or ""
+    ok("档案存档" not in _hcN and "profile saved" not in _hcN and "约每" in _hcN,
+       "H6h missing saved_at omits the saved segment (no epoch pseudo-time)")
+    # H6i (review fix #6): layers/experts go through the §0.3 num() — the
+    # thousands rule is the SAME face the queue stats pinned (Q4j's 1,204).
+    _hcV = _hcase("heatCard({configured:true,every_min:10,saved_at:1763560000.0,"
+                  "layers:1234,experts:8,ranked:9872,rank:new Array(9872).fill(0)},0)") or ""
+    ok("1,234\u00d78" in _hcV and "1234\u00d78" not in _hcV,
+       "H6i layers x experts ride num() thousands formatting in meta (and aria)")
 
 # H7 fetch seam: the catch-all path verbatim with the model selector (the
 # decided deviation — NOT a /router/expert-heat mapping; gw/routes.py
