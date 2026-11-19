@@ -41,6 +41,39 @@ def _heat_payload():
             "layers": L, "experts": E, "ranked": L * E,
             "rank": [(e + 3 * l) % E for l in range(L) for e in range(E)]}
 
+def _mcp_payload(mode):
+    """The v0.2.16 /mcp face (strata-face field set: servers[]:{name,transport,
+    status,tools:[{tool,description}],info,error} + total tools). T5 renders
+    against this: full = the three states one engine reports at once — a
+    connected server with 10 tools (past the card's 8-chip cap), an errored
+    server whose engine text carries escaping-hostile chars, and a disabled
+    one. Values fake, shape real. (Kept byte-identical to tests/stub_common.py
+    and the sim kit's copy — K-SIM5 pins the endpoint set, this pins the face.)"""
+    if mode != "full":
+        return {"servers": [], "tools": 0}
+    return {"servers": [
+        {"name": "strata-tools", "transport": "stdio", "status": "connected",
+         "info": "in-process bundle", "error": None,
+         "tools": [{"tool": "search_docs", "description": "full-text search over docs"},
+                   {"tool": "fetch_url", "description": 'GET a URL & parse "<html>"'},
+                   {"tool": "read_file", "description": "read one file"},
+                   {"tool": "list_cards", "description": "list enrolled cards"},
+                   {"tool": "tap_events", "description": "peek the event ring"},
+                   {"tool": "snap_state", "description": "dump one snapshot"},
+                   {"tool": "diff_bundle", "description": "diff two bundle dirs"},
+                   {"tool": "prune_logs", "description": "drop old log lines"},
+                   {"tool": "tail_live", "description": "follow live lines"},
+                   {"tool": "watch_deck", "description": "watch the card deck"}]},
+        {"name": "weather", "transport": "http", "status": "error",
+         "info": "", "error": 'upstream refused: <weather.example> "key" & more',
+         "tools": []},
+        {"name": "legacy-db", "transport": "sse", "status": "disabled",
+         "info": "", "error": None,
+         "tools": [{"tool": "query", "description": "run a saved query"},
+                   {"tool": "ping", "description": "server liveness"}]}],
+        "tools": 12}
+
+
 class Stub:
     """假后端: /health、/v1/models、POST /load、POST /unload;"/" 回 HTML 标记,
     v0.2.16 face (#16): /props /slots /api/expert-heat 真形状,未知路径 404(真 serve 没有 /monitor)。"""
@@ -50,6 +83,7 @@ class Stub:
         self.shared, self.posts = {}, []
         self.cc_mode, self.heat = "on", True    # metrics cache 三态 / heat 两态开关
         self.par, self.adm = False, False       # metrics live 队列变体 (T71): parallel slots / 拒收计数
+        self.mcp_mode = "empty"                 # /mcp 三态 (T72/T5): full / empty / absent(404)
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -76,7 +110,11 @@ class Stub:
                                                       "kind": "number"}],
                                             "note": "used from the next start"})
                 if p == "/mcp":
-                    return self._send(200, {"servers": [], "tools": 0})
+                    # 三态开关 (T72): full face / empty face / 旧引擎 404 —
+                    # MCP 卡按这三种降级。
+                    if outer.mcp_mode == "absent":
+                        return self._send(404, {"error": "no-such-endpoint: /mcp"})
+                    return self._send(200, _mcp_payload(outer.mcp_mode))
                 if p == "/status":
                     return self._send(200, {"busy": False, "who": outer.name})
                 if p == "/metrics":
@@ -840,6 +878,36 @@ try:
     s, h = req("GET", "/gateway")
     ok('id="mon-queue"' in h and "q.slots.empty" in h and "429 admission_full" in h,
        "T71f the served console carries the queue panel shell + cap legend + slot strings")
+
+    # ---- T72 (#20, T5): /mcp rides the existing proxy in three faces -------
+    # The MCP card fetches router/mcp?model= through the PROXY_PATHS mapping
+    # (zero new gateway routes). The stub speaks every face the card degrades
+    # against: mixed servers (full), configured-but-empty, and an old engine
+    # that 404s /mcp (mirrored verbatim per T51). tri-state defaults to
+    # "empty" — the face this suite has always seen.
+    A.mcp_mode = "full"
+    s, h = req("GET", "/router/mcp?model=aaa-qwen")
+    mj = json.loads(h) if s == 200 else {}
+    sv = mj.get("servers") or []
+    ok(s == 200 and len(sv) == 3,
+       "T72a full face proxied: servers[] carries connected/error/disabled rows")
+    ok(bool(sv) and all(k in sv[0] for k in ("name", "transport", "status", "tools")),
+       "T72b server entries carry the strata-face field set (name/transport/status/tools)")
+    ok(any(x.get("status") == "error" and x.get("error") for x in sv),
+       "T72c the errored server carries the engine's own error text verbatim")
+    ok(any(isinstance(x.get("tools"), list) and len(x["tools"]) > 8 for x in sv),
+       "T72d one server lists more tools than the card's visible cap (10 > 8)")
+    ok(mj.get("tools") == 12,
+       "T72e the payload's tools total rides the engine number (10+0+2)")
+    A.mcp_mode = "empty"
+    s, h = req("GET", "/router/mcp?model=aaa-qwen")
+    ok(s == 200 and json.loads(h).get("servers") == [],
+       "T72f empty face: 200 + servers:[] (the card's mcp.none state)")
+    A.mcp_mode = "absent"
+    s, h = req("GET", "/router/mcp?model=aaa-qwen")
+    ok(s == 404 and "no-such-endpoint" in h,
+       "T72g absent face: the old-engine 404 mirrors through (the card's mcp.nodata state)")
+    A.mcp_mode = "empty"
 
     # ---- T50 (Phase 11): /router/version + engine-root resolution ----
     s, h = req("GET", "/router/version")

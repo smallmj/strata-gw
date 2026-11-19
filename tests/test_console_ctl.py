@@ -982,4 +982,138 @@ ok('id="mon-cage"' in html and 'getElementById("mon-cage")' in js,
 ok('data-i18n-title="cc.tit"' in html,
    "C4e cc.tit tooltip distinguishes the cache from KV/prefix on the label")
 
+# ---- M: MCP servers card (issue #20, T5) ---------------------------------
+# Design record §3: #mcp-card, a .mcard at the END of the Monitor block
+# (after #mon-hint, before #train-src). Data rides the already-proxied
+# /router/mcp (the T72 stub faces) and is fetched EVENT-DRIVEN ONLY (§0.4):
+# first scroll into view (IO flag _mcp1), model switch, token save — no
+# timer, fail-and-stop via _mcp404. Descriptions and engine error text ride
+# title attributes through the attribute-safe escaper — never raw innerHTML.
+
+# M1 the card shell: end of the monitor block (design §0.1 placement)
+ok('id="mcp-card"' in html
+   and html.index('id="mcp-card"') > html.index('id="mon-hint"')
+   and html.index('id="mcp-card"') < html.index('id="train-src"'),
+   "M1 #mcp-card sits at the end of the Monitor block, after #mon-hint")
+
+# M2 the design-record §6 MCP vocabulary ships as zh/en pairs (T13a parity)
+_mkeys = ("mcp.band mcp.tools mcp.st.ok mcp.st.err mcp.st.off mcp.tit "
+          "mcp.nodata mcp.none mcp.load").split()
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _mkeys),
+   "M2 all %d mcp.* keys present in both tongues" % len(_mkeys))
+
+# M3 the MCP renderer is a pure function; node runs it over the stub faces
+# (tests/stub_common.py _mcp_payload — the same face the gateway proxies,
+# pinned by T72a-g). dgEsc is extracted from app.js itself so the node run
+# exercises the REAL escaping discipline.
+_mp = _fn_src(js, "mcpPanel")
+ok(bool(_mp), "M3a mcpPanel is extractable for a real run")
+if _mp:
+    import subprocess as _smp
+    import tempfile as _tsp
+    import stub_common as _stub_m
+    _SHIM_M = r"""
+var LANG="zh";
+function tt(z,e){return LANG==="zh"?z:e}
+""" + _fn_src(js, "dgEsc") + "\n"
+    def _mcase(args, lang="zh"):
+        """Run mcpPanel(args...) in node over the shim; returns its HTML."""
+        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "mcase_%s.js" % lang)
+        with open(_tf, "w", encoding="utf-8") as _f:
+            _f.write(_SHIM_M.replace('var LANG="zh";', 'var LANG="%s";' % lang)
+                     + _mp + "\nconsole.log(JSON.stringify(mcpPanel(%s)));" % args)
+        _r = _smp.run(["node", _tf], capture_output=True, text=True, timeout=20)
+        if _r.returncode != 0:
+            ok(False, "mcpPanel node run failed: " + _r.stderr[:300])
+            return ""
+        return _json.loads(_r.stdout)
+
+    # the happy face: one row per server, every value verbatim off the stub
+    _full = _json.dumps(_stub_m._mcp_payload("full"))
+    _hm1 = _mcase(_full + ",0")
+    ok("strata-tools" in _hm1 and "weather" in _hm1 and "legacy-db" in _hm1
+       and 'class="srvrow"' in _hm1, "M3b one .srvrow per server, names verbatim")
+    ok("STDIO" in _hm1 and "HTTP" in _hm1 and "SSE" in _hm1,
+       "M3c transport chips render the raw value uppercased")
+    ok("已连接" in _hm1 and "sdot ok" in _hm1 and "fin ok" in _hm1,
+       "M3d connected status: .fin.ok chip + sdot (never colour alone)")
+    ok("错误" in _hm1 and "sdot err" in _hm1 and "fin err" in _hm1,
+       "M3e error status rides the err rung (rows survive; error state is never hidden)")
+    ok("upstream refused" in _hm1 and "&lt;weather.example&gt;" in _hm1
+       and "<weather.example>" not in _hm1,
+       "M3f engine error text renders verbatim but escaped into the title")
+    ok("已禁用" in _hm1 and "sdot na" in _hm1,
+       "M3g disabled status: neutral chip + sdot na")
+    ok("工具 ×10" in _hm1 and "工具 ×0" in _hm1 and "工具 ×2" in _hm1,
+       "M3h per-server tool count chips")
+    ok("search_docs" in _hm1 and "prune_logs" in _hm1
+       and "tail_live" not in _hm1 and "watch_deck" not in _hm1 and "+2" in _hm1,
+       "M3i 8 visible tool chips then +N (cap 8 on the 10-tool server)")
+    ok('title="full-text search over docs"' in _hm1,
+       "M3j tool description rides the chip title")
+    ok("&amp; parse &quot;&lt;html&gt;&quot;" in _hm1
+       and 'parse "<html>"' not in _hm1,
+       "M3k escaping-hostile description stays escaped inside the attribute")
+    ok("in-process bundle" in _hm1, "M3l non-empty info renders as the .s line")
+
+    # the degraded faces — the stub's empty face, and the fetch flags
+    ok("未配置 MCP 服务器" in _mcase(_json.dumps(_stub_m._mcp_payload("empty")) + ",0"),
+       "M3m empty servers face: mcp.none one-liner, card survives")
+    ok("未配置 MCP 服务器" in _mcase('{"tools":0},0'),
+       "M3n servers key absent: same mcp.none state")
+    ok("读取 MCP 清单…" in _mcase("null,0"), "M3o pending: mcp.load one-liner")
+    ok("引擎未提供 MCP 清单（或需要 token）" in _mcase("null,1"),
+       "M3p the 404/401 face: mcp.nodata one-liner — quiet, never an error")
+    _hq = _mcase(_full + ",1")
+    ok("引擎未提供 MCP 清单" in _hq and "strata-tools" not in _hq
+       and "srvrow" not in _hq,
+       "M3q fail flag wins over stale data: no ghost rows after a failure")
+
+    # unmapped status keeps the engine's own word in a neutral chip
+    _hr = _mcase('{"servers":[{"name":"odd","transport":"ws",'
+                 '"status":"handshaking"}]},0')
+    ok("handshaking" in _hr and "已连接" not in _hr and "错误" not in _hr
+       and "已禁用" not in _hr,
+       "M3r unmapped status renders the engine value verbatim, uncolored")
+    _hz = _mcase('{"servers":[{"name":"bare","status":"connected"}]},0')
+    ok("工具 ×0" in _hz and "已连接" in _hz,
+       "M3s sparse server: missing tools default to ×0, status still normalizes")
+
+    # EN mirror: the same faces speak English with the §6 final copy
+    _he = _mcase(_full + ",0", lang="en")
+    ok("connected" in _he and "failed" in _he and "disabled" in _he
+       and "tools ×10" in _he and "in-process bundle" in _he,
+       "M3t EN mirror of the whole card")
+    ok("reading MCP list" in _mcase("null,0", lang="en")
+       and "engine exposes no MCP list" in _mcase("null,1", lang="en")
+       and "no MCP servers configured" in _mcase('{"servers":[]},0', lang="en"),
+       "M3u EN degraded strings are the final §6 copy")
+
+# M4 fetch discipline (design §0.4): the already-proxied path with the model
+# selector; event-driven only — IO first-in-view (_mcp1), model switch, token
+# save; fail-and-stop (_mcp404) until the next event; NO new timer.
+ok('router/mcp?model=' in js, "M4a fetch rides the existing /router/mcp proxy with the model selector")
+ok(js.count("IntersectionObserver") == 2 and "_mcp1" in js,
+   "M4b exactly one more IO instance (the disk map keeps its own) gates the first fetch")
+ok("_mcp404" in js and "_mcp404=0" in js,
+   "M4c fail-and-stop flag: one failure ends the round, reset only by an event")
+_sm = _fn_src(js, "selectModel")
+ok(bool(_sm) and "fetchMcp()" in _sm, "M4d model switch re-fetches the MCP list")
+_sm2 = re.search(r'getElementById\("save"\)\.onclick=function\(\)\{.*?\};', js, re.S)
+ok(bool(_sm2) and "fetchMcp()" in _sm2.group(0), "M4e token save re-fetches the MCP list")
+_pm = _fn_src(js, "paintMcp")
+ok(bool(_pm) and "_h!==" in _pm and "fetch" not in _pm,
+   "M4f paintMcp repaints under the K27 guard and touches no fetch")
+_fm = _fn_src(js, "fetchMcp")
+ok(bool(_fm) and ".catch(" in _fm and "setInterval" not in _fm,
+   "M4g the one fetch carries its .catch (S7 balance) — no timer inside")
+ok(js.count("setInterval") == 7,
+   "M4h zero new setInterval: the MCP card adds nothing to the seven (Q5a holds)")
+ok('data-i18n="mcp.band"' in html and 'data-i18n-title="mcp.tit"' in html,
+   "M4i card label + read-only tooltip ship as static i18n")
+ok(".srvrow{" in css and ".srvrow:first-child{border-top:0}" in css,
+   "M4j .srvrow skin with the first-row no-border rule (§3)")
+ok("mcp-box" not in js + html and "loadMcp" not in js,
+   "M4k negative pin: the retired MCP drawer's names never come back (T43 family)")
+
 sys.exit(0 if not F else 1)
