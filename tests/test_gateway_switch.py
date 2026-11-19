@@ -12,12 +12,43 @@ VIS = os.environ.get("GW_VISUAL") == "1"
 ROUTER_SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), os.pardir, "strata-router.py")
 ROUTER_PORT = 18090
 
+def _conv_cache(mode):
+    """v0.2.16 /metrics top-level conversation_cache (strata-face field set):
+    every field present, values fake but types real (T4 renders against this)."""
+    on = mode == "on"
+    return {"enabled": on, "budget_mib": 4096 if on else 0,
+            "slots": 8, "parked": 2 if on else 0,
+            "bytes": 3221225472 if on else 0,
+            "evictions": 0, "parks": 12 if on else 0,
+            "restores": 9 if on else 0,
+            "last_event": "restored" if on else None,
+            "last_tokens": 1204 if on else None,
+            "last_at": 100.5 if on else None,
+            "refused": {"ram_floor": 0, "budget": 0}, "refused_total": 0,
+            "last_refused": None, "requests": 40, "requests_reused": 14,
+            "reused_tokens": 3100, "prompt_tokens": 9800,
+            "last_reused": 640 if on else None, "last_prompt": 1800 if on else None}
+
+HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # stub-shrunken but shape-true (real box: 48x512)
+
+def _heat_payload():
+    """/api/expert-heat configured variant. Layers/experts are shrunk 48x512 ->
+    4x8 for the stub, but the semantics stay true: rank[] is row-major,
+    rank[l*experts + e] = 0-based within-layer rank, 0 = hottest (design
+    record section 9.1). Formula (e+3l)%E keeps every layer a permutation."""
+    L, E = HEAT_LAYERS, HEAT_EXPERTS
+    return {"configured": True, "every_min": 10, "saved_at": 1763560000.0,
+            "layers": L, "experts": E, "ranked": L * E,
+            "rank": [(e + 3 * l) % E for l in range(L) for e in range(E)]}
+
 class Stub:
-    """假后端: /health、/v1/models、POST /load、POST /unload；"/" 与 "/monitor" 回 HTML 标记，其余 GET 回纯文本标记。"""
+    """假后端: /health、/v1/models、POST /load、POST /unload;"/" 回 HTML 标记,
+    v0.2.16 face (#16): /props /slots /api/expert-heat 真形状,未知路径 404(真 serve 没有 /monitor)。"""
     def __init__(self, name, port):
         self.name, self.port, self.loaded = name, port, False
         self.load_calls, self.unload_calls = 0, 0
         self.shared, self.posts = {}, []
+        self.cc_mode, self.heat = "on", True    # metrics cache 三态 / heat 两态开关
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -45,14 +76,14 @@ class Stub:
                 if p == "/status":
                     return self._send(200, {"busy": False, "who": outer.name})
                 if p == "/metrics":
-                    return self._send(200, {
+                    _m = {
                         "engine": {"model": outer.name, "max_context": 524288, "version": "0.1.56",
                                    "expert_slots": 7711, "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
                         "stub_tag": f"stub:{outer.name}",
                         "live": {"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,
                                  "max_tokens": None, "elapsed_s": None, "tok_s": None,
-                                 "prefill_tok_s_mean": None},
+                                 "reused": 0, "tok_s_mean": None, "prefill_tok_s_mean": None},
                         "requests": [{"id": "r1", "time": 111.0, "duration_s": 3.0, "finish": "stop",
                                       "prompt_tokens": 100, "reused": 40, "prompt_ms": 60.0,
                                       "output_tokens": 50, "decode_tok_s": 83.0, "hit_rate": 0.873,
@@ -75,16 +106,44 @@ class Stub:
                                     "gpu_pcie_rx_mb": [17609.0, 1.57], "cpu": [16.9, 44.2],
                                     "ram_used": [64994316288, 65131073536], "disk_read_mb": [0.04, 5.86],
                                     "prefill_tok_s_mean": [1996.2, 2002.1]},
-                        "time": 123.0})
+                        "time": 123.0}
+                    if outer.cc_mode != "absent":
+                        _m["conversation_cache"] = _conv_cache(outer.cc_mode)
+                    return self._send(200, _m)
                 if p == "/v1/models":
                     return self._send(200, json.dumps({"object": "list", "data": [
                         {"id": outer.name, "object": "model", "owned_by": "stub",
                          "status": {"value": "loaded" if outer.loaded else "unloaded"}}]}))
                 if p in ("/", "/monitor"):
                     return self._send(200, f"<html><body>stub:{outer.name}</body></html>", "text/html; charset=utf-8")
-                if p in ("/props", "/slots"):
-                    return self._send(404, {"error": "endpoint not in this engine build"})
-                return self._send(200, f"stub:{outer.name}", "text/plain")
+                if p == "/props":
+                    # llama.cpp-style /props (v0.2.16 face): real shape,
+                    # stub keeps only what the console renders - no 30 KB template.
+                    return self._send(200, {
+                        "default_generation_settings": {"max_tokens": 8192, "temperature": 1.0,
+                                                        "top_p": 0.95, "top_k": 20},
+                        "total_slots": 1, "model_alias": outer.name,
+                        "chat_template": "<short stub template, not the real 30 KB text>",
+                        "chat_template_caps": {"thinking": True, "tools": True},
+                        "modalities": ["text"], "models_autoload": [],
+                        "is_sleeping": not outer.loaded,
+                        "model_path": "/stub/models/" + outer.name + ".gguf",
+                        "build_info": {"version": "0.1.62-stub"}})
+                if p == "/slots":
+                    # llama.cpp-style /slots: [] when the model is not loaded.
+                    if not outer.loaded:
+                        return self._send(200, [])
+                    return self._send(200, [{"id": 0, "n_ctx": 8192, "is_processing": False,
+                                             "n_prompt_tokens": 0}])
+                if p == "/api/expert-heat":
+                    # two-state switch (#16): unconfigured engine = 404,
+                    # exactly like the real serve with no expert profile.
+                    if not outer.heat:
+                        return self._send(404, {"error": "no expert profile configured"})
+                    return self._send(200, _heat_payload())
+                # v0.2.16 truth (#16): the real serve 404s every unknown path
+                # (no /monitor, no /queue, no /experts) - so must the stub.
+                return self._send(404, {"error": "no-such-endpoint: " + p})
             def do_POST(self):
                 n = int(self.headers.get("Content-Length", 0) or 0)
                 body = self.rfile.read(n)
@@ -638,11 +697,91 @@ try:
        and 'colspan="9" style="text-align:center' not in h2,
        "T49 monitor table pinned to 10 rows (placeholders keep height stable; no jump on chip click)")
 
-    # ---- T51 (Phase 11): engine endpoint degradation ----
-    s, h = req("GET", "/router/props")
-    ok(s == 404, "T51a engine missing endpoint mirrors as 404 through the proxy")
+    # ---- T51 (Phase 11 + T1 truth-up #16): engine endpoint degradation ----
+    # v0.2.16 truth: /props and /slots are REAL endpoints (pinned below at
+    # T67/T68), so the missing-endpoint mirror gets a genuinely absent probe:
+    # the real serve has no /queue* - the stub now mirrors that 404 too.
+    s, h = req("GET", "/queue?model=aaa-qwen")
+    ok(s == 404 and "no-such-endpoint" in h,
+       "T51a endpoint genuinely absent from the engine mirrors as 404 (body from the engine, not the gateway)")
     s2, _h = req("GET", "/router/version")
     ok(s2 == 200, "T51b gateway stays healthy after a proxied 404")
+
+    # ---- T1 truth-up (#16): the stub answers the real v0.2.16 face ----
+    s, h = req("GET", "/router/props?model=aaa-qwen")
+    try:
+        pj = json.loads(h)
+    except ValueError:
+        pj = {}
+    ok(s == 200 and isinstance(pj.get("default_generation_settings"), dict)
+       and pj.get("total_slots") == 1 and pj.get("model_alias") == "aaa-qwen"
+       and isinstance(pj.get("is_sleeping"), bool)
+       and isinstance(pj.get("chat_template"), str) and len(pj["chat_template"]) < 200
+       and {"chat_template_caps", "modalities", "models_autoload", "model_path",
+            "build_info"} <= set(pj),
+       "T67 GET /router/props: 200 llama.cpp-shape subset (stub keeps the template short, not 30 KB)")
+    s, h = req("GET", "/router/slots?model=aaa-qwen")
+    try:
+        sj = json.loads(h)
+    except ValueError:
+        sj = None
+    ok(s == 200 and isinstance(sj, list) and len(sj) == 1
+       and set(sj[0]) == {"id", "n_ctx", "is_processing", "n_prompt_tokens"},
+       "T68 GET /router/slots: llama.cpp-shape row while the engine holds the model")
+    s, h = req("GET", "/router/slots?model=bbb-sc117")
+    ok(s == 200 and json.loads(h) == [],
+       "T68b /slots on an engine that is not loaded: [] (llama.cpp semantics)")
+
+    s, h = req("GET", "/router/metrics?model=aaa-qwen")
+    try:
+        mj = json.loads(h)
+    except ValueError:
+        mj = {}
+    cc = mj.get("conversation_cache")
+    ok(isinstance(cc, dict) and set(cc) == {
+        "enabled", "budget_mib", "slots", "parked", "bytes", "evictions", "parks",
+        "restores", "last_event", "last_tokens", "last_at", "refused", "refused_total",
+        "last_refused", "requests", "requests_reused", "reused_tokens", "prompt_tokens",
+        "last_reused", "last_prompt"},
+       "T69 /metrics carries the conversation_cache top-level object with every pinned field")
+    ok(isinstance(cc, dict) and isinstance(cc["enabled"], bool)
+       and set(cc["refused"]) == {"ram_floor", "budget"},
+       "T69b conversation_cache types hold: enabled bool, refused {ram_floor,budget}")
+    lv = mj.get("live", {})
+    ok(all(k in lv for k in ("state", "queued", "phase", "reused", "tok_s_mean")),
+       "T69c /metrics live carries the richer queue fields (state/queued/phase/reused/tok_s_mean)")
+    B.cc_mode = "off"
+    o = json.loads(req("GET", "/router/metrics?model=bbb-sc117")[1])
+    ok(o.get("conversation_cache", {}).get("enabled") is False,
+       "T69d cc_mode=off stub: cache present with enabled:false (T4 degraded render)")
+    B.cc_mode = "absent"
+    o = json.loads(req("GET", "/router/metrics?model=bbb-sc117")[1])
+    ok("conversation_cache" not in o,
+       "T69e cc_mode=absent stub: the whole key missing (old-engine degrade for T4)")
+    B.cc_mode = "on"
+
+    s, h = req("GET", "/api/expert-heat?model=aaa-qwen")
+    try:
+        hj = json.loads(h)
+    except ValueError:
+        hj = {}
+    HL, HE = 4, 8
+    ok(s == 200 and hj.get("configured") is True and hj.get("layers") == HL
+       and hj.get("experts") == HE and hj.get("ranked") == HL * HE
+       and len(hj.get("rank", [])) == HL * HE
+       and hj.get("every_min") == 10 and isinstance(hj.get("saved_at"), (int, float)),
+       "T70 GET /api/expert-heat (catch-all passthrough): configured 200, shrunken 4x8 but shape-true")
+    rk = hj.get("rank", [])
+    ok(len(rk) == HL * HE and all(sorted(rk[l * HE:(l + 1) * HE]) == list(range(HE))
+                                  for l in range(HL)),
+       "T70b rank[] is row-major layers x experts; every layer block a 0-based within-layer permutation")
+    ok(rk[0] == 0 and rk[2 * HE + 3] == 1,
+       "T70c known-cell pin: rank[2*8+3]==1 (row-major l*E+e, 0=hottest - design record §9.1)")
+    A.heat = False
+    s, h = req("GET", "/api/expert-heat?model=aaa-qwen")
+    ok(s == 404,
+       "T70d heat two-state switch: unconfigured engine answers 404 on the same route")
+    A.heat = True
 
     # ---- T50 (Phase 11): /router/version + engine-root resolution ----
     s, h = req("GET", "/router/version")

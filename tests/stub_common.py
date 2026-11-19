@@ -22,14 +22,49 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROUTER_PORT = int(os.environ.get("GW_TEST_PORT", "18090"))
 
 
+HEAT_LAYERS, HEAT_EXPERTS = 4, 8    # stub-shrunken but shape-true (real box: 48x512)
+
+
+def _heat_payload():
+    """/api/expert-heat configured variant. Layers/experts are shrunk 48x512 ->
+    4x8 for the stub, but the semantics stay true: rank[] is row-major,
+    rank[l*experts + e] = 0-based within-layer rank, 0 = hottest (design
+    record section 9.1). Formula (e+3l)%E keeps every layer a permutation."""
+    L, E = HEAT_LAYERS, HEAT_EXPERTS
+    return {"configured": True, "every_min": 10, "saved_at": 1763560000.0,
+            "layers": L, "experts": E, "ranked": L * E,
+            "rank": [(e + 3 * l) % E for l in range(L) for e in range(E)]}
+
+
+def _conv_cache(mode):
+    """v0.2.16 /metrics top-level conversation_cache (strata-face field set):
+    every field present, values fake but types real (T4 renders against this)."""
+    on = mode == "on"
+    return {"enabled": on, "budget_mib": 4096 if on else 0,
+            "slots": 8, "parked": 2 if on else 0,
+            "bytes": 3221225472 if on else 0,
+            "evictions": 0, "parks": 12 if on else 0,
+            "restores": 9 if on else 0,
+            "last_event": "restored" if on else None,
+            "last_tokens": 1204 if on else None,
+            "last_at": 100.5 if on else None,
+            "refused": {"ram_floor": 0, "budget": 0}, "refused_total": 0,
+            "last_refused": None, "requests": 40, "requests_reused": 14,
+            "reused_tokens": 3100, "prompt_tokens": 9800,
+            "last_reused": 640 if on else None, "last_prompt": 1800 if on else None}
+
+
 class Stub:
-    """Fake lazy backend: /health, /v1/models, POST /load, POST /unload;
-    '/' + '/monitor' serve an HTML marker, every other GET a text marker."""
+    """Fake lazy backend: /health, /v1/models, POST /load, POST /unload.
+    v0.2.16 face (#16): '/' serves the HTML marker; /props /slots /api/expert-heat
+    answer their real shapes; every unknown path (including /monitor, which the
+    real serve never had) mirrors the engine's 404."""
     def __init__(self, name, port):
         self.name, self.port, self.loaded = name, port, False
         self.load_calls, self.unload_calls = 0, 0
         self.shared, self.posts = {}, []
         self.max_context = 524288
+        self.cc_mode, self.heat = "on", True    # metrics cache tri-state / heat two-state
         outer = self
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -57,7 +92,7 @@ class Stub:
                 if p == "/status":
                     return self._send(200, {"busy": False, "who": outer.name})
                 if p == "/metrics":
-                    return self._send(200, {
+                    _m = {
                         "engine": {"model": outer.name, "max_context": outer.max_context,
                                    "version": "0.1.56", "expert_slots": 7711,
                                    "expert_cache_mib": 14451, "kv": "k8v4", "spec": 4},
@@ -65,6 +100,7 @@ class Stub:
                         "live": {"state": "idle", "queued": 0, "phase": None, "prompt_tokens": None,
                                  "prompt_read": None, "prompt_total": None, "generated": None,
                                  "max_tokens": None, "elapsed_s": None, "tok_s": None,
+                                 "reused": 0, "tok_s_mean": None,
                                  "prefill_tok_s_mean": None},
                         "requests": [], "requests_kept": 0,
                         "totals": {"requests": 0, "prompt_tokens": 0, "reused": 0, "output_tokens": 0,
@@ -84,16 +120,44 @@ class Stub:
                                     "gpu_power": [300, 307], "gpu_pcie_rx_mb": [17609.0, 1.57],
                                     "cpu": [16.9, 44.2], "ram_used": [64994316288, 65131073536],
                                     "disk_read_mb": [0.04, 5.86], "prefill_tok_s_mean": [1996.2, 2002.1]},
-                        "time": 123.0})
+                        "time": 123.0}
+                    if outer.cc_mode != "absent":
+                        _m["conversation_cache"] = _conv_cache(outer.cc_mode)
+                    return self._send(200, _m)
                 if p == "/v1/models":
                     return self._send(200, json.dumps({"object": "list", "data": [
                         {"id": outer.name, "object": "model", "owned_by": "stub",
                          "status": {"value": "loaded" if outer.loaded else "unloaded"}}]}))
-                if p in ("/props", "/slots"):
-                    return self._send(404, {"error": "endpoint not in this engine build"})
-                if p in ("/", "/monitor"):
+                if p == "/props":
+                    # llama.cpp-style /props (v0.2.16 face): real shape,
+                    # stub keeps only what the console renders - no 30 KB template.
+                    return self._send(200, {
+                        "default_generation_settings": {"max_tokens": 8192, "temperature": 1.0,
+                                                        "top_p": 0.95, "top_k": 20},
+                        "total_slots": 1, "model_alias": outer.name,
+                        "chat_template": "<short stub template, not the real 30 KB text>",
+                        "chat_template_caps": {"thinking": True, "tools": True},
+                        "modalities": ["text"], "models_autoload": [],
+                        "is_sleeping": not outer.loaded,
+                        "model_path": "/stub/models/" + outer.name + ".gguf",
+                        "build_info": {"version": "0.1.62-stub"}})
+                if p == "/slots":
+                    # llama.cpp-style /slots: [] when the model is not loaded.
+                    if not outer.loaded:
+                        return self._send(200, [])
+                    return self._send(200, [{"id": 0, "n_ctx": 8192, "is_processing": False,
+                                             "n_prompt_tokens": 0}])
+                if p == "/api/expert-heat":
+                    # two-state switch (#16): unconfigured engine = 404,
+                    # exactly like the real serve with no expert profile.
+                    if not outer.heat:
+                        return self._send(404, {"error": "no expert profile configured"})
+                    return self._send(200, _heat_payload())
+                if p == "/":
                     return self._send(200, f"<html><body>stub:{outer.name}</body></html>", "text/html; charset=utf-8")
-                return self._send(200, f"stub:{outer.name}", "text/plain")
+                # v0.2.16 truth (#16): the real serve 404s every unknown path
+                # (no /monitor, no /queue, no /experts) - so must the stub.
+                return self._send(404, {"error": "no-such-endpoint: " + p})
             def do_POST(self):
                 n = int(self.headers.get("Content-Length", 0) or 0)
                 body = self.rfile.read(n)
