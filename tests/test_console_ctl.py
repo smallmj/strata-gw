@@ -838,4 +838,148 @@ ok(".ev.gate .kind" in css and "var(--warn)" in css, "Q6b .ev.gate rides the war
 for _cls in (".mcard", ".stat", ".qstats", ".sdot", ".mnote"):
     ok(_cls in css, "Q7 mcard primitive has a skin: " + _cls)
 
+# ---- C: conversation cache card (issue #19, T4) ---------------------------
+# Design record §2: #mon-cache .mcard rides the SAME 2.5s /metrics payload
+# (d.conversation_cache) — zero new requests, zero synthesis. Card presence,
+# each counter group and both degraded states are pinned against the stub
+# factory payloads (tests/stub_common.py _conv_cache = the SIM_STRATA_CCACHE
+# tri-state shipped by T1) run through a real node execution.
+
+# C1 the card shell: right after #mon-queue, before #mon-strip (design §0.1)
+ok('id="mon-cache"' in html
+   and html.index('id="mon-cache"') > html.index('id="mon-queue"')
+   and html.index('id="mon-cache"') < html.index('id="mon-strip"'),
+   "C1 #mon-cache sits in the Monitor block right after #mon-queue")
+
+# C2 the design-record §6 cache vocabulary ships as zh/en pairs (T13a parity)
+_ckeys = ("cc.band cc.tit cc.parked cc.size cc.budget cc.parks cc.restores cc.evict "
+          "cc.refused cc.reuse cc.last cc.ev.park cc.ev.restore cc.disabled "
+          "cc.nodata cc.ph cc.never").split()
+ok(all(k in _qt.get("zh", {}) and k in _qt.get("en", {}) for k in _ckeys),
+   "C2 all %d cc.* keys present in both tongues" % len(_ckeys))
+
+# C3 the cache renderer is a pure function; node runs it over the stub faces.
+# Helpers are extracted from app.js itself (not re-implemented here) so the
+# node run exercises the real number/format rules.
+_cp = _fn_src(js, "cachePanel")
+ok(bool(_cp), "C3a cachePanel is extractable for a real run")
+if _cp:
+    import subprocess as _sc_c
+    import tempfile as _tc_c
+    import stub_common as _stub_c
+    _HELP_C = "\n".join(filter(None, (_fn_src(js, _f) for _f in
+                       ("num", "kfmt", "tstr", "mib", "mibFromMiB", "relm"))))
+    _SHIM_C = r"""
+var LANG="zh";
+function tt(z,e){return LANG==="zh"?z:e}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+"""
+    def _ccase(args, lang="zh"):
+        """Run cachePanel(args...) in node over the shim; returns its HTML."""
+        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "ccase_%s.js" % lang)
+        with open(_tf, "w", encoding="utf-8") as _f:
+            _f.write(_SHIM_C.replace('var LANG="zh";', 'var LANG="%s";' % lang)
+                     + _HELP_C + "\n" + _cp
+                     + "\nconsole.log(JSON.stringify(cachePanel(%s)));" % args)
+        _r = _sc_c.run(["node", _tf], capture_output=True, text=True, timeout=20)
+        if _r.returncode != 0:
+            ok(False, "cachePanel node run failed: " + _r.stderr[:300])
+            return ""
+        return _json.loads(_r.stdout)
+
+    # happy face: the FULL stub conversation_cache object renders every group
+    _cc_on = _json.dumps(_stub_c._conv_cache("on"))
+    _hc1 = _ccase(_cc_on + ",true")
+    ok(">2/8<" in _hc1, "C3b parked/slots render verbatim (parked 2 of 8)")
+    ok("3.0 GiB" in _hc1 and "pbar warm" in _hc1 and "75.0%" in _hc1,
+       "C3c parked size + budget bar ride bytes/budget_mib (binary units)")
+    ok("预算 4.0 GiB" in _hc1, "C3d budget sub-line prints mibFromMiB(budget_mib)")
+    ok(">12<" in _hc1 and ">9<" in _hc1,
+       "C3e parks/restores counters render verbatim")
+    ok("14/40" in _hc1 and "3.1K tok" in _hc1,
+       "C3f reuse pair + reused_tokens render verbatim")
+
+    # degraded face 1 (SIM_STRATA_CCACHE=absent / cc_mode="absent"): the whole
+    # key is missing from an old engine — quiet "not available", card survives
+    _hc2 = _ccase("null,true")
+    ok("引擎未上报会话停放缓存——较旧的引擎没有这些字段" in _hc2
+       and 'class="mnote na"' in _hc2,
+       "C3g field-absent state renders the cc.nodata one-liner (mnote.na)")
+    ok("stat" not in _hc2 and len(_hc2) > 0,
+       "C3h field-absent state invents no stats and never blanks the card")
+    # degraded face 0 (no metrics at all — pre-load / engine down): placeholder
+    _hc3 = _ccase("null,false")
+    ok("停放缓存读数在开工后点亮" in _hc3 and "stat" not in _hc3,
+       "C3i no metrics yet: cc.ph placeholder, no invented stats")
+    # degraded face 2 (SIM_STRATA_CCACHE=off / cc_mode="off"): enabled:false —
+    # the disabled line rides a na dot + final text; zero IS data, not absence
+    _hc4 = _ccase(_json.dumps(_stub_c._conv_cache("off")) + ",true")
+    ok("未启用——引擎启动时未给停放预算" in _hc4 and "sdot na" in _hc4,
+       "C3j enabled:false shows cc.disabled (sdot na + text, never color alone)")
+    ok(">0/8<" in _hc4 and "stat" in _hc4 and "error" not in _hc4.lower(),
+       "C3k disabled state keeps the stats (0 is data) and the card alive")
+    ok("尚未停放过会话" in _hc4,
+       "C3l last_at:null degrades to cc.never, no phantom timestamp")
+    ok("pbar warm none" in _hc4,
+       "C3m zero bytes → dashed .pbar.none (parked:0 rule)")
+
+    import time as _t_c
+    # refusal breakdown: refused_total>0 turns warn, the .s sub prints the two
+    # counts (RAM floor / budget) — design record §2 field map row 5
+    _hc5 = _ccase('{"enabled":true,"parked":1,"slots":4,"bytes":1048576,"budget_mib":4096,'
+                  '"parks":3,"restores":1,"evictions":2,"refused":{"ram_floor":3,"budget":6},'
+                  '"refused_total":6,"requests":9,"requests_reused":2,"reused_tokens":700,'
+                  '"last_event":"parked","last_at":1000000,"last_tokens":900},true')
+    ok('<div class="stat warn"><span class="k">拒收' in _hc5
+       and ">6<" in _hc5 and "RAM 底线 3" in _hc5 and "预算 6" in _hc5,
+       "C3n refused_total>0 rides the warn rung + RAM-floor/budget breakdown")
+    ok('<div class="stat warn"><span class="k">腾退' in _hc5,
+       "C3o evictions>0 (enabled) rides the warn rung")
+    # refused_* absent (real v0.2.16 engine has no counters): quiet dash + title
+    _hc6 = _ccase('{"enabled":true,"parked":0,"slots":8,"bytes":12582912,"budget_mib":1024,'
+                  '"parks":0,"restores":0,"evictions":0,"requests":0,"requests_reused":0,'
+                  '"reused_tokens":0},true')
+    ok("拒收" in _hc6 and ">–<" in _hc6 and 'title="该引擎未报告这一字段"' in _hc6,
+       "C3p absent refused_* → dash + q.nofield title, never a fake 0")
+    ok("12 MiB" in _hc6 and "1.0 GiB" in _hc6 and " GB" not in _hc6,
+       "C3q binary units: MiB <1GiB, GiB ≥1024MiB, no gbf-style 'GB' label")
+    # last-event marker: a FORMAT of last_at (relm), never an invented number
+    _hc7 = _ccase('{"enabled":true,"parked":1,"slots":2,"bytes":1,"budget_mib":2,'
+                  '"last_event":"restored","last_at":%s,"last_tokens":1204},true' % (_t_c.time() - 120))
+    ok("最近事件：接回" in _hc7 and "2 分前" in _hc7 and "1,204 tok" in _hc7,
+       "C3r last row = last_event + relm(last_at) + last_tokens, zh template")
+    ok(re.search(r"最近事件：停放 [0-9]{2}:[0-9]{2}前", _hc5),
+       "C3s an event older than 2h prints the engine clock HH:MM, not a fake age")
+    # zero-synthesis + honesty guards on the FULL stub face
+    ok("1,800" not in _hc1 and "640" not in _hc1,
+       "C3t last_prompt/last_reused never render (request-table detail)")
+    _hc8 = _ccase('{"enabled":true},true')
+    ok(">0<" not in _hc8 and "–" in _hc8 and "stat" in _hc8,
+       "C3u sparse object: every absent field is a dash, never a 0")
+    _he = _ccase(_cc_on + ",true", lang="en")
+    ok("parked" in _he and "parked size" in _he and "budget 4.0 GiB" in _he
+       and "parks" in _he and "restores" in _he and "evictions" in _he
+       and "refused" in _he and "reuse" in _he and "last:" in _he and " ago" in _he
+       and " GB" not in _he,
+       "C3v EN mirror of the whole card (units stay binary)")
+    _hd = _ccase(_json.dumps(_stub_c._conv_cache("off")) + ",true", lang="en")
+    ok("disabled — no parking budget was set at engine boot" in _hd
+       and "nothing parked yet" in _hd,
+       "C3w EN degraded strings are the final §6 copy")
+
+# C4 polling discipline: the card rides the EXISTING payload, adds no request
+# and no timer (design §0.4 row 2; Q5a already pins setInterval==7).
+_pc = _fn_src(js, "paintCache")
+ok(bool(_pc) and "fetch" not in _pc,
+   "C4a zero new requests: paintCache touches no fetch")
+ok(bool(_pc) and "conversation_cache" in js,
+   "C4b the card reads d.conversation_cache from the 2.5s pollMetrics payload")
+ok(js.count("paintCache()") >= 2,
+   "C4c renderMonitor repaints the card on both the no-data and data paths")
+ok('id="mon-cage"' in html and 'getElementById("mon-cage")' in js,
+   "C4d the card carries the dim updated-Ns-ago age like #mon-queue (§7 freshness)")
+ok('data-i18n-title="cc.tit"' in html,
+   "C4e cc.tit tooltip distinguishes the cache from KV/prefix on the label")
+
 sys.exit(0 if not F else 1)
