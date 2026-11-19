@@ -650,11 +650,11 @@ try:
     # STRATA_HOME redirect: server.py path follows the env; resolver finds it
     r = subprocess.run(
         [sys.executable, "-c",
-         "import sys; sys.path.insert(0,'.'); import gw.config as c; print(c.SERVER_PY)"],
+         "import sys; sys.path.insert(0,'.'); import gw.config as c; print(c.server_py())"],
         cwd=ROOT, capture_output=True, text=True, timeout=30,
         env=dict(os.environ, STRATA_HOME="/nonexistent-engine"))
     ok("/nonexistent-engine/serve/server.py" in r.stdout,
-       "T50b gw.config.SERVER_PY honours STRATA_HOME")
+       "T50b gw.config.server_py() honours STRATA_HOME (and names the legacy path when absent)")
     r2 = subprocess.run(
         [sys.executable, "-c",
          "import sys; sys.path.insert(0,'.'); import gw.config as c; "
@@ -664,6 +664,38 @@ try:
                  STRATA_PYTHON="/opt/weird/python"))
     ok("/opt/weird/python" in r2.stdout,
        "T50c resolve_python honours STRATA_PYTHON override")
+    # ---- v0.2.16 layout: the serve wrapper, the venv and setup.py moved one
+    # level down under terminal/. The ladders must find them there, and an
+    # old-layout install must keep resolving at the top level.
+    _l16 = tempfile.mkdtemp(prefix="gw-l16-")
+    os.makedirs(os.path.join(_l16, "terminal", "serve"))
+    with open(os.path.join(_l16, "terminal", "serve", "server.py"), "w") as _fh:
+        _fh.write("# serve\n")
+    os.makedirs(os.path.join(_l16, "terminal", ".venv", "bin"))
+    with open(os.path.join(_l16, "terminal", ".venv", "bin", "python"), "w") as _fh:
+        _fh.write("# py\n")
+    r16 = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0,'.'); import gw.config as c; "
+         "print(c.server_py()); print(c.resolve_python())"],
+        cwd=ROOT, capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, STRATA_HOME=_l16, STRATA_PYTHON=""))
+    ok(os.path.join(_l16, "terminal", "serve", "server.py") in r16.stdout
+       and os.path.join(_l16, "terminal", ".venv", "bin", "python") in r16.stdout,
+       "T50d server_py() and resolve_python() find the v0.2.16 terminal/ layout")
+    _l16b = tempfile.mkdtemp(prefix="gw-l16b-")
+    os.makedirs(os.path.join(_l16b, "serve"))
+    with open(os.path.join(_l16b, "serve", "server.py"), "w") as _fh:
+        _fh.write("# legacy serve\n")
+    r16b = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0,'.'); import gw.config as c; "
+         "print(c.server_py()); print(c.resolve_python())"],
+        cwd=ROOT, capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, STRATA_HOME=_l16b, STRATA_PYTHON=""))
+    ok(os.path.join(_l16b, "serve", "server.py") in r16b.stdout
+       and "terminal" not in r16b.stdout,
+       "T50e an old-layout install still resolves at the top level (no regression)")
     # ---- T26b: a dead engine must confess, not hide behind "unreachable" ----
     # hand-drop a third card whose serve answers /health but whose engine is
     # gone (every POST resets); its config names an engine log with the real

@@ -191,4 +191,18 @@ ok("STILL HELD" in cmd_src and "errorlevel" in cmd_src,
    "SW13b the launcher re-checks the port after the kill and names the survivor (pid + owner)")
 ok("exit /b 1" in cmd_src, "SW13c a port that cannot be freed ABORTS the launcher instead of double-binding")
 
+# ---- SW14: v0.2.16 moved the wrapper, the engine AND the venv one level down
+# under <home>/terminal/ - the sweep and the shipped launcher must follow.
+_PY16 = r"D:\Strata\terminal\.venv\Scripts\python.exe"
+_SP16 = r"D:\Strata\terminal\serve\server.py"
+rows14 = [R(960, 902, "python.exe", _PY16 + " " + _SP16 + " --engine strata --config D:\\Strata\\terminal\\strata-qwen.json --port 18081"),
+          R(961, 960, "strata.exe", "D:\\Strata\\terminal\\engine\\strata.exe --serve --pack ..."),
+          R(962, 1, "python.exe", _PY16 + "  strata-router.py")]
+plan14 = {pid: w for pid, _n, w in
+          sweep.plan_boot(rows14, me=set(), root=ROOT, server_py=_SP16)}
+ok(plan14.get(960) == "wrapper", "SW14a a serve wrapper under terminal/ is still ours to reap")
+ok(plan14.get(961) == "engine", "SW14b the engine binary under terminal/engine is reaped by name")
+ok(plan14.get(962) == "router", "SW14c a router launched from the terminal/ venv is still a router")
+ok("terminal" in cmd_src, "SW14d the shipped launcher looks for the venv under terminal/ first (v0.2.16)")
+
 print("ALL PASS")

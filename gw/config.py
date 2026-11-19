@@ -11,7 +11,7 @@ from urllib import request as urlrequest
 # the sim-kit protocol stamp in ONE release-day commit (T19), after the compat
 # canary reports the newest upstream tag diff-free. Advisory only: a newer
 # engine paints a yellow banner, it never blocks anything.
-TESTED_UP_TO = {"engine": "0.1.60", "strata": "v0.2.14"}
+TESTED_UP_TO = {"engine": "0.1.62", "strata": "v0.2.16"}
 
 # repo root (the directory holding strata-router.py; gw/ lives under it)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,18 +65,36 @@ def strata_home() -> str:
 
 
 def resolve_python():
-    """Cross-platform engine python: STRATA_PYTHON env, then the .venv under the
-    engine root (Windows Scripts layout or POSIX bin layout). None = not found."""
+    """Cross-platform engine python: STRATA_PYTHON env wins outright, then the
+    .venv under the engine root - and under <root>/terminal/, which is where
+    v0.2.16 keeps it (Windows Scripts layout or POSIX bin layout).
+    None = not found."""
     p = env("STRATA_PYTHON")
     if p:
         return p
     home = strata_home()
-    for cand in (os.path.join(home, ".venv", "Scripts", "python.exe"),
-                 os.path.join(home, ".venv", "bin", "python"),
-                 os.path.join(home, ".venv", "bin", "python3")):
+    for sub in ("terminal", ""):            # v0.2.16 first, legacy as fallback
+        base = os.path.join(home, sub, ".venv") if sub else os.path.join(home, ".venv")
+        for cand in (os.path.join(base, "Scripts", "python.exe"),
+                     os.path.join(base, "bin", "python"),
+                     os.path.join(base, "bin", "python3")):
+            if os.path.isfile(cand):
+                return cand
+    return None
+
+
+def server_py() -> str:
+    """The engine's serve wrapper script. v0.2.16 moved the whole install under
+    <home>/terminal/; older installs keep it at <home>/serve/. Resolved per
+    call (strata_home() is hot), so an adopted home takes effect without a
+    restart. When neither exists, the legacy path comes back anyway - the
+    caller's "engine not found" message must name a plausible place."""
+    home = strata_home()
+    for cand in (os.path.join(home, "terminal", "serve", "server.py"),
+                 os.path.join(home, "serve", "server.py")):
         if os.path.isfile(cand):
             return cand
-    return None
+    return os.path.join(home, "serve", "server.py")
 
 
 def gateway_cfg() -> dict:
@@ -89,7 +107,6 @@ def gateway_cfg() -> dict:
     except (OSError, ValueError):
         return {}
 
-SERVER_PY = os.path.join(strata_home(), "serve", "server.py")
 WATCH_S = float(os.environ.get("STRATA_WATCH_S", "20"))   # state-transition watcher
 
 PROXY_PATHS = ("/router/settings", "/router/config", "/router/mcp", "/router/status",

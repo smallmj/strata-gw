@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # strata-gateway.sh - start the Strata gateway on Linux/macOS.
 # Point GW_HOME (or STRATA_HOME) at your Strata engine root - the folder that
-# holds serve/server.py and its .venv. Nothing personal is hardcoded.
+# holds setup.py, serve/server.py and its .venv. v0.2.16 keeps that whole set
+# one level down under <root>/terminal/; both layouts are found.
+# Nothing personal is hardcoded.
 set -euo pipefail
 
 GW_HOME="${GW_HOME:-$HOME/Strata}"
@@ -9,7 +11,13 @@ export STRATA_HOME="${STRATA_HOME:-$GW_HOME}"
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ROUTER="$HERE/strata-router.py"
-PY="${STRATA_PYTHON:-$STRATA_HOME/.venv/bin/python}"
+PY="${STRATA_PYTHON:-}"
+if [ -z "$PY" ]; then
+  for cand in "$STRATA_HOME/terminal/.venv/bin/python" "$STRATA_HOME/.venv/bin/python" \
+              "$STRATA_HOME/terminal/.venv/bin/python3" "$STRATA_HOME/.venv/bin/python3"; do
+    if [ -x "$cand" ]; then PY="$cand"; break; fi
+  done
+fi
 
 if [ ! -f "$ROUTER" ]; then
   echo "[launcher] gateway entry not found: $ROUTER  未找到网关入口" >&2

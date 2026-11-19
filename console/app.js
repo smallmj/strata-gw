@@ -303,7 +303,7 @@ function renderOnb(d){
     (e.version?" · v"+esc(String(e.version)):"")+"</span>";
   else eng.innerHTML=onbIco("M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4z")+
     "<span><b>"+tt("未找到 Strata 引擎","Strata engine not found")+"</b><em>"+
-    tt("网关认目录形状（setup.py + serve/server.py 或 engine/），不信文件夹名。二选一：","we trust the folder shape (setup.py + serve/server.py or engine/), never the name. two ways, pick one:")+
+    tt("网关认目录形状（setup.py + serve/server.py 或 engine/ 里的引擎程序；新版 Strata 把它们收在 terminal/ 子目录），不信文件夹名。二选一：","we trust the folder shape (setup.py plus serve/server.py, or the engine binary under engine/; new Strata keeps all of it under terminal/), never the name. two ways, pick one:")+
     '</em><div class="onb-act"><button class="ghostbtn" id="onb-detect">'+tt("在常见位置寻找","search the usual places")+
     '</button><input id="onb-hpath" type="text" placeholder="'+tt("或手填 Strata 目录路径","or type the Strata folder path")+'">'+
     '<button class="ghostbtn" id="onb-hset">'+tt("应用","apply")+'</button></div>'+

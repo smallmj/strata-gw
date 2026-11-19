@@ -95,6 +95,43 @@ finally:
     A.shutdown()
     shutil.rmtree(shome, ignore_errors=True)
 
+# --- T1d/T1e/T1g: v0.2.16 moved the whole install under <home>/terminal/
+# (setup.py, the .venv, strata-*.json, engine/BUILD.json). The scan must look in
+# both places, the OLD-layout copy keeps the higher trust, and the engine stamp
+# under ROOT/terminal/engine must light up /router/info.
+shome16 = tempfile.mkdtemp(prefix="gw-shome16-")
+os.makedirs(os.path.join(shome16, "terminal"))
+with open(os.path.join(shome16, "terminal", "strata-t16.json"), "w") as f:
+    json.dump({"model_name": "t16-newlayout", "api_key": "", "port": 18097,
+               "args": ["--max-context", "77001"]}, f)
+with open(os.path.join(shome16, "strata-shadow16.json"), "w") as f:
+    json.dump({"model_name": "shadow16", "api_key": "", "port": 18098,
+               "args": ["--max-context", "77002"]}, f)
+with open(os.path.join(shome16, "terminal", "strata-shadow16.json"), "w") as f:
+    json.dump({"model_name": "shadow16", "api_key": "", "port": 18099,
+               "args": ["--max-context", "77003"]}, f)
+gw16 = Gateway([], [], extra_env={"STRATA_HOME": shome16})
+try:
+    deadline = time.time() + 12
+    while time.time() < deadline and len(names(gw16)) < 2:
+        time.sleep(0.4)
+    ok(names(gw16) == ["shadow16", "t16-newlayout"],
+       "T1d configs under <home>/terminal are scanned too (v0.2.16 layout)")
+    s, h = gw16.get("/router/info")
+    _i16 = json.loads(h)
+    cfg = (_i16.get("models") or {}).get("shadow16", {}).get("cfg") or {}
+    ok(cfg.get("max_context") == 77002,
+       "T1e same name in both layouts: the home copy keeps the higher trust")
+    os.makedirs(os.path.join(gw16.root, "terminal", "engine"))
+    with open(os.path.join(gw16.root, "terminal", "engine", "BUILD.json"), "w") as f:
+        json.dump({"version": "8.8.8-root"}, f)
+    s, h = gw16.get("/router/info")
+    ok((json.loads(h).get("build") or {}).get("version") == "8.8.8-root",
+       "T1g /router/info finds the engine stamp at <ROOT>/terminal/engine/BUILD.json")
+finally:
+    gw16.close()
+    shutil.rmtree(shome16, ignore_errors=True)
+
 # --- T2a: with zero configs the gateway must stay alive and guide, not die.
 shome2 = tempfile.mkdtemp(prefix="gw-shome2-")
 gwz = Gateway([], [], extra_env={"STRATA_HOME": shome2})
@@ -248,6 +285,23 @@ finally:
     shutil.rmtree(shome5, ignore_errors=True)
     shutil.rmtree(shome6, ignore_errors=True)
 
+# --- T4d: v0.2.16 keeps setup.py at <home>/terminal/setup.py. The wizard finds
+# it there and runs its constants probe with the INSTALLER's folder on sys.path.
+shome16b = tempfile.mkdtemp(prefix="gw-shome16b-")
+os.makedirs(os.path.join(shome16b, "terminal"))
+shutil.copyfile(os.path.join(REPO, "tools", "sim-strata", "setup.py"),
+                os.path.join(shome16b, "terminal", "setup.py"))
+gw16b = Gateway([], [], extra_env=KIT_ENV(shome16b))
+try:
+    ok(up(gw16b), "T4d pre: terminal-layout install boots")
+    s, h = gw16b.get("/router/setup/models")
+    cat = json.loads(h) if s == 200 else {}
+    ok(s == 200 and cat.get("families", {}).get("simcore", {}).get("title") == "SimCore One",
+       "T4d the catalog comes from <home>/terminal/setup.py")
+finally:
+    gw16b.close()
+    shutil.rmtree(shome16b, ignore_errors=True)
+
 # --- T5: the recruit run drives the installed setup.py non-interactively,
 # streams its stdout into the status log ring, keeps run history for
 # 重新入册, lands the one-key policy and creates the placeholder card.
@@ -368,6 +422,33 @@ finally:
     shutil.rmtree(shome8, ignore_errors=True)
     shutil.rmtree(shome9, ignore_errors=True)
 
+# --- T5e: a v0.2.16 install (setup.py under terminal/) is driven with the
+# installer's own folder as cwd (setup.py's ROOT is its parent, and it writes
+# its config next to itself), and the card it creates is found by the scan.
+shome16c = tempfile.mkdtemp(prefix="gw-shome16c-")
+os.makedirs(os.path.join(shome16c, "terminal"))
+shutil.copyfile(os.path.join(REPO, "tools", "sim-strata", "setup.py"),
+                os.path.join(shome16c, "terminal", "setup.py"))
+gw16c = Gateway([], [], extra_env=KIT_ENV(shome16c))
+try:
+    ok(up(gw16c), "T5e pre: terminal-layout install up")
+    s, _ = gw16c.post("/router/setup/run",
+                      {"family": "simcore", "tier": "Q4SIM", "context": 131072})
+    st16 = wait_done(gw16c)
+    ok(s == 200 and st16 and st16.get("state") == "done" and st16.get("code") == 0,
+       "T5e1 the recruit runs <home>/terminal/setup.py")
+    ok(any(x == "sim: cwd=" + os.path.join(shome16c, "terminal")
+           for x in ((st16 or {}).get("lines") or [])),
+       "T5e2 cwd follows the installer folder, not the bare home")
+    ok(os.path.isfile(os.path.join(shome16c, "terminal", "strata-simcore-one-q4sim.json"))
+       and not os.path.exists(os.path.join(shome16c, "strata-simcore-one-q4sim.json")),
+       "T5e3 the new config lands in terminal/ only")
+    ok("simcore-one-q4sim" in names(gw16c),
+       "T5e4 the terminal-layout card is picked up by the scan")
+finally:
+    gw16c.close()
+    shutil.rmtree(shome16c, ignore_errors=True)
+
 # --- T6: the onboarding checklist line - engine presence + BUILD.json version,
 # the model count, and the one-sentence PC check from setup.py --check.
 shomeA = tempfile.mkdtemp(prefix="gw-shomeA-")   # no setup.py: engine missing
@@ -414,6 +495,41 @@ finally:
     gwE.close()
     shutil.rmtree(shomeA, ignore_errors=True)
     shutil.rmtree(shomeB, ignore_errors=True)
+
+# --- T6f/T6g: the same checklist on a v0.2.16 install - the engine stamp lives
+# at <home>/terminal/engine/BUILD.json and setup.py --check runs from terminal/.
+shome16d = tempfile.mkdtemp(prefix="gw-shome16d-")
+os.makedirs(os.path.join(shome16d, "terminal", "engine"))
+shutil.copyfile(os.path.join(REPO, "tools", "sim-strata", "setup.py"),
+                os.path.join(shome16d, "terminal", "setup.py"))
+with open(os.path.join(shome16d, "terminal", "engine", "BUILD.json"), "w") as f:
+    json.dump({"version": "9.9.9-t16"}, f)
+gw16d = Gateway([], [], extra_env=KIT_ENV(shome16d))
+try:
+    ok(up(gw16d), "T6f pre: terminal-layout install up")
+    s, h = gw16d.get("/router/onboard")
+    ob16 = json.loads(h) if s == 200 else {}
+    ok((ob16.get("engine") or {}).get("found") is True
+       and ob16["engine"].get("version") == "9.9.9-t16",
+       "T6f the checklist finds setup.py and terminal/engine/BUILD.json on v0.2.16")
+    s, h = gw16d.get("/router/onboard?check=1")
+    ok((json.loads(h).get("check") or {}).get("state") == "running",
+       "T6g1 ?check=1 kicks the PC check off on the new layout too")
+    ck16 = None
+    deadline = time.time() + 25
+    while time.time() < deadline:
+        s, h = gw16d.get("/router/onboard")
+        _ck = json.loads(h).get("check") or {}
+        if _ck.get("state") in ("done", "failed"):
+            ck16 = _ck
+            break
+        time.sleep(0.4)
+    ok(ck16 is not None and ck16.get("ok") is True
+       and "SIM PC check" in (ck16.get("summary") or ""),
+       "T6g2 setup.py --check runs from the installer folder and passes")
+finally:
+    gw16d.close()
+    shutil.rmtree(shome16d, ignore_errors=True)
 
 # --- T8: read-only disk map (网关零删除: the gateway shows the way, it never
 # deletes). Fixture: two models share one pack dir, one model has a private

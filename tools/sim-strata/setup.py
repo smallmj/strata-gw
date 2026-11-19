@@ -1,4 +1,4 @@
-# protocol snapshot: Strata v0.2.14 / engine 0.1.60 (pinned 2026-11-16)
+# protocol snapshot: Strata v0.2.16 / engine 0.1.62 (pinned 2026-11-19)
 """sim-strata setup.py - the FAKE Strata install tool for the demo kit.
 
 Everything here is pretend: no downloads, no GPU, no inference. The kit lets
@@ -90,6 +90,9 @@ def _setup(a):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "args_dump.json"), "w") as f:
             json.dump(sys.argv[1:], f)
+        # the gateway must drive us with OUR folder as cwd (real setup.py roots
+        # itself on its own parent); tests read this line back out of the log
+        print("sim: cwd=%s" % os.getcwd(), flush=True)
     if a.family not in fams:
         print("sim: unknown family %r" % a.family, flush=True)
         return 2

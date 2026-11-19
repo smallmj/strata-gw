@@ -1,8 +1,16 @@
 """Locate the Strata engine root - auto-probe or manual pointer.
 
 The gateway can live anywhere; what matters is finding the Strata install.
-A directory is trusted by SHAPE, never by name: setup.py at the top level
-plus serve/server.py (engine layout) or an engine/ folder (embedded layout).
+A directory is trusted by SHAPE, never by name:
+
+  * v0.2.16 layout (current upstream): setup.py and serve/server.py under
+    <dir>/terminal/ - the whole install moved one level down.
+  * older installs: setup.py at the top level PLUS the serve wrapper, or the
+    engine BINARY (engine/strata.exe | engine/strata) for embedded installs.
+
+A bare engine/ FOLDER proves nothing: since 0.2.16 every source clone ships an
+engine/ source tree (CMakeLists.txt and friends), and a half-built clone is not
+an engine - adopting one would promise a model that can never load.
 Candidates come from GW_HOME_CANDIDATES (";"-joined, test/ops override), the
 common install places, the sibling of the gateway checkout, and finally the
 checkout itself (the production layout keeps the gateway inside the engine).
@@ -18,14 +26,24 @@ import os
 from . import config
 
 
+def _engine_binary(d: str) -> bool:
+    """An actual engine binary sits in d/engine (Windows .exe, POSIX bare)."""
+    eng = os.path.join(d, "engine")
+    return any(os.path.isfile(os.path.join(eng, leaf)) for leaf in ("strata.exe", "strata"))
+
+
 def looks_like_strata(d: str | None) -> bool:
     """Shape test: real engine installs pass, empty name-matching folders fail."""
     if not d or not os.path.isdir(d):
         return False
+    t = os.path.join(d, "terminal")
+    if os.path.isfile(os.path.join(t, "setup.py")) and \
+            os.path.isfile(os.path.join(t, "serve", "server.py")):
+        return True                                   # v0.2.16 layout
     if not os.path.isfile(os.path.join(d, "setup.py")):
         return False
     return (os.path.isfile(os.path.join(d, "serve", "server.py"))
-            or os.path.isdir(os.path.join(d, "engine")))
+            or _engine_binary(d))
 
 
 def candidates() -> list:

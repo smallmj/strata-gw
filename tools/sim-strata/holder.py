@@ -1,4 +1,4 @@
-# protocol snapshot: Strata v0.2.14 / engine 0.1.60 (pinned 2026-11-16)
+# protocol snapshot: Strata v0.2.16 / engine 0.1.62 (pinned 2026-11-19)
 """sim-strata holder.py - the FAKE image service (demo stand-in for a
 generator that owns the GPU). Mirrors tests/stub_common.py's StubHolder
 protocol (/system_stats + /free + /queue + /interrupt) so gw/gpu_free.py

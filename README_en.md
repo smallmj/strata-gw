@@ -161,12 +161,15 @@ Latin subset in the repo and served by the gateway itself — no CDN is ever con
 
 | | floor | ceiling (tested) |
 |---|---|---|
-| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.14** |
-| engine | 0.1.46 | **0.1.60** |
+| Strata (host app/terminal) | v0.2.x (the host itself declares `MIN_ENGINE=(0,1,46)`) | **v0.2.16** |
+| engine | 0.1.46 | **0.1.62** |
 
 Upstream ships roughly two versions a week; most upgrades are additive and the
 gateway's wizard reads the installed `setup.py` live, so new families and tiers
-appear on their own. The hardcoded coupling surface (fifteen setup CLI flags,
+appear on their own. Since v0.2.16 the host keeps its whole install - `setup.py`,
+`serve/`, the `.venv`, the model jsons and `engine/BUILD.json` - one level down under
+`<engine home>/terminal/`; the gateway probes folder shapes and eats both layouts (the
+new one first). The hardcoded coupling surface (fifteen setup CLI flags,
 nine engine routes, the model json key form) is written down in
 `tests/compat-baseline.json` and machine-checked by
 `scripts/host_compat_canary.py` — a drift tripwire, not a rule about anyone's

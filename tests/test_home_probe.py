@@ -79,8 +79,9 @@ try:
        "H4 the adopt takes effect live - onboard sees the engine without a restart (gateway.json hot reload)")
 
     s, r = gw.post("/router/home", {"path": home2})
-    ok(s == 400 and json.load(open(gj)).get("strata_home") == home1,
-       "H5 a manual path that is not an engine is refused and the previous home survives")
+    ok(s == 400 and json.load(open(gj)).get("strata_home") == home1
+       and "terminal" in (json.loads(r).get("error") or ""),
+       "H5 a manual path that is not an engine is refused (the guide names the 0.2.16 layout) and the previous home survives")
 
     s, r = gw.post("/router/home", {"path": home2, "force": False})
     ok(s == 400, "H6 no side door: refusing is refusing")
@@ -208,5 +209,45 @@ finally:
     shutil.rmtree(_fake, ignore_errors=True)
 ok(saved_only == 23456 and env_wins == 34567 and default_port == 18075,
    "H13 port resolution order is env > gateway.json > 18075 (function-level pin)")
+
+# ---- H15/H16/H17: the v0.2.16 folder shape, and what counts as engine proof --
+# 0.2.16 moved setup.py, serve/ and the venv under <home>/terminal/, and EVERY
+# clone now carries an engine/ source folder - so the folder alone proves
+# nothing any more, only the engine binary does.
+import gw.home_probe as _hp
+_v16 = tempfile.mkdtemp(prefix="hp-v16-")
+os.makedirs(os.path.join(_v16, "terminal", "serve"))
+for _f in ("terminal" + os.sep + "setup.py",
+           "terminal" + os.sep + "serve" + os.sep + "server.py"):
+    with open(os.path.join(_v16, _f), "w") as _w:
+        _w.write("# v0.2.16 shape\n")
+ok(_hp.looks_like_strata(_v16) is True,
+   "H15 a v0.2.16 install (setup.py + serve/server.py under terminal/) is a real engine")
+_half = tempfile.mkdtemp(prefix="hp-half-")
+with open(os.path.join(_half, "setup.py"), "w") as _w:
+    _w.write("# source clone, engine never built\n")
+os.makedirs(os.path.join(_half, "engine"))
+with open(os.path.join(_half, "engine", "CMakeLists.txt"), "w") as _w:
+    _w.write("# source only\n")
+ok(_hp.looks_like_strata(_half) is False,
+   "H16 a bare engine/ source folder is NOT engine evidence - every 0.2.16 clone has one")
+_emb = tempfile.mkdtemp(prefix="hp-emb-")
+with open(os.path.join(_emb, "setup.py"), "w") as _w:
+    _w.write("# embedded install\n")
+os.makedirs(os.path.join(_emb, "engine"))
+with open(os.path.join(_emb, "engine", "strata.exe"), "w") as _w:
+    _w.write("binary\n")
+ok(_hp.looks_like_strata(_emb) is True,
+   "H17 the embedded proof is the engine BINARY (engine/strata.exe), not the folder")
+_pos = tempfile.mkdtemp(prefix="hp-pos-")
+with open(os.path.join(_pos, "setup.py"), "w") as _w:
+    _w.write("# posix embedded\n")
+os.makedirs(os.path.join(_pos, "engine"))
+with open(os.path.join(_pos, "engine", "strata"), "w") as _w:
+    _w.write("binary\n")
+ok(_hp.looks_like_strata(_pos) is True,
+   "H18 the same proof holds for the extension-less POSIX engine binary")
+for _d in (_v16, _half, _emb, _pos):
+    shutil.rmtree(_d, ignore_errors=True)
 
 print("ALL PASS")
