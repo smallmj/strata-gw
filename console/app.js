@@ -5,7 +5,7 @@ var saved=null;try{saved=localStorage.getItem("stratagw.theme")}catch(e){}
 var theme=saved||(window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
 function applyTheme(t){root.dataset.theme=t;try{localStorage.setItem("stratagw.theme",t)}catch(e){}}
 applyTheme(theme);
-document.getElementById("theme").onclick=function(){applyTheme(root.dataset.theme==="dark"?"light":"dark")};
+document.getElementById("theme").onclick=function(){applyTheme(root.dataset.theme==="dark"?"light":"dark");heatRepaint()};
 
 /* dossier data lives in cards/cards.json (via router/cards) - never hardcoded here.
    The 技术档案 rows are assembled live from router/backends + router/info + engine
@@ -1660,6 +1660,140 @@ function fetchMcp(){
     if(es[i].isIntersecting&&!_mcp1){_mcp1=1;fetchMcp()}}});
     mio.observe(_mc);}catch(e){}})();
 
+/* ---------------- 专家热度 section (issue #22, T7) ----------------
+   SPEC DEVIATION (decided, #22): the spec's planned new proxy mapping
+   (a gw heat path -> engine endpoint with a rewrite) is NOT built — the
+   probe rides the gw catch-all and hits the engine endpoint verbatim
+   (api/expert-heat?model=...), the same seam pet chat uses for
+   v1/chat/completions and the queue panel for v1/status. gw/routes.py
+   carries the matching comment; the path pair is already pinned in
+   tests/compat-baseline.json (console_routes, T1).
+   Gating mirrors the webui experts.js probe (strata-face §5): the whole
+   section — h2 AND card, no empty shell — stays display:none for every
+   hidden face: 404, 200 configured:false (T70e twin), 401 no-token, and a
+   failed fetch (§5 degraded table). Lazy: one IO instance gates
+   the first probe off the in-flow 1px sentinel #experts-io (a display:none
+   target never intersects, so the h2 itself cannot be the anchor — the
+   sentinel sits exactly at the section's position) and re-arms on
+   #experts-sec once shown: the 30 s refetch loop exists ONLY while the
+   section intersects; leaving clears it, re-entering refetches at once
+   (design §9 rule 3: never ~200 KB for a page nobody is looking at).
+   Zero synthesis (ADR-0001): the grid paints only the engine rank[] cells
+   through the pinned heatPos/heatAlpha formulas; meta/digest rows carry
+   layers/experts/every_min/saved_at verbatim. heatCard/heatGate/heatPos/
+   heatAlpha are pure (node-eval: H-series pins). */
+var _heat1=0,_heatin=0,_heatarmed=0,_heattimer=0,_heatdata=null,_heatstale=0,_heatshow=0,_heatTimer=null;
+function heatGate(code,d){return(code===200&&d&&d.configured===true)?1:0}
+function heatPos(i,E){return{l:Math.floor(i/E),e:i%E}}   // row-major (design §9.1)
+function heatAlpha(r,E){if(E<2)return 1;                  // §5 power ramp, hand-pinned in H5b
+  var t=1-r/(E-1);return 0.06+0.94*Math.pow(t,2.2)}
+function heatRGB(hx){hx=String(hx).trim();if(hx.charAt(0)==="#")hx=hx.slice(1);
+  if(hx.length===3)hx=hx.charAt(0)+hx.charAt(0)+hx.charAt(1)+hx.charAt(1)+hx.charAt(2)+hx.charAt(2);
+  var n=parseInt(hx,16);return isNaN(n)?"244,114,182":((n>>16)&255)+","+((n>>8)&255)+","+(n&255)}
+function heatCard(d,stale){
+  d=d||{};
+  var L=d.layers||0,E=d.experts||0,rk=d.rank||[];
+  var hmeta='<p class="hmeta">'+L+"\u00d7"+E+" \u00b7 "+tt("档案存档 ","profile saved ")+tstr(d.saved_at||0)+
+    " \u00b7 "+tt("约每 ","auto-saves every ~")+(d.every_min||"?")+tt(" 分自动存档"," min")+
+    (stale?' <span class="hstale">'+tt("· 刷新失败，显示上次数据","· refresh failed, showing last read")+"</span>":"")+"</p>";
+  if(L<1||E<1||rk.length<L*E)
+    return hmeta+'<p class="mnote warn">'+tt("热度数据不完整，等待下一次存档","heat data incomplete \u2014 waiting for the next save")+"</p>";
+  var cnt={},k,e;
+  for(k=0;k<rk.length;k++)if(rk[k]===0||rk[k]===1){e=k%E;cnt[e]=(cnt[e]||0)+1}   // digest = rank<=1 survivors
+  var dg=[];for(e in cnt)dg.push([+e,cnt[e]]);
+  dg.sort(function(a,b){return b[1]-a[1]||a[0]-b[0]});                          // count desc, expert asc
+  var hdig='<p class="hdigest"><b>'+tt("最热常驻","warmest")+"</b>";
+  for(k=0;k<dg.length&&k<3;k++)hdig+="<span>E"+dg[k][0]+"\u00d7"+dg[k][1]+tt("层"," layers")+"</span>";
+  hdig+="</p>";
+  var cell=2,gutL=34,gutT=8,gutB=16;                                            // same geometry as heatDraw
+  var W=gutL+E*cell+6,H=gutT+L*cell+gutB;
+  var sy=L>8?8:1,sx=E>8?Math.max(1,Math.floor(E/4)):1,ax="",t;                  // DOM axes, % = letterbox-safe
+  for(k=0;k<L;k+=sy)ax+='<span class="hax" style="left:0;top:'+((gutT+k*cell)/H*100).toFixed(2)+'%;width:'+(gutL-6)/W*100+'%;text-align:right">L'+k+"</span>";
+  for(t=0;t<E;t+=sx)ax+='<span class="hax" style="left:'+((gutL+t*cell)/W*100).toFixed(2)+'%;top:'+((H-gutB+3)/H*100).toFixed(2)+'%">E'+t+"</span>";
+  if((E-1)%sx)ax+='<span class="hax" style="left:'+((gutL+(E-1)*cell)/W*100).toFixed(2)+'%;top:'+((H-gutB+3)/H*100).toFixed(2)+'%">E'+(E-1)+"</span>";
+  var cvx='<canvas id="heatgrid" role="img" aria-label="'+L+"\u00d7"+E+" \u00b7 "+tt("专家热度档案存档于 ","expert heat profile saved ")+tstr(d.saved_at||0)+'"></canvas>';
+  var legend='<p class="hlegend">'+tt("最亮=该层第 1 热 · 越暗排名越靠后 · 透明=无档案","brightest = rank 1 in its layer \u00b7 dimmer = later \u00b7 clear = unranked")+"</p>";
+  var read='<p id="heat-read">'+tt("滑到格上读该层的保温排名","hover a cell to read its rank in its layer")+"</p>";
+  return hmeta+hdig+'<div class="hgrid">'+cvx+ax+"</div>"+legend+read;
+}
+function heatDraw(d){
+  var cv=document.getElementById("heatgrid");if(!cv)return;
+  var L=d.layers||0,E=d.experts||0,rk=d.rank||[];
+  if(L<1||E<1||rk.length<L*E)return;
+  var cell=2,gutL=34,gutT=8,gutB=16,W=gutL+E*cell+6,H=gutT+L*cell+gutB;
+  var DPR=Math.min(window.devicePixelRatio||1,2);            // same clamp as #fx
+  cv.width=W*DPR;cv.height=H*DPR;
+  cv.style.width=W+"px";cv.style.height=H+"px";              // + max-width in css, aspect kept
+  var cx=cv.getContext("2d");if(!cx)return;
+  cx.setTransform(1,0,0,1,0,0);cx.scale(DPR,DPR);cx.clearRect(0,0,W,H);
+  var s=heatRGB(getComputedStyle(document.documentElement).getPropertyValue("--s")); // re-read per §5
+  for(var l=0;l<L;l++)for(var e=0;e<E;e++){
+    var p=heatPos(l*E+e,E),r=rk[p.l*E+p.e];
+    if(!(r>=0)||r>=E)continue;                                // unranked = clear (legend truth)
+    cx.fillStyle="rgba("+s+","+heatAlpha(r,E).toFixed(3)+")";
+    cx.fillRect(gutL+p.e*cell,gutT+p.l*cell,cell,cell);
+  }
+  cx.fillStyle="rgba(148,163,184,.18)";                       // hairline group guides every 8 layers
+  for(var g=8;g<L;g+=8)cx.fillRect(gutL,gutT+g*cell-1,E*cell,1);
+}
+function heatHover(d){
+  var cv=document.getElementById("heatgrid"),rd=document.getElementById("heat-read");
+  if(!cv||!rd)return;
+  var L=d.layers||0,E=d.experts||0,rk=d.rank||[];
+  function idle(){rd.textContent=tt("滑到格上读该层的保温排名","hover a cell to read its rank in its layer")}
+  cv.onpointermove=function(ev){
+    var rc=cv.getBoundingClientRect();if(!rc.width||!rc.height)return;
+    var cell=2,gutL=34,gutT=8,W=gutL+E*cell+6,H=gutT+L*cell+16;
+    var e=Math.floor(((ev.clientX-rc.left)/rc.width*W-gutL)/cell),
+        l=Math.floor(((ev.clientY-rc.top)/rc.height*H-gutT)/cell);
+    if(e<0||e>=E||l<0||l>=L){idle();return}
+    var p=heatPos(l*E+e,E),r=rk[p.l*E+p.e];
+    rd.textContent=!(r>=0)||r>=E?tt("无档案","no rank")
+      :tt("层 ","layer ")+p.l+tt(" · 专家 "," · expert ")+p.e+tt(" · 该层排名 "," · rank ")+(r+1)+"/"+E+tt(""," in layer");
+  };
+  cv.onpointerleave=idle;
+}
+function paintHeat(){
+  var sec=document.getElementById("experts-sec"),box=document.getElementById("heat-body");
+  if(!sec||!box)return;
+  if(!_heatshow){if(sec._sh!==0){sec._sh=0;sec.style.display="none"}return}   // whole shell, never an empty card
+  if(sec._sh!==1){sec._sh=1;sec.style.display=""}
+  var h=heatCard(_heatdata,_heatstale);
+  if(box._h!==h){box._h=h;box.innerHTML=h;heatHover(_heatdata);heatDraw(_heatdata)}
+}
+function heatApply(code,d){
+  if(heatGate(code,d)){_heatdata=d;_heatshow=1;_heatstale=0}
+  else if(code===200){_heatshow=0;_heatdata=null;_heatstale=0}   // configured:false = hidden face
+  else if(_heatshow){_heatstale=1}                               // refresh fail after shown: keep grid
+  paintHeat();
+  if(_heatTimer)_heatTimer(!!_heatin&&!!_heatshow);
+}
+function fetchHeat(){
+  if(!selName)return;
+  fetch("api/expert-heat?model="+encodeURIComponent(selName),{headers:hdrs(false)})
+    .then(function(r){return r.json().then(function(d){heatApply(r.status,d)},function(){heatApply(r.status,null)})})
+    .catch(function(){heatApply(0,null)});
+}
+function heatTick(){fetchHeat()}
+function heatIo(){
+  var anchor=document.getElementById("experts-io"),sec=document.getElementById("experts-sec");
+  if(!anchor||!sec)return;
+  function heatTimer(on){                       // the ONE heat loop (Q5a's eighth, H7d's pair)
+    if(on&&!_heattimer)_heattimer=setInterval(_heatTick,30000);
+    else if(!on&&_heattimer){clearInterval(_heattimer);_heattimer=0}}
+  _heatTimer=heatTimer;
+  try{var hio=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){
+    var t=es[i].target,on=es[i].isIntersecting;
+    if(t===anchor&&on&&!_heat1){_heat1=1;fetchHeat();hio.observe(sec)}
+    else if(t===sec){
+      if(_heatarmed){if(on&&_heatshow)fetchHeat()}   // re-enter: refetch at once, then the loop
+      else _heatarmed=1;                             // the observe() callback itself: no double fetch
+      _heatin=on?1:0;heatTimer(!!on&&!!_heatshow)}}});
+    hio.observe(anchor);}catch(e){}
+}
+function heatRepaint(){if(_heatshow&&_heatdata)heatDraw(_heatdata)}   // --s re-read on theme/lang
+heatIo();
+
 /* ---------------- settings ---------------- */
 var SAMP=[["temperature","stemp","ostemp",1],["top_p","stop_p","os-top_p",2],["top_k","stop_k","os-top_k",0],
           ["reasoning_effort","seffort",null,0],["reasoning_budget_tokens","sbudget",null,0],
@@ -1670,6 +1804,7 @@ function selectModel(name,quiet){
   mon.data=null;MONTS=0;
   _v1st=null;_v1fail=0;capMaxQ=null;   // the queue face re-probes for the new model
   if(_mcp1)fetchMcp();                 // the MCP list is per-model truth — refetch on switch
+  if(_heat1){_heatshow=0;_heatdata=null;_heatstale=0;paintHeat();fetchHeat()}  // the heat face too (hidden until the new model proves configured)
   pollMetrics();
   loadSettings();loadConfig();
 }
@@ -1936,6 +2071,7 @@ function applyLang(){
   paintKeyChip();
   if(document.getElementById("archsvg")&&typeof modelsList!=="undefined")renderArch(modelsList);
   if(_mcp1)paintMcp();   // the MCP card has no poll tick — the lang sweep is its repaint
+  heatRepaint();         // the heat canvas re-reads --s under the new lang/theme (design §5)
 }
 function renderArch(backends){
   var g=document.getElementById("archsvg");if(!g)return;

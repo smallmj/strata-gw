@@ -584,6 +584,18 @@ details.drawer .dbody .ptitle{display:none}
 .kvchip{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:.3rem .7rem;
   background:rgba(148,163,184,.05);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .kvchip b{color:var(--fg);font-weight:600;margin-left:6px;font-family:var(--font-num);font-variant-numeric:tabular-nums}
+/* 专家热度 grid (design record §5): canvas raster + % positioned DOM axis labels
+   (letterbox-safe) + the always-text rows (digest, legend, readout). Tokens only. */
+.hgrid{position:relative;width:fit-content;max-width:100%}
+#heatgrid{display:block;max-width:100%;height:auto}
+.hax{position:absolute;font:600 .58rem/1 var(--font-num);color:var(--dim);white-space:nowrap;pointer-events:none}
+#heat-body .hmeta{font-size:.68rem;color:var(--dim);margin:0 0 8px;font-variant-numeric:tabular-nums}
+#heat-body .hmeta .hstale{color:var(--na)}
+#heat-body .hdigest{font-size:.74rem;color:var(--muted);margin:0 0 12px}
+#heat-body .hdigest b{color:var(--fg);font-weight:600;margin-right:10px}
+#heat-body .hdigest span{font-family:var(--font-num);margin-right:12px;white-space:nowrap}
+.hlegend{font-size:.66rem;color:var(--dim);margin:10px 0 0}
+#heat-read{font-size:.72rem;color:var(--muted);margin:8px 0 0;font-variant-numeric:tabular-nums}
 .kv dt{color:var(--muted);white-space:nowrap}
 .kv dd{margin:0;font-family:var(--font-num);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .qrow{display:flex;flex-direction:column;gap:3px;padding:9px 0;border-bottom:1px solid rgba(148,163,184,.09)}
