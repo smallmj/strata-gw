@@ -176,6 +176,7 @@ document.getElementById("save").onclick=function(){
   paintKeyChip();
   say(tt("Token 已保存在本浏览器。","token saved in this browser."),"");
   pollMetrics();
+  if(_mcp1)fetchMcp();   // a just-saved token can unlock the mcp.nodata face
 };
 document.getElementById("mon-keycta").onclick=function(){openSettings(true)};
 function say(t,cls){msg.textContent=t;msg.className=cls||""}
@@ -1595,6 +1596,69 @@ function paintCache(){
     if(ag._t!==at){ag._t=at;ag.textContent=at}}
 }
 
+/* ---------------- MCP servers card (issue #20, T5) ----------------
+   Per-model configuration truth, not live data: EVENT-DRIVEN ONLY (design
+   §0.4) — first fetch when the card scrolls into view (IO, the disk-map
+   precedent, flag _mcp1), re-fetch on model switch and token save; no timer
+   joins the page loops (Q5a keeps the count pinned). One failure ends the
+   round (_mcp404): nothing is re-asked until the next event — the mcp.nodata
+   line then, quiet, never an error (story 14). The fetch rides the already
+   -proxied /router/mcp with the model selector (zero new gateway routes).
+   mcpPanel is pure: payload in, HTML out — every engine string rides dgEsc;
+   tool descriptions and error text land ONLY in title attributes. */
+var _mcp1=0,_mcp404=0,_mcpbusy=0,_mcpdata=null;
+function mcpPanel(d,failed){
+  if(failed)return '<p class="mnote na">'+tt("引擎未提供 MCP 清单（或需要 token）","engine exposes no MCP list (or needs the token)")+'</p>';
+  if(!d)return '<p class="mnote">'+tt("读取 MCP 清单…","reading MCP list…")+'</p>';
+  var srv=d.servers||[];
+  if(!srv.length)return '<p class="mnote">'+tt("未配置 MCP 服务器","no MCP servers configured")+'</p>';
+  var h="";
+  for(var i=0;i<srv.length;i++){
+    var s=srv[i]||{},st=String(s.status==null?"":s.status).toLowerCase(),
+        cls="",stx=null,dotx="";
+    if(st.indexOf("ok")>=0||st.indexOf("connect")>=0||st.indexOf("on")>=0){
+      cls=" ok";stx=tt("已连接","connected");dotx='<span class="sdot ok"></span>';}
+    else if(st.indexOf("error")>=0||s.error){
+      cls=" err";stx=tt("错误","failed");dotx='<span class="sdot err"></span>';}
+    else if(st.indexOf("disabled")>=0||st.indexOf("off")>=0){
+      stx=tt("已禁用","disabled");dotx='<span class="sdot na"></span>';}
+    if(stx===null)stx=dgEsc(s.status==null?"–":String(s.status));   // unmapped: engine's own word, neutral chip
+    h+='<div class="srvrow"><b>'+dgEsc(s.name==null?"–":String(s.name))+'</b>';
+    if(s.transport)h+='<span class="fin">'+dgEsc(String(s.transport).toUpperCase())+'</span>';
+    h+='<span class="fin'+cls+'"'+(cls===" err"&&s.error?' title="'+dgEsc(String(s.error))+'"':"")+'>'+
+      dotx+stx+'</span>';
+    var tools=s.tools||[];
+    h+='<span class="fin">'+tt("工具","tools")+" ×"+tools.length+'</span>';
+    if(tools.length){
+      h+='<span class="chips">';
+      for(var t=0;t<tools.length&&t<8;t++){
+        var tl=tools[t]||{};
+        h+='<span'+(tl.description?' title="'+dgEsc(String(tl.description))+'"':"")+'>'+
+          dgEsc(tl.tool==null?"–":String(tl.tool))+'</span>';}
+      if(tools.length>8)h+='<span>+'+(tools.length-8)+'</span>';   // cap 8 visible, rest counted
+      h+='</span>';}
+    if(s.info)h+='<span class="s">'+dgEsc(String(s.info))+'</span>';
+    h+='</div>';}
+  return h;
+}
+function paintMcp(){
+  var box=document.getElementById("mcp-body");if(!box)return;
+  var h=_mcp404?mcpPanel(null,1):(_mcpdata?mcpPanel(_mcpdata,0):(_mcpbusy?mcpPanel(null,0):""));
+  if(box._h!==h){box._h=h;box.innerHTML=h}
+}
+function fetchMcp(){
+  if(!selName)return;
+  _mcp404=0;_mcpdata=null;_mcpbusy=1;paintMcp();
+  fetch("router/mcp?model="+encodeURIComponent(selName),{headers:hdrs(false)})
+    .then(function(r){return r.ok?r.json():Promise.reject(r.status)})
+    .then(function(d){_mcpbusy=0;_mcpdata=d;paintMcp()})
+    .catch(function(){_mcpbusy=0;_mcp404=1;_mcpdata=null;paintMcp()});
+}
+(function(){var _mc=document.getElementById("mcp-card");if(!_mc)return;
+  try{var mio=new IntersectionObserver(function(es){for(var i=0;i<es.length;i++){
+    if(es[i].isIntersecting&&!_mcp1){_mcp1=1;fetchMcp()}}});
+    mio.observe(_mc);}catch(e){}})();
+
 /* ---------------- settings ---------------- */
 var SAMP=[["temperature","stemp","ostemp",1],["top_p","stop_p","os-top_p",2],["top_k","stop_k","os-top_k",0],
           ["reasoning_effort","seffort",null,0],["reasoning_budget_tokens","sbudget",null,0],
@@ -1604,6 +1668,7 @@ function selectModel(name,quiet){
   selName=name;
   mon.data=null;MONTS=0;
   _v1st=null;_v1fail=0;capMaxQ=null;   // the queue face re-probes for the new model
+  if(_mcp1)fetchMcp();                 // the MCP list is per-model truth — refetch on switch
   pollMetrics();
   loadSettings();loadConfig();
 }
@@ -1833,6 +1898,7 @@ function applyLang(){
   if(dict["pg.title"])document.title=dict["pg.title"];
   paintKeyChip();
   if(document.getElementById("archsvg")&&typeof modelsList!=="undefined")renderArch(modelsList);
+  if(_mcp1)paintMcp();   // the MCP card has no poll tick — the lang sweep is its repaint
 }
 function renderArch(backends){
   var g=document.getElementById("archsvg");if(!g)return;

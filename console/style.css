@@ -476,6 +476,15 @@ html[data-theme=light] .acts .load{color:#fff}
 /* secondary lines (gate row, one-line degraded messages) */
 .mnote{font-size:.72rem;color:var(--muted);margin-top:8px}
 .mnote.warn{color:var(--warn)}.mnote.na{color:var(--na)}
+/* MCP server rows (design record §3): one flex line per server, the .fin/.chips
+   skins reused; first row carries no top border */
+.srvrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;
+  border-top:1px dashed var(--line)}
+.srvrow:first-child{border-top:0}
+.srvrow b{font-weight:600;color:var(--fg)}
+.srvrow .chips{align-items:center;gap:6px}
+.srvrow .chips span{font-size:.72rem;padding:.2rem .6rem}
+.srvrow .s{font-size:.64rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* the budget bar inside a cache stat: the existing .pbar skin, widened to the
    sub-line's text (design record §2: reuse .pbar + warm variant, no new skin) */
 .stat .pbar{margin-top:5px;min-width:110px}
