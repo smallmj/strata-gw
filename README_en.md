@@ -124,6 +124,7 @@ model in from its card (or `POST router/load {"model":"mymodel"}`;
 | key | meaning |
 |---|---|
 | `strata_home` | engine root — the page can also search-and-adopt or take your typed path and write this atomically (env `STRATA_HOME` wins over everything) |
+| `engine_source` | `"component"` makes the backends follow the desktop install's component store: newest installed package, a `strata components rollback` pin honored, signature and every file's SHA-256 verified at start - a desktop `strata update` is followed with zero gateway changes. Default `"config"` = start from the scanned run config's own `exe` path. env `STRATA_ENGINE_SOURCE` wins over this key |
 | `github_url` | target of the header GitHub button |
 | `gpu_free.urls` | list of `/free`-capable yield endpoints |
 | `gpu_free.target_mib` | VRAM floor to demand; `0` = auto water-line |

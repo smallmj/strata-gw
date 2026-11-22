@@ -382,9 +382,13 @@ def start(body) -> tuple[int, dict]:
             pass
         run["code"] = p.wait()
         if run["code"] == 0:
-            run["state"] = "done"
+            # finish's rescan/key/cards work runs BEFORE the state flips: a
+            # status poller that sees "done" must also see the result and the
+            # keyed configs (two separate assignments torn by a poll once
+            # flaked T5a4/T5b4-style checks).
             run["result"] = {"models": len(backends.BACKENDS),
                              "new": _finish(run, run["known"])}
+            run["state"] = "done"
         else:
             run["state"] = "failed"
         _append_history(run)
@@ -440,7 +444,10 @@ def onboard(want_check: bool) -> dict:
     home = config.strata_home()
     py = config.resolve_python()
     setup_py_path = setup_py()
-    build = build_stamp(home)
+    # engine_source "component": the version the backends will actually run
+    # comes from the component store, not the install's engine folder.
+    build = config.engine_stamp() if config.engine_source() == config.ENGINE_SOURCE_COMPONENT \
+        else build_stamp(home)
     out = {"engine": {"found": bool(py and setup_py_path),
                       "home": home, "python": bool(py),
                       "version": (build or {}).get("version"),

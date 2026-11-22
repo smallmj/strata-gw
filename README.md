@@ -87,6 +87,7 @@ python3 strata-router.py        # Windows：双击启动器，或编辑 launcher
 | 键 | 含义 |
 |---|---|
 | `strata_home` | 引擎根目录；也可以在页面上「一键寻找 / 手动指路」由网关原子写入（环境变量 `STRATA_HOME` 优先级最高） |
+| `engine_source` | `"component"` 让后端跟随桌面端组件库的引擎包：新装的最新版优先，`strata components rollback` 的钉选同样生效，`server.py` 启动时校验签名与全文件 SHA-256——桌面端 `strata update` 后网关零改动自动跟随。默认 `"config"` = 按扫描到的运行配置自己的 `exe` 路径启动。环境变量 `STRATA_ENGINE_SOURCE` 优先于本键 |
 | `github_url` | 顶栏 GitHub 按钮指向 |
 | `gpu_free.urls` | 支持 `/free` 的让卡端点列表 |
 | `gpu_free.target_mib` | 要求腾出的显存底线；`0` = 按驻留后端自动水位 |

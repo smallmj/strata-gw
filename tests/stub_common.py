@@ -339,7 +339,13 @@ class StubHolder:
 class Gateway:
     """Copy the repo tree (minus junk) into a temp dir, plant strata-*.json
     configs for the given model names, spawn the gateway, wait until ready."""
-    _SKIP = {".git", "testdir", "tests", "__pycache__", "strata-router.py.orig"}
+    # gateway.json excluded: the operator's private file (strata_home,
+    # gpu_free, engine_source...) must not leak into a test gateway's scan -
+    # with a real strata_home planted, every suite would discover and lazily
+    # spawn the REAL production configs. Tests that need a gateway.json write
+    # their own into the temp tree.
+    _SKIP = {".git", "testdir", "tests", "__pycache__", "strata-router.py.orig",
+             "gateway.json"}
 
     def __init__(self, models, ports, holder_port=None, extra_env=None):
         self.root = tempfile.mkdtemp(prefix="gwtest-")

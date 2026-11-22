@@ -24,3 +24,6 @@ testdir/
 
 # production original snapshot: local reference only, never published
 strata-router.py.orig
+
+# engine_source "component": managed spawn copies (never backends, never git)
+runtime/

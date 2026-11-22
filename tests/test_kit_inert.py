@@ -188,10 +188,23 @@ def _plant_install(root, sub):
     with open(os.path.join(d, "serve", "server.py"), "w", encoding="utf-8") as fh:
         fh.write("ROUTES = [%s]\n" % ", ".join(
             '"%s"' % r for r in list(_b10["engine_routes"]) + list(_b10.get("console_routes", []))))
-    vbin = os.path.join(d, ".venv", "bin")
-    os.makedirs(vbin, exist_ok=True)
-    if not os.path.exists(os.path.join(vbin, "python")):
-        os.symlink(sys.executable, os.path.join(vbin, "python"))
+    # a real Windows install keeps .venv/Scripts/python.exe (a plain file):
+    # cmd cannot execute an extensionless bin/python symlink ("the filename,
+    # directory name, or volume label syntax is incorrect"), which made the
+    # canary's probe read nothing and P10 drift on constants the plant itself
+    # generated from the baseline. Plant the layout the OS actually runs -
+    # Scripts/python.exe (a copy) on Windows, bin/python (a symlink) on POSIX -
+    # both sit first in the canary's venv candidate list.
+    if os.name == "nt":
+        vbin = os.path.join(d, ".venv", "Scripts")
+        os.makedirs(vbin, exist_ok=True)
+        if not os.path.exists(os.path.join(vbin, "python.exe")):
+            shutil.copyfile(sys.executable, os.path.join(vbin, "python.exe"))
+    else:
+        vbin = os.path.join(d, ".venv", "bin")
+        os.makedirs(vbin, exist_ok=True)
+        if not os.path.exists(os.path.join(vbin, "python")):
+            os.symlink(sys.executable, os.path.join(vbin, "python"))
     with open(os.path.join(d, "strata-pinned.json"), "w", encoding="utf-8") as fh:
         json.dump({"model_name": "pinned-model", "args": ["--max-context", "8192"]}, fh)
 

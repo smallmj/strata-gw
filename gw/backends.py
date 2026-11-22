@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -19,6 +20,74 @@ from . import events
 _lock = threading.Lock()                      # guards BACKENDS and port state
 _spawn_locks: dict[str, threading.Lock] = {}  # one spawn at a time per config
 _CFG_FACTS: dict[str, dict] = {}              # static card facts, per config path
+
+
+def managed_config(cfg_path: str, out_dir: str | None = None) -> str:
+    """engine_source "component": a managed copy of the scanned run config
+    whose "exe" is the upstream component reference (and, when there is one,
+    the picture reader from the same package folder). Everything else is
+    inherited untouched. The copy lives under ROOT/runtime/ - a folder
+    scan_dirs() never visits - so it cannot become a backend; server.py does
+    the authoritative resolution and verifies the package at start. The
+    scanned JSON stays read-only: discovery, card facts and the log tail all
+    keep the original path. out_dir overrides the destination for tests.
+
+    server.py derives its sidecar state from the CONFIG PATH it is given
+    (shared chat settings, .tool-media, the web Settings view), so the copy
+    owns that state in runtime/. Regeneration is mtime-based, which keeps
+    both edit surfaces honest without either writing the other's file: a
+    hand-edited scanned config (newer) re-inherits on the next spawn, and
+    settings saved through the engine's own page (copy newer) survive it.
+    A store update regenerates too (the sidecar records the package the
+    copy was made for), so the picture reader follows engine updates."""
+    dest = out_dir or os.path.join(config.ROOT, "runtime")
+    os.makedirs(dest, exist_ok=True)
+    out = os.path.join(dest, os.path.basename(cfg_path))
+    stamp_path = out + ".stamp.json"
+    pkg = config.component_engine_dir()
+    regen = True
+    try:
+        with open(stamp_path, encoding="utf-8-sig") as f:
+            regen = (f.read() or "").strip() != os.path.basename(pkg or "")
+    except OSError:
+        regen = True
+    if os.path.isfile(out) and os.path.isfile(cfg_path) \
+            and os.path.getmtime(cfg_path) >= os.path.getmtime(out):
+        regen = True
+    if regen or not os.path.isfile(out):
+        with open(cfg_path, encoding="utf-8-sig") as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict) or not cfg.get("model_name"):
+            raise ValueError("not a run config: model_name missing")
+        cfg["exe"] = config.COMPONENT_REFERENCE
+        vision = cfg.get("vision")
+        if isinstance(vision, dict):
+            old = vision.get("exe")
+            reader = os.path.join(pkg, "strata-vision.exe") if pkg else None
+            if reader and os.path.isfile(reader) and isinstance(old, str) and old \
+                    and not old.startswith("component:") and os.path.isabs(old):
+                vision["exe"] = reader
+        tmp = out + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=1, ensure_ascii=False)
+        os.replace(tmp, out)
+        tmp = stamp_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(os.path.basename(pkg or ""))
+        os.replace(tmp, stamp_path)
+    # the chat settings the engine's page saved last time: mirror the
+    # original's into the copy's namespace when the original is the newer
+    # one, so gw-side starts see the same defaults a plain terminal start
+    # would (the two files then evolve on their own surfaces).
+    src_shared = os.path.splitext(cfg_path)[0] + ".shared-settings.json"
+    dst_shared = os.path.splitext(out)[0] + ".shared-settings.json"
+    try:
+        if os.path.isfile(src_shared) and (not os.path.isfile(dst_shared)
+                or os.path.getmtime(src_shared) > os.path.getmtime(dst_shared)):
+            shutil.copyfile(src_shared, dst_shared)
+    except OSError:
+        pass
+    return out
 
 
 class Backend:
@@ -142,8 +211,20 @@ class Backend:
             # everything it starts later) to this process's lifetime: whatever
             # ends the router - Ctrl+C, the window's X, taskkill, a crash - the
             # job's kill-on-close takes the whole tree with it.
+            serve_cfg = self.cfg_path
+            if config.engine_source() == config.ENGINE_SOURCE_COMPONENT:
+                try:
+                    serve_cfg = managed_config(self.cfg_path)
+                    stamp = (config.engine_stamp() or {}).get("version")
+                    print(f"[router] {self.name}: engine source \"component\" "
+                          f"(store stamp {stamp}) - server.py resolves and "
+                          f"verifies the package at start", flush=True)
+                except (OSError, ValueError) as e:
+                    print(f"[router] {self.name}: managed engine config failed "
+                          f"({e}); the scanned config's own exe path is used",
+                          flush=True)
             self.proc = subprocess.Popen(
-                [py, srv, "--engine", "strata", "--config", self.cfg_path,
+                [py, srv, "--engine", "strata", "--config", serve_cfg,
                  "--host", "0.0.0.0", "--port", str(self.port),
                  "--api-key", self.key, "--lazy"],
                 cwd=config.ROOT, stdin=subprocess.DEVNULL)
@@ -379,8 +460,8 @@ def scan_configs() -> dict[str, Backend]:
     for d in scan_dirs():
         for path in sorted(glob.glob(os.path.join(d, "strata-*.json"))):
             base = os.path.basename(path)
-            if re.search(r"\.bak|\.tmp|\.log", base):
-                continue
+            if re.search(r"\.bak|\.tmp|\.log|\.runtime", base):
+                continue                               # .runtime = the managed spawn copies, never a backend
             try:
                 with open(path, encoding="utf-8-sig") as f:
                     cfg = json.load(f)
@@ -600,17 +681,22 @@ def router_info() -> dict:
     """/router/info: the engine BUILD.json plus a per-backend /health snapshot.
     An embedded install reads the stamp from its own tree; v0.2.16 puts it under
     terminal/engine/, older installs at engine/ (a non-embedded deployment's
-    launcher copies it into the gateway tree every start)."""
+    launcher copies it into the gateway tree every start). engine_source
+    "component" reads the component store's in-use package instead - the same
+    resolution server.py does at spawn, minus the deep integrity checks."""
     build = None
-    for cand in ("terminal/engine/BUILD.json", "engine/BUILD.json", "BUILD.json"):
-        p = os.path.join(config.ROOT, cand)
-        if os.path.isfile(p):
-            try:
-                with open(p, encoding="utf-8-sig") as f:
-                    build = json.load(f)
-            except (OSError, ValueError):
-                build = None
-            break
+    if config.engine_source() == config.ENGINE_SOURCE_COMPONENT:
+        build = config.engine_stamp()
+    else:
+        for cand in ("terminal/engine/BUILD.json", "engine/BUILD.json", "BUILD.json"):
+            p = os.path.join(config.ROOT, cand)
+            if os.path.isfile(p):
+                try:
+                    with open(p, encoding="utf-8-sig") as f:
+                        build = json.load(f)
+                except (OSError, ValueError):
+                    build = None
+                break
     models = {}
     for b in sorted(BACKENDS.values(), key=lambda x: x.name):
         try:

@@ -392,7 +392,13 @@ for name, port in ((MA, 18095), (MB, 18096)):
         json.dump(MA_CFG if name == MA else
                   {"model_name": name, "port": port, "api_key": ""}, f)
 SRC_DIR = os.path.dirname(os.path.abspath(ROUTER_SRC))
-_SKIP = {".git", "testdir", "gw-assets", "tests", "__pycache__", "strata-router.py.orig"}
+# gateway.json excluded: the operator's private file (gpu_free wait_s/timeout_s)
+# must not shadow the suite's env knobs - with wait_s=120 copied in, the T25
+# force window beats the 15s client timeout and the whole wait ladder turns
+# environment-dependent. The tuning the gpu-free faces were designed against is
+# written below; env knobs still win over it.
+_SKIP = {".git", "testdir", "gw-assets", "tests", "__pycache__", "strata-router.py.orig",
+         "gateway.json"}
 for _item in sorted(os.listdir(SRC_DIR)):
     if _item in _SKIP or _item == os.path.basename(os.path.abspath(ROUTER_SRC)):
         continue
@@ -402,6 +408,11 @@ for _item in sorted(os.listdir(SRC_DIR)):
     else:
         shutil.copy(_s, _d)
 shutil.copy(ROUTER_SRC, os.path.join(ROOT, "strata-router.py"))
+# the gpu-free faces need an explicit water line: without "gpu_free"."target_mib"
+# the force-free loop falls to the auto target and re-runs nvidia-smi every poll
+# (seconds per iteration on a busy box)
+with open(os.path.join(ROOT, "gateway.json"), "w", encoding="utf-8") as _gj:
+    json.dump({"gpu_free": {"target_mib": 20500}}, _gj, indent=1)
 os.makedirs(os.path.join(ROOT, "gw-assets"), exist_ok=True)
 # 视频素材 fixture：VIS 用真片（HERE/assets-real/bg-loop.mp4），非 VIS 用 3000 字节假片
 if VIS and os.path.exists(os.path.join(HERE, "assets-real", "bg-loop.mp4")):
@@ -968,7 +979,9 @@ try:
          "import sys; sys.path.insert(0,'.'); import gw.config as c; print(c.server_py())"],
         cwd=ROOT, capture_output=True, text=True, timeout=30,
         env=dict(os.environ, STRATA_HOME="/nonexistent-engine"))
-    ok("/nonexistent-engine/serve/server.py" in r.stdout,
+    # os.path.join on Windows produces mixed separators for a rooted home
+    # ("C:/nonexistent-engine\serve\server.py"): compare separator-blind.
+    ok("/nonexistent-engine/serve/server.py" in r.stdout.replace("\\", "/"),
        "T50b gw.config.server_py() honours STRATA_HOME (and names the legacy path when absent)")
     r2 = subprocess.run(
         [sys.executable, "-c",

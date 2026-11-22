@@ -8,6 +8,7 @@ import os
 import subprocess
 import re
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 html = open(os.path.join(ROOT, "console", "index.html"), encoding="utf-8").read()
@@ -700,7 +701,7 @@ var b = parseProg(["  m.gguf: 21.00 / 32.60 GB (64%)",
 var ok = a && b && +b.cur > +a.cur && b.tot === a.tot && b.pct === 74;
 console.log(ok ? "RESUME-MONOTONIC" : "BAD " + JSON.stringify([a, b]));
 """
-    _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "t32pp.js")
+    _tf = os.path.join(tempfile.gettempdir(), "t32pp.js")
     with open(_tf, "w", encoding="utf-8") as _f:
         _f.write(_script)
     _r = _spp.run(["node", _tf], capture_output=True, text=True, timeout=20)
@@ -786,7 +787,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
 """
     def _qcase(args, lang="zh"):
         """Run queuePanel(args...) in node over the shim; returns its HTML."""
-        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "qcase_%s.js" % lang)
+        _tf = os.path.join(tempfile.gettempdir(), "qcase_%s.js" % lang)
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_ZH.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + _qp + "\nconsole.log(JSON.stringify(queuePanel(%s)));" % args)
@@ -933,7 +934,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
 """
     def _ccase(args, lang="zh"):
         """Run cachePanel(args...) in node over the shim; returns its HTML."""
-        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "ccase_%s.js" % lang)
+        _tf = os.path.join(tempfile.gettempdir(), "ccase_%s.js" % lang)
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_C.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + _HELP_C + "\n" + _cp
@@ -1083,7 +1084,7 @@ function tt(z,e){return LANG==="zh"?z:e}
 """ + _fn_src(js, "dgEsc") + "\n"
     def _mcase(args, lang="zh"):
         """Run mcpPanel(args...) in node over the shim; returns its HTML."""
-        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "mcase_%s.js" % lang)
+        _tf = os.path.join(tempfile.gettempdir(), "mcase_%s.js" % lang)
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_M.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + _mp + "\nconsole.log(JSON.stringify(mcpPanel(%s)));" % args)
@@ -1231,7 +1232,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
 """
     def _fcase(eng, lang="zh"):
         """Run factsPanel(eng) in node over the shim; returns its HTML."""
-        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "fcase_%s.js" % lang)
+        _tf = os.path.join(tempfile.gettempdir(), "fcase_%s.js" % lang)
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_F.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + _HELP_F + "\n" + _fp
@@ -1412,7 +1413,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 """
     def _hcase(fnexpr, lang="zh", extra=""):
-        _tf = os.path.join(os.environ.get("TMPDIR", "/tmp"), "hcase_%s.js" % lang)
+        _tf = os.path.join(tempfile.gettempdir(), "hcase_%s.js" % lang)
         with open(_tf, "w", encoding="utf-8") as _f:
             _f.write(_SHIM_H.replace('var LANG="zh";', 'var LANG="%s";' % lang)
                      + extra + "\n" + _hg + "\n"

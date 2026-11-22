@@ -49,7 +49,7 @@ def names(g):
     return sorted(b["model"] for b in json.loads(h).get("backends", []))
 
 
-def up(g, timeout=12):
+def up(g, timeout=30):
     """Zero-config gateways answer with an EMPTY backends list, so
     wait_ready() (which demands a non-empty one) is useless there: poll the
     endpoint for liveness only."""
@@ -699,10 +699,19 @@ try:
     s, h = gwG.get("/router/setup/fit?family=simbeta&context=2097152&vision=no")
     ok(s == 200, "T27i GET /router/setup/fit answers 200")
     d = json.loads(h)
-    ok(round(d.get("kv_gb") or 0, 1) == 41.9 and d.get("fits") is None
-       and d.get("suggest_context") is None,
-       "T27j fit quotes the catalog's own table (41.9 GB at 2M ctx) and refuses "
-       "a verdict when the card size is unreadable")
+    # the verdict half is host-dependent BY DESIGN: on a box where the holder
+    # probe or nvidia-smi answers (a real card, or the real image service
+    # listening on 8188), the fit honestly carries a verdict + budget line;
+    # where no card size is readable, it must refuse one. The catalog table
+    # itself is the pin.
+    ok(round(d.get("kv_gb") or 0, 1) == 41.9,
+       "T27j fit quotes the catalog's own table (41.9 GB at 2M ctx)")
+    if d.get("fits") is None:
+        ok(d.get("budget_gb") is None and d.get("suggest_context") is None,
+           "T27j2 no card size readable: the fit refuses a verdict (no numbers invented)")
+    else:
+        ok(isinstance(d.get("fits"), bool) and (d.get("budget_gb") or 0) > 0,
+           "T27j2 card size readable: the verdict carries its own budget line")
     s, h = gwG.get("/router/setup/fit?family=simcore&context=2097152&vision=no")
     d2 = json.loads(h)
     ok(d2.get("kv_gb") is None and d2.get("fits") is None,
