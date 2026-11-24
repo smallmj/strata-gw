@@ -73,6 +73,35 @@ never matches itself). Run it after ANY copy change; a red T9/T10 = leak.
    `gh repo create` → push → `git tag vX.Y.Z && git push --tags` → `gh release create`.
 5. Last check after publishing: `git ls-files | grep -E "strata-(qwen|sc117)|uploads/"` empty.
 
+## 5.1 One version, three places
+
+The same commit is expected live in three places: this checkout, `origin/main`,
+and the deployment checkout on the Strata box (the tree the running gateway's
+`_ROOT` points at). The box is a target — nothing is ever committed there.
+
+- Deploy from the box: `git fetch origin`, then `git checkout main` /
+  `git pull --ff-only`. Never `git reset --hard FETCH_HEAD` onto a tag: that habit
+  is what left the box detached with two stale local branch tips behind (a
+  12-commit v0.2.13-era lineage; archived on the box as
+  `bak/stale-box-tips-20261124.bundle`, every patch in it already upstream under
+  other SHAs).
+- Console edits (`console/*`) need no restart — `gw/console.py` re-reads the files
+  on every request. Prove it by fetching the served page and grepping for the new
+  token; never assume it. A `gw/*.py` edit does need a restart: run
+  `launcher/stop-gw.cmd`, then the box's own start script.
+- Verify on **both** hosts. The suites are platform-aware, not platform-blind:
+  `ok()` in `stub_common` is fail-fast, so one wrong-platform assert silently
+  un-runs every pin behind it (MC4/MC7 now pin both faces of the managed spawn
+  config; `test_deck_geometry` prints SKIP where no browser is installed). On the
+  box run `scripts/run_suites.cmd` — cmd starts there in code page 936 and the
+  suites print bilingual labels, so a bare run dies inside a PASS line with
+  `UnicodeEncodeError` and the verdict never arrives.
+- The box keeps scratch beside the checkout (`bak*/`, `cards/*.bak*`, `*.out`,
+  `engine/BUILD.json`, one-off `tests/` probes). Those classes are ignored and the
+  T9f pin fails the hygiene scan if one is ever tracked — a probe in that pile once
+  held the live engine key. A synced box shows exactly one dirty path:
+  `M cards/cards.json`.
+
 ## 6. Commit trailer
 
 Every commit carries:
