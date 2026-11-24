@@ -211,6 +211,18 @@ for rel in tracked:
 ok(not viol3, "T9c brand-token scan over ALL tracked text files clean (%d)%s"
    % (len(viol3), "" if not viol3 else " :: " + "; ".join(viol3[:6])))
 
+# T9f: the Strata box keeps scratch right next to the checkout - dossier backups,
+# launch logs, the build stamp the start script copies in, drive-letter probes
+# (one of which once held the live engine api key). All of it is .gitignore'd;
+# this pins that contract, so a careless "git add -A" there fails the hygiene
+# scan instead of publishing machine-specific files and secrets.
+_RESIDUE = re.compile(r"(^|/)bak[^/]*/|\.bak(-|$)|\.(out|pre)$|^engine/BUILD\.json$"
+                      r"|^\.gwstart\.bat$|^start-gw\.cmd$|^stop-gw\.(cmd|ps1)$"
+                      r"|^tests/(activate|find_|fix_|gitwho|ppid_check|proclist|read_|run_rounds|who_owns)")
+res = [rel for rel in tracked if _RESIDUE.search(rel.replace("\\", "/"))]
+ok(not res, "T9f no box-residue file is tracked (%d)%s"
+   % (len(res), "" if not res else " :: " + "; ".join(res[:6])))
+
 ok(os.path.isfile(os.path.join(ROOT, "VERSION"))
    and open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip(),
    "T9d VERSION file present and non-empty")

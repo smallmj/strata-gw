@@ -31,3 +31,30 @@ strata-router.py.orig
 
 # engine_source "component": managed spawn copies (never backends, never git)
 runtime/
+
+# ---- operator residue on the Strata box -------------------------------------
+# None of this is source. A careless "git add -A" on that machine is one
+# keystroke from publishing dossier backups, drive-letter scratch and (once
+# upon a time, in tests/fix_true_preset.py) the live engine api key - the T9f
+# pin in tests/test_sanitized.py fails the suite if any of it becomes tracked.
+bak*/
+*.bak
+*.bak-*
+*.pre
+*.out
+engine/BUILD.json
+/.gwstart.bat
+/start-gw.cmd
+/stop-gw.cmd
+/stop-gw.ps1
+# one-off forensic probes the box's debugging sessions left in tests/ - scratch,
+# not suites (they never match tests/test_*.py and must stay untracked)
+/tests/activate.py
+/tests/find_*.py
+/tests/fix_*.py
+/tests/gitwho.py
+/tests/ppid_check.py
+/tests/proclist.py
+/tests/read_*.py
+/tests/run_rounds.py
+/tests/who_owns.py
