@@ -134,10 +134,17 @@ try:
     ok(m.get("exe") == "component:strata-engine", "MC2 exe is the upstream component reference, not a hardcoded path")
     ok(m.get("args") == ["--kv", "k8v4"] and m.get("cwd") == "D:/Strata" and m.get("model_name") == "m1",
        "MC3 everything but exe is inherited untouched")
-    ok(m["vision"]["exe"] == os.path.join(p65, "strata-vision.exe"),
-       "MC4 the picture reader follows the resolved package folder")
     with open(src, encoding="utf-8-sig") as f:
         original = json.load(f)
+    # The component store ships WINDOWS packages, and a scanned config's exe paths
+    # are drive-absolute ("D:/..."), which os.path.isabs() rejects on a POSIX host -
+    # so the picture-reader rewrite only ever fires on the box that runs the engine.
+    # Both faces are pinned: a platform skip must never rot into a silent pass.
+    win_box = os.name == "nt"
+    ok(m["vision"]["exe"] == (os.path.join(p65, "strata-vision.exe") if win_box
+                               else original["vision"]["exe"]),
+       "MC4 the picture reader follows the resolved package folder"
+       + ("" if win_box else " (posix face: the rewrite is Windows-only)"))
     ok(original["exe"].endswith("terminal/engine/strata.exe") and
        original["vision"]["exe"].endswith("terminal/engine/strata-vision.exe"),
        "MC5 the scanned JSON stays read-only")
@@ -153,8 +160,10 @@ try:
 
     p66 = plant_package(store, "0.1.66")
     m3 = json.loads(open(backends.managed_config(src, out_dir=out_dir), encoding="utf-8-sig").read())
-    ok(m3["vision"]["exe"] == os.path.join(p66, "strata-vision.exe"),
-       "MC7 a store update moves the reader with zero gw changes")
+    ok(m3["vision"]["exe"] == (os.path.join(p66, "strata-vision.exe") if win_box
+                               else original["vision"]["exe"]),
+       "MC7 a store update moves the reader with zero gw changes"
+       + ("" if win_box else " (posix face: it stays put, see MC4)"))
 
     # ---- both edit surfaces stay honest ---------------------------------------------------
     import time as _time
