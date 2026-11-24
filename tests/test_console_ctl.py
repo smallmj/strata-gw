@@ -119,10 +119,12 @@ ok(".page.n1" in css and ".page.n2" in css and "transition:transform" in css,
 ok('"page on"' in js and '"page n1"' in js and '"page n2"' in js
    and '"page gone-r"' in js and '"page gone-l"' in js,
    "K15b setPage uses the cascade classes")
-ok("translateX(40px)" in css and "translateX(98px)" in css,
-   "K15c each deeper layer steps out one more strip")
-ok("margin:0 70px" in css and "pointer-events:none}" in css and "pointer-events:auto;" in css,
-   "K15i symmetric peek gutters keep the side strips clickable")
+ok("--deck-peek" in css and "var(--deck-peek)" in css
+   and "calc(var(--deck-peek) * 2)" in css,
+   "K15c each deeper layer steps out one more strip (the shared --deck-peek token)")
+ok("pointer-events:none}" in css and "pointer-events:auto;" in css
+   and "#cards .page .card{margin:0 var(--deck-margin)}" in css,
+   "K15i symmetric gutters (one shared --deck-margin) keep the side strips clickable")
 ok(".pagesw" not in css and 'class="pagesw"' not in html, "K15d ghost-page stacking retired")
 ok("--cardbg" in css and "var(--cardbg)" in css, "K15e opaque card background token")
 ok("#cards" in css and "transition:height" in css and "deckHeight" in js,
@@ -237,8 +239,14 @@ ok(html.find('id="sec-monitor"') < html.find('id="sec-dyn"') < html.find('id="se
    "K26i events moved up, about sits at the bottom")
 ok("max-width:76ch" not in css and "max-width:74ch" not in css,
    "K26j hero/lead no longer width-capped below the other sections")
-ok("margin:0 70px" in css and "translateX(40px)" in css and "translateX(98px)" in css,
-   "K26k deck centered: symmetric 70px gutters, layered peeks kept")
+ok("--deck-margin:84px" in css and "--deck-peek:28px" in css,
+   "K26k deck centered: symmetric gutters + layered peeks, all from tokens")
+# the reported bug: the 3rd card ran past #cardwrap{overflow:hidden}; and the
+# phone rule used to retune ONLY the main card, sliding n1 behind it
+ok("--deck-margin:14px" in css and "--deck-peek:6px" in css,
+   "K26l every breakpoint retunes the deck tokens (phone slack)")
+ok(css.count("#cards .page .card{margin:0 var(--deck-margin)}") >= 3,
+   "K26m the gutter rule is shared by on/n1/n2 at every breakpoint")
 
 # ---- K27 (flicker annihilation): 2s polling must not repaint anything unless
 # the content actually changed; rebuilds are signature-gated, DOM writes are

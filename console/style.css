@@ -752,16 +752,26 @@ details.drawer .dbody .ptitle{display:none}
 .keychip.no{border-color:color-mix(in srgb,var(--q) 55%,var(--line));color:var(--q)}
 .keychip.ok{opacity:.8}
 
-/* ---- ux v7 K15: deck = one solid card in view, neighbours peek 44px, slides on switch ---- */
+/* ---- ux v7 K15: deck = one solid card in view; the neighbours fan out to the
+   right by --deck-peek (n1 = 1 step, n2 = 2 steps), so the furthest visible
+   border sticks out 2*--deck-peek past the main card. The wrapper clips at
+   overflow:hidden, so 2*--deck-peek must stay inside --deck-margin, and the
+   gutters come from ONE shared rule (#cards .page .card) - a breakpoint that
+   retunes --deck-margin without --deck-peek re-clips the third card, and a
+   breakpoint that styles only .page.on slides n1 behind the main card.
+   (measured slack, tests/test_deck_geometry.py: desktop 21/42px peeks,
+   phone 4/8px peeks). ---- */
+#cards{--deck-margin:84px;--deck-peek:28px}
 #cards .page{position:absolute;top:0;left:0;width:100%;
   transition:transform .5s cubic-bezier(.22,.75,.22,1),opacity .45s}
+#cards .page .card{margin:0 var(--deck-margin)}
 #cards .page.on{transform:none;opacity:1;z-index:3;pointer-events:none}
-#cards .page.on .card{margin:0 70px;pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent)}
-#cards .page.n1{transform:translateX(40px) scale(.985);z-index:2;pointer-events:none}
-#cards .page.n1 .card{margin:0 70px;pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent);
+#cards .page.on .card{pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent)}
+#cards .page.n1{transform:translateX(var(--deck-peek)) scale(.985);z-index:2;pointer-events:none}
+#cards .page.n1 .card{pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent);
   border-color:color-mix(in srgb,var(--q) 45%,var(--line))}
-#cards .page.n2{transform:translateX(98px) scale(.97);z-index:1;pointer-events:none}
-#cards .page.n2 .card{margin:0 70px;pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent);
+#cards .page.n2{transform:translateX(calc(var(--deck-peek) * 2)) scale(.97);z-index:1;pointer-events:none}
+#cards .page.n2 .card{pointer-events:auto;background-color:color-mix(in srgb,var(--cardbg) 88%,transparent);
   border-color:color-mix(in srgb,var(--q) 28%,var(--line))}
 #cards .page.n1:hover .card{border-color:var(--q)}
 #cards .page.n2:hover .card{border-color:color-mix(in srgb,var(--q) 65%,var(--line))}
@@ -778,8 +788,8 @@ details.drawer .dbody .ptitle{display:none}
 @media (max-width:1240px){#ctlbar{flex-wrap:wrap}}
 @media (max-width:700px){
   .hero h1{font-size:1.5rem}
-  #cards{padding-top:6px}
-  #cards .page.on .card{margin:0 18px}
+  #cards{padding-top:6px;--deck-margin:14px;--deck-peek:6px}
+  #cards .page .card{margin:0 var(--deck-margin)}
   #cards .art{width:100%;min-height:120px}
 }
 
@@ -847,7 +857,7 @@ html[data-theme=light] .dg-row .cbtn.primary{color:#fff}
   .card{grid-template-columns:minmax(0,1fr);min-height:0;padding:16px 16px 14px;gap:14px}
   .acts{flex-wrap:wrap;height:auto;padding-top:12px}
   .acts button,.acts .statechip{height:36px}
-  #cards .page.on .card{margin:0 14px}
+  #cards .page .card{margin:0 var(--deck-margin)}
   .mechwrap{grid-template-columns:minmax(0,1fr)}
   .hero{margin:16px 0 4px}
   .hero p{font-size:.92rem}
