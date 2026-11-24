@@ -11,6 +11,11 @@ set PY=%1
 if "%PY%"=="" set PY=python
 cd /d "%~dp0.."
 set PYTHONUTF8=1
+rem The suites exercise gw/sweep.py, and a sweep reaps the strata process tree
+rem of the folder it runs from. On this box that folder IS the deployment, so a
+rem bare suite run can take the live gateway - and every model riding it - down
+rem (the SW7 note in tests/test_sweep.py records exactly that). The knob off:
+set STRATA_SWEEP=0
 set FAILS=0
 for %%f in (tests\test_*.py) do (
   echo == %%f

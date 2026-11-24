@@ -95,7 +95,15 @@ and the deployment checkout on the Strata box (the tree the running gateway's
   config; `test_deck_geometry` prints SKIP where no browser is installed). On the
   box run `scripts/run_suites.cmd` — cmd starts there in code page 936 and the
   suites print bilingual labels, so a bare run dies inside a PASS line with
-  `UnicodeEncodeError` and the verdict never arrives.
+  `UnicodeEncodeError` and the verdict never arrives. That runner also sets
+  `STRATA_SWEEP=0`: `gw/sweep.py` reaps the strata tree of the folder it runs
+  from, and on the box that folder IS the deployment (the SW7 note in
+  `tests/test_sweep.py` records the time a suite run killed the live tree).
+- An agent never restarts the box's gateway. The launcher sweeps its own old
+  process tree, so a restart drops every loaded engine — and the model this
+  session is talking through is served by those very engines, through this
+  gateway. Console-only edits need no restart (see above); a `gw/*.py` change
+  does, and restarting is the owner's call, never an agent's.
 - The box keeps scratch beside the checkout (`bak*/`, `cards/*.bak*`, `*.out`,
   `engine/BUILD.json`, one-off `tests/` probes). Those classes are ignored and the
   T9f pin fails the hygiene scan if one is ever tracked — a probe in that pile once

@@ -121,6 +121,18 @@ else:
     res2 = sweep.sweep_orphans()
     ok(res == [] and res2 == [], "SW7a on non-Windows both sweeps are inert no-ops")
 
+# ---- SW7b-d: the box-side gate must carry the two live-box guards ----------
+# A suite run next to the deployment can reap the box (SW7 note above), and the
+# box starts cmd in code page 936, where a bilingual label dies mid-PASS. Both
+# guards live in one file, so they are pinned here rather than trusted to memory.
+rs_path = os.path.join(REPO, "scripts", "run_suites.cmd")
+ok(os.path.isfile(rs_path), "SW7b scripts/run_suites.cmd is the box's one-command gate")
+with open(rs_path, encoding="utf-8") as f:
+    rs = f.read()
+ok("set STRATA_SWEEP=0" in rs,
+   "SW7c the box runner turns the sweep OFF - a suite run must never reap the live tree")
+ok("set PYTHONUTF8=1" in rs,
+   "SW7d the box runner forces UTF-8 stdio (cp936 truncates a bilingual PASS line)")
 # ---- SW8: wiring pins ----------------------------------------------------
 with open(os.path.join(REPO, "gw", "main.py"), encoding="utf-8") as f:
     main_src = f.read()
