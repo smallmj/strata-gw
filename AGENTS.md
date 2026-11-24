@@ -25,7 +25,9 @@ console/style.css       theme, ctlbar, pet stage, monitor tiles
 cards/cards.json        factory cards (persona/dossier/art metadata)
 gw-assets/              pet.png, character art, bg-loop.mp4, uploads/ (git-ignored)
 launcher/               strata-gateway.cmd / .sh — GW_HOME single-line knob
-config-examples/        copy-to templates; api_key fields are intentionally empty
+config-examples/        copy-to templates; api_key fields are intentionally empty;
+                        tuning.example.cmd carries the per-engine env knobs (PF_FUSED,
+                        PREFILL_RING) so tuning is never box-only
 tests/                  see §2
 docs/                   README screenshots
 ```

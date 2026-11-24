@@ -315,4 +315,18 @@ if pv:
         prev = row
     ok(edge_ok, "T10e pet sample edge ring fully transparent (RGBA unfiltered scan)")
 
+# ---- T11 (Phase 11): engine tuning leaves a paper trail --------------------
+# PF_FUSED / PREFILL_RING are per-engine env knobs. When they exist only in one
+# box's private start script, the repo can no longer say how the gateway was
+# tuned, and a fresh install quietly runs with other numbers.
+tu = os.path.join(ROOT, "config-examples", "tuning.example.cmd")
+ok(os.path.isfile(tu), "T11a config-examples/tuning.example.cmd ships the engine knobs")
+if os.path.isfile(tu):
+    with open(tu, encoding="utf-8", errors="replace") as f:
+        _tu = f.read()
+    for knob in ("STRATA_PF_FUSED", "STRATA_PREFILL_RING"):
+        ok(knob in _tu, "T11b %s is documented for the operator" % knob)
+else:
+    ok(False, "T11b both knobs documented")
+
 print("ALL PASS")
