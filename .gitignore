@@ -13,6 +13,10 @@ tools/sim-strata/args_dump.json
 gw-assets/uploads/*
 !gw-assets/uploads/.gitkeep
 
+# OS / sync-agent residue: Synology Drive Client drops .DS_Store folders
+# into every synced directory on the Mac, and they are never content.
+.DS_Store
+
 # runtime state
 router-ports.json
 *.log
